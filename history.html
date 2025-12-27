@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking History | Smart Locker</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      /* Dark mode indigo */
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --accent: #8b5cf6;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      /* Glass effect */
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --danger-dark: #dc2626;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* Navbar */
+    nav {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 5%;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+    }
+
+    .nav-left svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--primary);
+    }
+
+    .nav-back {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: 0.2s;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 16px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+    }
+
+    .nav-back:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .nav-back svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .username {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .logout-btn {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 24px;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      color: var(--text-main);
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .no-history {
+      text-align: center;
+      font-size: 16px;
+      color: var(--text-muted);
+      margin-top: 60px;
+      font-weight: 500;
+    }
+
+    /* History Cards */
+    .history-card {
+      background: var(--surface);
+      padding: 24px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      transition: 0.2s;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .history-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .history-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .history-date {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px 24px;
+    }
+
+    @media (max-width: 600px) {
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .detail-item {
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .clear-btn {
+      width: 100%;
+      max-width: 300px;
+      display: block;
+      margin: 40px auto 0;
+      display: block;
+      margin: 40px auto 0;
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      padding: 14px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 14px;
+      display: none;
+    }
+
+    .clear-btn:hover {
+      background: var(--danger);
+      color: white;
+      border-color: var(--danger);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="nav-left">
+      <a href="face1.html" class="nav-back">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M19 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H19v-2z" />
+        </svg>
+        Back
+      </a>
+      <span style="margin-left:12px; display:flex; align-items:center; gap:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path
+            d="M12 2C9.243 2 7 4.243 7 7v2H6c-1.103 0-2 .897-2 2v9c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-9c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zM9 7c0-1.654 1.346-3 3-3s3 1.346 3 3v2H9V7z" />
+        </svg>
+        Smart Locker
+      </span>
+    </div>
+
+    <div class="nav-right">
+      <div class="username" id="userDisplay">User</div>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2>Booking History</h2>
+
+    <div id="historyList"></div>
+
+    <button id="clearHistory" class="clear-btn">Clear All History</button>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      query,
+      where,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    /* ================= FIREBASE INIT ================= */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+      authDomain: "asep-smart-locker.firebaseapp.com",
+      projectId: "asep-smart-locker",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    /* ================= SESSION CHECK ================= */
+    const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
+    if (!currentUser) {
+      alert("Please login to continue.");
+      window.location.href = "login.html";
+    } else {
+      document.getElementById("userDisplay").textContent =
+        currentUser.name || currentUser.email.split("@")[0];
+    }
+
+    /* ================= LOGOUT ================= */
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    });
+
+    /* ================= LOAD HISTORY ================= */
+    function loadHistory() {
+      const list = document.getElementById("historyList");
+      const clearBtn = document.getElementById("clearHistory");
+      list.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Syncing history...</p>';
+
+      const q = query(
+        collection(db, "bookings"),
+        where("userId", "==", currentUser.uid)
+      );
+
+      // 🔄 Real-time listener for history
+      onSnapshot(q, (snapshot) => {
+        const bookings = [];
+        snapshot.forEach((doc) => {
+          bookings.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Client-side sort
+        bookings.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+
+        if (bookings.length === 0) {
+          list.innerHTML = `<div class="no-history">
+            <svg style="width:48px; height:48px; opacity:0.2; margin-bottom:16px;" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+            </svg>
+            <p>No booking history found.</p>
+          </div>`;
+          clearBtn.style.display = "none";
+        } else {
+          list.innerHTML = "";
+          clearBtn.style.display = "block"; // Changed from "none" to "block" when history exists
+
+          bookings.forEach(entry => {
+            const card = document.createElement("div");
+            card.className = "history-card";
+
+            // Safe number parsing
+            const amount = Number(entry.amount || 0);
+            const hours = Number(entry.hours || 0);
+            const rate = hours > 0 ? (amount / hours) : 70;
+            const gst = amount * 0.18;
+            const dateStr = entry.startTime
+              ? new Date(entry.startTime).toLocaleString()
+              : "Unknown Date";
+
+            card.innerHTML = `
+              <div class="history-header">
+                <div class="history-title">Locker #${entry.lockerId}</div>
+                <div class="history-date">${dateStr}</div>
+              </div>
+
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <span class="detail-label">PIN</span>
+                  <span class="detail-value" style="color:var(--success)">${entry.pin || "####"}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Duration</span>
+                  <span class="detail-value">${hours} hours</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Rate</span>
+                  <span class="detail-value">₹${Math.round(rate)}/hr</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">GST (Included)</span>
+                  <span class="detail-value">₹${gst.toFixed(2)}</span>
+                </div>
+                <div class="detail-item" style="grid-column: 1 / -1; border-top:1px dashed var(--border); padding-top:8px; margin-top:4px;">
+                  <span class="detail-label">Total Paid</span>
+                  <span class="detail-value" style="color:var(--primary);">₹${amount.toFixed(2)}</span>
+                </div>
+              </div>
+            `;
+            list.appendChild(card);
+          });
+        }
+      }, (err) => {
+        console.error("Failed to load history", err);
+        list.innerHTML = `<p style="text-align:center;color:orangered;">Failed to sync with server. Check console.</p>`;
+      });
+    }
+
+    loadHistory();
+
+    loadHistory();
+
+  </script>
+
+  <script src="bg-animation.js"></script>
+</body>
+
+</html>

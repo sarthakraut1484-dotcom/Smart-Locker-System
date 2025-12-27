@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Realtime DB Test</title>
+</head>
+<body>
+
+<h2>Realtime Database Test</h2>
+<button id="btn">Write PIN to Realtime DB</button>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "C:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\tools\esp-x32\2507/bin/xtensa-esp32-elf-g++ -c @C:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.5-f1a1df9b-v3\esp32/flags/cpp_flags -w -Os -Werror=return-type -w -x c++ -E -CC -DF_CPU=240000000L -DARDUINO=10607 -DARDUINO_LILYGO_T_DISPLAY -DARDUINO_ARCH_ESP32 -DARDUINO_BOARD="LILYGO_T_DISPLAY" -DARDUINO_VARIANT="lilygo_t_display" -DARDUINO_PARTITION_default -DARDUINO_HOST_OS="windows" -DARDUINO_FQBN="esp32:esp32:lilygo_t_display:UploadSpeed=921600,CPUFreq=240,FlashFreq=80,FlashMode=qio,FlashSize=4M,PartitionScheme=default,DebugLevel=none,PSRAM=disabled,LoopCore=1,EventsCore=1,EraseFlash=none" -DESP32=ESP32 -DCORE_DEBUG_LEVEL=0 -DARDUINO_RUNNING_CORE=1 -DARDUINO_EVENT_RUNNING_CORE=1 -DARDUINO_USB_CDC_ON_BOOT=0 @C:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.5-f1a1df9b-v3\esp32/flags/defines -IC:\Users\Sarthak Raut\AppData\Local\Temp\.arduinoIDE-unsaved20251123-5284-8lns6b.z7nx\sketch_dec23a -iprefix C:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.5-f1a1df9b-v3\esp32/include/ @C:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.5-f1a1df9b-v3\esp32/flags/includes -IC:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.5-f1a1df9b-v3\esp32/qio_qspi/include -IC:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\hardware\esp32\3.3.3\cores\esp32 -IC:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\hardware\esp32\3.3.3\variants\lilygo_t_display -IC:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\hardware\esp32\3.3.3\libraries\WiFi\src -IC:\Users\Sarthak Raut\AppData\Local\Arduino15\packages\esp32\hardware\esp32\3.3.3\libraries\Network\src @C:\Users\Sarthak Raut\AppData\Local\arduino\sketches\DA2D0B92C3BBD6FBA4E512BE065BA361/build_opt.h @C:\Users\Sarthak Raut\AppData\Local\arduino\sketches\DA2D0B92C3BBD6FBA4E512BE065BA361/file_opts C:\Users\Sarthak Raut\AppData\Local\arduino\sketches\DA2D0B92C3BBD6FBA4E512BE065BA361\sketch\sketch_dec23a.ino.cpp -o nul
+C:\Users\Sarthak Raut\AppData\Local\Temp\.arduinoIDE-unsaved20251123-5284-8lns6b.z7nx\sketch_dec23a\sketch_dec23a.ino:2:10: fatal error: Firebase_ESP_Client.h: No such file or directory
+    2 | #include <Firebase_ESP_Client.h>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+Alternatives for Firebase_ESP_Client.h: []
+ResolveLibrary(Firebase_ESP_Client.h)
+  -> candidates: []
+exit status 1
+
+Compilation error: Firebase_ESP_Client.h: No such file or directory",
+    authDomain: "asep-smart-locker.firebaseapp.com",
+    databaseURL: "https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "YOUR_PROJECT_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  document.getElementById("btn").onclick = () => {
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+
+    set(ref(db, "locker1"), {
+      pin: pin,
+      status: "locked"
+    }).then(() => {
+      alert("PIN written to Realtime DB: " + pin);
+    }).catch(err => {
+      alert("ERROR: " + err.message);
+      console.error(err);
+    });
+  };
+</script>
+
+</body>
+</html>

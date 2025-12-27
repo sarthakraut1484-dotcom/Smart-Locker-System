@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migrate Bookings to RTDB</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log-container {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+        }
+
+        .log-info {
+            color: #2196F3;
+        }
+
+        .log-success {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .log-error {
+            color: #f44336;
+            font-weight: 600;
+        }
+
+        .log-warn {
+            color: #ff9800;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📊 Migrate Bookings to RTDB</h1>
+        <p class="subtitle">This script will sync all active bookings from Firestore to the Realtime Database</p>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalBookings">0</div>
+                <div class="stat-label">Total Found</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="migratedCount">0</div>
+                <div class="stat-label">Migrated</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="errorCount">0</div>
+                <div class="stat-label">Errors</div>
+            </div>
+        </div>
+
+        <button id="migrateBtn" class="btn">Start Migration</button>
+
+        <div class="log-container" id="logContainer">
+            <div class="log-entry log-info">📋 Waiting to start migration...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import {
+            getFirestore,
+            collection,
+            getDocs,
+            query,
+            where
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import {
+            getDatabase,
+            ref,
+            set
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        /* ================= FIREBASE INIT ================= */
+        const firebaseConfig = {
+            apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+            authDomain: "asep-smart-locker.firebaseapp.com",
+            databaseURL: "https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "asep-smart-locker",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const rtdb = getDatabase(app);
+
+        /* ================= LOGGING ================= */
+        const logContainer = document.getElementById("logContainer");
+        const totalBookingsEl = document.getElementById("totalBookings");
+        const migratedCountEl = document.getElementById("migratedCount");
+        const errorCountEl = document.getElementById("errorCount");
+
+        let totalBookings = 0;
+        let migratedCount = 0;
+        let errorCount = 0;
+
+        function log(message, type = "info") {
+            const entry = document.createElement("div");
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = message;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStats() {
+            totalBookingsEl.textContent = totalBookings;
+            migratedCountEl.textContent = migratedCount;
+            errorCountEl.textContent = errorCount;
+        }
+
+        /* ================= MIGRATION LOGIC ================= */
+        async function migrateBookings() {
+            const migrateBtn = document.getElementById("migrateBtn");
+            migrateBtn.disabled = true;
+            migrateBtn.textContent = "Migration in progress...";
+
+            logContainer.innerHTML = "";
+            log("🚀 Starting migration process...", "info");
+            log("─".repeat(60), "info");
+
+            try {
+                // Get all active bookings from Firestore
+                log("📥 Fetching bookings from Firestore...", "info");
+                const bookingsRef = collection(db, "bookings");
+                const now = Date.now();
+
+                // Query for all confirmed bookings that haven't expired
+                const q = query(
+                    bookingsRef,
+                    where("status", "==", "CONFIRMED"),
+                    where("sessionEnd", ">", now)
+                );
+
+                const snapshot = await getDocs(q);
+                totalBookings = snapshot.size;
+                updateStats();
+
+                log(`✅ Found ${totalBookings} active booking(s)`, "success");
+                log("─".repeat(60), "info");
+
+                if (totalBookings === 0) {
+                    log("ℹ️ No active bookings to migrate", "info");
+                    migrateBtn.textContent = "Migration Complete (No Data)";
+                    return;
+                }
+
+                // Migrate each booking to RTDB
+                const migrations = [];
+                snapshot.forEach((docSnap) => {
+                    const booking = docSnap.data();
+                    log(`\n🔄 Processing Locker #${booking.lockerId}...`, "info");
+                    log(`   📌 PIN: ${booking.pin}`, "info");
+                    log(`   ⏰ Expires: ${new Date(booking.sessionEnd).toLocaleString()}`, "info");
+
+                    const migration = set(ref(rtdb, `lockers/${booking.lockerId}`), {
+                        status: "ACTIVE",
+                        pin: booking.pin,
+                        sessionEnd: booking.sessionEnd,
+                        userId: booking.userId,
+                        migratedAt: Date.now()
+                    })
+                        .then(() => {
+                            log(`   ✅ Locker #${booking.lockerId} migrated successfully!`, "success");
+                            migratedCount++;
+                            updateStats();
+                        })
+                        .catch((err) => {
+                            log(`   ❌ Failed to migrate Locker #${booking.lockerId}: ${err.message}`, "error");
+                            errorCount++;
+                            updateStats();
+                        });
+
+                    migrations.push(migration);
+                });
+
+                // Wait for all migrations to complete
+                await Promise.all(migrations);
+
+                log("─".repeat(60), "info");
+                log("\n🎉 Migration Complete!", "success");
+                log(`✅ Successfully migrated: ${migratedCount}/${totalBookings}`, "success");
+
+                if (errorCount > 0) {
+                    log(`⚠️ Errors encountered: ${errorCount}`, "warn");
+                }
+
+                log("\n💡 You can now close this page.", "info");
+                log("🔧 Your hardware devices can access the PIN and status from RTDB!", "info");
+
+                migrateBtn.textContent = "Migration Complete ✓";
+                migrateBtn.style.background = "#4CAF50";
+
+            } catch (err) {
+                log(`\n❌ Critical Error: ${err.message}`, "error");
+                console.error(err);
+                migrateBtn.textContent = "Migration Failed - Retry";
+                migrateBtn.disabled = false;
+            }
+        }
+
+        /* ================= EVENT LISTENERS ================= */
+        document.getElementById("migrateBtn").addEventListener("click", migrateBookings);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms & Conditions | Smart Locker</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    #flickering-grid-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 5%;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 20px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      text-decoration: none;
+      transition: 0.3s;
+    }
+
+    .logo:hover {
+      transform: scale(1.02);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-actions a {
+      text-decoration: none;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: 0.3s;
+      font-size: 14px;
+    }
+
+    .nav-actions a:hover {
+      color: var(--primary);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border: none;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 50px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+      color: white;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 100px 24px 60px;
+    }
+
+    .hero h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 42px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    /* Terms Cards */
+    .terms {
+      max-width: 900px;
+      margin: -40px auto 60px;
+      padding: 0 24px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .term-box {
+      background: var(--surface);
+      padding: 32px;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      opacity: 0;
+      transform: translateY(30px);
+      transition: 0.6s;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .term-box.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .term-box h3 {
+      font-family: 'Outfit', sans-serif;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .term-box p {
+      color: var(--text-muted);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    /* Footer */
+    footer {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 60px 20px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+
+    .footer-links {
+      margin: 24px 0;
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: 0.2s;
+      font-weight: 500;
+      font-size: 15px;
+    }
+
+    .footer-links a:hover {
+      color: var(--primary);
+    }
+
+    .copy {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .nav-actions {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="flickering-grid-canvas"></canvas>
+  <header class="navbar">
+    <a href="index.html" class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+      <span>Smart Locker</span>
+    </a>
+    <div class="nav-actions">
+      <a href="login.html">Login</a>
+      <a href="signup.html" class="btn-primary" style="color:white; padding:10px 24px;">Sign Up</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>Terms & Conditions</h1>
+    <p style="color:var(--text-muted);">Last updated: January 2025</p>
+  </section>
+
+  <section class="terms">
+    <div class="term-box">
+      <h3>1. User Responsibility</h3>
+      <p>Users are responsible for ensuring that their belongings are securely placed and locked. The company is not
+        liable for damage due to improper use of the lockers. Do not store illegal or hazardous items.</p>
+    </div>
+    <div class="term-box">
+      <h3>2. Payment Policy</h3>
+      <p>All bookings are prepaid and non-refundable. Each session is time-tracked and must be renewed before expiration
+        to avoid account penalties or automatic lock closure.</p>
+    </div>
+    <div class="term-box">
+      <h3>3. Security & Access</h3>
+      <p>PINs are unique per session and should not be shared. Unauthorized access attempts, sharing of credentials, or
+        tampering with the locker hardware will result in permanent account suspension.</p>
+    </div>
+    <div class="term-box">
+      <h3>4. Service Availability</h3>
+      <p>Smart Locker strives for 24/7 uptime; however, maintenance or technical interruptions may occur periodically.
+        We are not liable for losses caused by unforeseen downtime.</p>
+    </div>
+    <div class="term-box">
+      <h3>5. Data Privacy</h3>
+      <p>User data is encrypted and used solely for booking and verification purposes. No personal data is shared with
+        third parties.</p>
+    </div>
+  </section>
+
+  <footer>
+    <div style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:700; margin-bottom:8px;">Smart Locker
+      System</div>
+    <div class="footer-links">
+      <a href="contact.html">Contact</a>
+      <a href="about.html">About</a>
+      <a href="terms.html" style="color:white;">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </div>
+    <p class="copy">© 2025 Smart Locker System. All rights reserved.</p>
+  </footer>
+
+  <script>
+    class FlickeringGrid {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.squareSize = 40;
+        this.gridGap = 5;
+        this.flickerChance = 0;
+        this.color = 'rgb(30, 30, 30)';
+        this.flickerColor = 'rgb(100, 100, 100)';
+
+        this.cols = 0;
+        this.rows = 0;
+        this.squares = [];
+        this.lastTime = 0;
+        this.flickerInterval = 50;
+        this.flickerTimer = 0;
+
+        this.init();
+      }
+
+      init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate(0);
+      }
+
+      resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+
+        this.cols = Math.ceil(this.canvas.width / (this.squareSize + this.gridGap));
+        this.rows = Math.ceil(this.canvas.height / (this.squareSize + this.gridGap));
+
+        this.squares = new Array(this.cols * this.rows).fill(0).map(() => ({
+          opacity: 1,
+          flickering: false,
+          flickerDuration: 0,
+          currentFlickerTime: 0
+        }));
+      }
+
+      draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for (let i = 0; i < this.cols; i++) {
+          for (let j = 0; j < this.rows; j++) {
+            const index = i * this.rows + j;
+            const square = this.squares[index];
+            const x = i * (this.squareSize + this.gridGap);
+            const y = j * (this.squareSize + this.gridGap);
+
+            if (square.flickering) {
+              this.ctx.fillStyle = this.flickerColor;
+              this.ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+            } else {
+              this.ctx.fillStyle = this.color;
+              this.ctx.globalAlpha = 1;
+            }
+
+            this.ctx.fillRect(x, y, this.squareSize, this.squareSize);
+          }
+        }
+        this.ctx.globalAlpha = 1;
+      }
+
+      update(deltaTime) {
+        this.flickerTimer += deltaTime;
+
+        if (this.flickerTimer > this.flickerInterval) {
+          for (let i = 0; i < this.squares.length; i++) {
+            const square = this.squares[i];
+
+            if (square.flickering) {
+              square.currentFlickerTime += this.flickerInterval;
+              if (square.currentFlickerTime > square.flickerDuration) {
+                square.flickering = false;
+              }
+            } else if (Math.random() < this.flickerChance * 0.1) {
+              square.flickering = true;
+              square.flickerDuration = Math.random() * 500 + 200;
+              square.currentFlickerTime = 0;
+            }
+          }
+          this.flickerTimer = 0;
+        }
+      }
+
+      animate(time) {
+        const deltaTime = time - this.lastTime;
+        this.lastTime = time;
+
+        this.update(deltaTime);
+        this.draw();
+
+        requestAnimationFrame((t) => this.animate(t));
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('flickering-grid-canvas');
+      new FlickeringGrid(canvas);
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.term-box').forEach(el => observer.observe(el));
+  </script>
+</body>
+
+</html>
