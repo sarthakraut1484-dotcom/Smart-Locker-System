@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us | Smart Locker</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    #flickering-grid-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 5%;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 20px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      text-decoration: none;
+      transition: 0.3s;
+    }
+
+    .logo:hover {
+      transform: scale(1.02);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-actions a {
+      text-decoration: none;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: 0.3s;
+      font-size: 14px;
+    }
+
+    .nav-actions a:hover {
+      color: var(--primary);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border: none;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 50px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+      color: white;
+    }
+
+    /* Hero */
+    .contact-hero {
+      text-align: center;
+      padding: 100px 24px 60px;
+    }
+
+    .contact-hero h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .contact-hero p {
+      color: var(--text-muted);
+      font-size: 18px;
+    }
+
+    /* Info Cards */
+    .info-section {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 32px;
+      margin: -40px auto 60px;
+      padding: 0 24px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .info-card {
+      background: var(--surface);
+      width: 300px;
+      padding: 40px 32px;
+      border-radius: 20px;
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+      transition: 0.3s;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .info-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 40px rgba(79, 70, 229, 0.15);
+      border-color: var(--primary);
+    }
+
+    .info-card i {
+      font-size: 36px;
+      color: var(--primary);
+      margin-bottom: 24px;
+    }
+
+    .info-card h3 {
+      font-family: 'Outfit', sans-serif;
+      margin-bottom: 12px;
+      color: var(--text-main);
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .info-card p {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    /* Contact Form */
+    .contact-container {
+      max-width: 600px;
+      margin: 0 auto 80px;
+      padding: 48px;
+      background: var(--surface);
+      border-radius: 24px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: 0.6s;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .contact-container.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    form input,
+    form textarea {
+      width: 100%;
+      padding: 16px;
+      margin: 12px 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      transition: 0.3s;
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--text-main);
+    }
+
+    form input:focus,
+    form textarea:focus {
+      border-color: var(--primary);
+      outline: none;
+      background: rgba(0, 0, 0, 0.4);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    form button {
+      width: 100%;
+      padding: 16px;
+      margin-top: 24px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    form button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(79, 70, 229, 0.25);
+    }
+
+    /* Footer */
+    footer {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 60px 20px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+
+    .footer-links {
+      margin: 24px 0;
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: 0.2s;
+      font-weight: 500;
+      font-size: 15px;
+    }
+
+    .footer-links a:hover {
+      color: var(--primary);
+    }
+
+    .copy {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .contact-hero h1 {
+        font-size: 36px;
+      }
+
+      .contact-container {
+        padding: 32px 24px;
+        margin: 0 20px 80px;
+      }
+
+      .nav-actions {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="flickering-grid-canvas"></canvas>
+  <header class="navbar">
+    <a href="index.html" class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+      <span>Smart Locker</span>
+    </a>
+    <div class="nav-actions">
+      <a href="login.html">Login</a>
+      <a href="signup.html" class="btn-primary" style="color:white; padding:10px 24px;">Sign Up</a>
+    </div>
+  </header>
+
+  <section class="contact-hero">
+    <h1>Let’s Talk</h1>
+    <p>We’re here to help you 24/7. Reach out anytime.</p>
+  </section>
+
+  <section class="info-section">
+    <div class="info-card">
+      <i class="fa-solid fa-envelope"></i>
+      <h3>Email Support</h3>
+      <p>support@smartlocker.com</p>
+    </div>
+
+    <div class="info-card">
+      <i class="fa-solid fa-phone"></i>
+      <h3>Call Us</h3>
+      <p>+91 98765 43210</p>
+    </div>
+
+    <div class="info-card">
+      <i class="fa-solid fa-clock"></i>
+      <h3>Working Hours</h3>
+      <p>Mon - Sun: 9:00 AM - 9:00 PM</p>
+    </div>
+  </section>
+
+  <section class="contact-container">
+    <form id="contactForm">
+      <input type="text" placeholder="Your Name" required>
+      <input type="email" placeholder="Your Email" required>
+      <textarea rows="5" placeholder="How can we help?" required></textarea>
+      <button type="submit">Send Message</button>
+    </form>
+  </section>
+
+  <footer>
+    <div style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:700; margin-bottom:8px;">Smart Locker
+      System</div>
+    <div class="footer-links">
+      <a href="contact.html" style="color:white;">Contact</a>
+      <a href="about.html">About</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </div>
+    <p class="copy">© 2025 Smart Locker System. All rights reserved.</p>
+  </footer>
+
+  <script>
+    class FlickeringGrid {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.squareSize = 40;
+        this.gridGap = 5;
+        this.flickerChance = 0;
+        this.color = 'rgb(30, 30, 30)';
+        this.flickerColor = 'rgb(100, 100, 100)';
+
+        this.cols = 0;
+        this.rows = 0;
+        this.squares = [];
+        this.lastTime = 0;
+        this.flickerInterval = 50;
+        this.flickerTimer = 0;
+
+        this.init();
+      }
+
+      init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate(0);
+      }
+
+      resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+
+        this.cols = Math.ceil(this.canvas.width / (this.squareSize + this.gridGap));
+        this.rows = Math.ceil(this.canvas.height / (this.squareSize + this.gridGap));
+
+        this.squares = new Array(this.cols * this.rows).fill(0).map(() => ({
+          opacity: 1,
+          flickering: false,
+          flickerDuration: 0,
+          currentFlickerTime: 0
+        }));
+      }
+
+      draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for (let i = 0; i < this.cols; i++) {
+          for (let j = 0; j < this.rows; j++) {
+            const index = i * this.rows + j;
+            const square = this.squares[index];
+            const x = i * (this.squareSize + this.gridGap);
+            const y = j * (this.squareSize + this.gridGap);
+
+            if (square.flickering) {
+              this.ctx.fillStyle = this.flickerColor;
+              this.ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+            } else {
+              this.ctx.fillStyle = this.color;
+              this.ctx.globalAlpha = 1;
+            }
+
+            this.ctx.fillRect(x, y, this.squareSize, this.squareSize);
+          }
+        }
+        this.ctx.globalAlpha = 1;
+      }
+
+      update(deltaTime) {
+        this.flickerTimer += deltaTime;
+
+        if (this.flickerTimer > this.flickerInterval) {
+          for (let i = 0; i < this.squares.length; i++) {
+            const square = this.squares[i];
+
+            if (square.flickering) {
+              square.currentFlickerTime += this.flickerInterval;
+              if (square.currentFlickerTime > square.flickerDuration) {
+                square.flickering = false;
+              }
+            } else if (Math.random() < this.flickerChance * 0.1) {
+              square.flickering = true;
+              square.flickerDuration = Math.random() * 500 + 200;
+              square.currentFlickerTime = 0;
+            }
+          }
+          this.flickerTimer = 0;
+        }
+      }
+
+      animate(time) {
+        const deltaTime = time - this.lastTime;
+        this.lastTime = time;
+
+        this.update(deltaTime);
+        this.draw();
+
+        requestAnimationFrame((t) => this.animate(t));
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('flickering-grid-canvas');
+      new FlickeringGrid(canvas);
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.2 });
+
+    document.querySelectorAll('.contact-container').forEach(el => observer.observe(el));
+
+    const form = document.getElementById('contactForm');
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      alert('Message sent successfully! We will get back to you soon.');
+      form.reset();
+    });
+  </script>
+</body>
+
+</html>

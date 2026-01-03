@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unlock Locker | Smart Locker</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      /* Dark mode indigo */
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --accent: #8b5cf6;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      /* Glass effect */
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #10b981;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* Navbar */
+    nav {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 5%;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+    }
+
+    .nav-left svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--primary);
+    }
+
+    .nav-back {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: 0.2s;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 16px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+    }
+
+    .nav-back:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .nav-back svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .username {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .logout-btn {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 24px;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      color: var(--text-main);
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .status-card {
+      background: var(--surface);
+      padding: 32px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      text-align: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .status-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .status {
+      font-size: 24px;
+      font-weight: 800;
+      padding: 8px 24px;
+      border-radius: 50px;
+      letter-spacing: 1px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status.locked {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+    }
+
+    .status.locked::after {
+      content: "🔒";
+      font-size: 20px;
+    }
+
+    .status.unlocked {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .status.unlocked::after {
+      content: "🔓";
+      font-size: 20px;
+    }
+
+    /* New Status for Ready state */
+    .status.ready {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--secondary);
+    }
+
+    .status.ready::after {
+      content: "👋";
+      font-size: 20px;
+    }
+
+    .time-remaining {
+      font-size: 32px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    /* Compact Unlock Info */
+    .unlock-info {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      display: inline-flex;
+      justify-content: center;
+      gap: 12px;
+      align-items: center;
+      color: var(--text-main);
+      font-size: 12px;
+      margin-top: 12px;
+    }
+
+    .unlock-info b {
+      font-size: 14px;
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .extend-btn {
+      margin-top: 16px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .extend-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+
+    .extend-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      max-width: 400px;
+      width: 90%;
+      backdrop-filter: blur(12px);
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 20px;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .time-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .time-option {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .time-option:hover {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .time-option.selected {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.15);
+    }
+
+    .time-option-label {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .time-option-cost {
+      font-size: 14px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid var(--border);
+    }
+
+    .modal-btn-cancel {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .modal-btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .modal-btn-confirm {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .modal-btn-confirm:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .modal-btn-confirm:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .grid-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .instructions,
+    .pin-section {
+      background: var(--surface);
+      padding: 24px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      height: 100%;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    h3 {
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .instructions li {
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .pin-section {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .pin-inputs {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .pin-inputs input {
+      width: 56px;
+      height: 64px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--primary);
+      pointer-events: none;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (max-width: 768px) {
+      .grid-row {
+        grid-template-columns: 1fr;
+      }
+
+      .container {
+        padding: 0 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="nav-left">
+      <a href="face1.html" class="nav-back">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M19 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H19v-2z" />
+        </svg>
+        Back
+      </a>
+      <span style="margin-left:12px; display:flex; align-items:center; gap:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path
+            d="M12 2C9.243 2 7 4.243 7 7v2H6c-1.103 0-2 .897-2 2v9c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-9c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zM9 7c0-1.654 1.346-3 3-3s3 1.346 3 3v2H9V7z" />
+        </svg>
+        Smart Locker
+      </span>
+    </div>
+
+    <div class="nav-right">
+      <div class="username" id="userDisplay">User</div>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container">
+    <h2 id="lockerTitle">Unlock Locker</h2>
+
+    <div class="status-card">
+      <div class="status-top">
+        <div class="status" id="lockerStatus">LOADING...</div>
+        <div>
+          <div class="time-label">Time Remaining</div>
+          <div class="time-remaining" id="timeRemaining">--:--:--</div>
+        </div>
+
+        <!-- Extend Button -->
+        <button id="extendBtn" class="extend-btn" style="display:none;">
+          <svg style="width:16px;height:16px;fill:currentColor;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path
+              d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm1-13h-2v6h6v-2h-4z" />
+          </svg>
+          Extend Time
+        </button>
+      </div>
+
+      <div class="unlock-info">
+        <span>Total Unlocks: </span><b id="totalUnlocks">0</b>
+      </div>
+    </div>
+
+    <div class="grid-row">
+      <div class="instructions">
+        <h3>How to Unlock</h3>
+        <ol>
+          <li>Go to your locker at the station.</li>
+          <li>Tap the touch sensor on the locker door.</li>
+          <li>Enter the PIN displayed on the right.</li>
+          <li>Door will unlock automatically.</li>
+        </ol>
+      </div>
+
+      <div class="pin-section">
+        <h3>Generic PIN</h3>
+        <div class="pin-inputs" id="pinInputs">
+          <input type="text" maxlength="1" readonly>
+          <input type="text" maxlength="1" readonly>
+          <input type="text" maxlength="1" readonly>
+          <input type="text" maxlength="1" readonly>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Time Extension Modal -->
+  <div class="modal-overlay" id="extendModal">
+    <div class="modal-content">
+      <div class="modal-header">⏱️ Extend Booking Time</div>
+      <div class="time-selector">
+        <div class="time-option" data-hours="0.5">
+          <span class="time-option-label">30 Minutes</span>
+          <span class="time-option-cost">₹35</span>
+        </div>
+        <div class="time-option" data-hours="1">
+          <span class="time-option-label">1 Hour</span>
+          <span class="time-option-cost">₹70</span>
+        </div>
+        <div class="time-option" data-hours="2">
+          <span class="time-option-label">2 Hours</span>
+          <span class="time-option-cost">₹140</span>
+        </div>
+        <div class="time-option" data-hours="3">
+          <span class="time-option-label">3 Hours</span>
+          <span class="time-option-cost">₹210</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" id="modalCancel">Cancel</button>
+        <button class="modal-btn modal-btn-confirm" id="modalConfirm" disabled>Confirm Payment</button>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, updateDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getDatabase, ref, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    /* ================= FIREBASE INIT ================= */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+      authDomain: "asep-smart-locker.firebaseapp.com",
+      databaseURL: "https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "asep-smart-locker",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+
+    // 🔒 Ensure user logged in
+    const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
+    if (!currentUser) {
+      alert("Please login first!");
+      window.location.href = "login.html";
+    } else {
+      document.getElementById("userDisplay").textContent = currentUser.name || currentUser.email.split("@")[0];
+    }
+
+    // 🔑 Read selected locker information
+    const selected = JSON.parse(sessionStorage.getItem("selectedLocker"));
+    if (!selected) {
+      alert("No locker selected!");
+      window.location.href = "face1.html";
+    }
+
+    const lockerId = selected.locker || selected.id;
+    document.getElementById("lockerTitle").textContent = `Locker ${lockerId}`;
+    const lockerIdNumeric = lockerId.replace("locker_", "");
+
+    /* ================= SHARED STATE ================= */
+    let localStartTime = 0;
+    let currentDuration = 0;
+
+    /* ================= MODAL LOGIC ================= */
+    const modal = document.getElementById("extendModal");
+    const extendBtn = document.getElementById("extendBtn");
+    const modalCancel = document.getElementById("modalCancel");
+    const modalConfirm = document.getElementById("modalConfirm");
+    const timeOptions = document.querySelectorAll(".time-option");
+
+    let selectedHours = null;
+
+    // Open modal
+    extendBtn.addEventListener("click", () => {
+      modal.classList.add("active");
+      selectedHours = null;
+      modalConfirm.disabled = true;
+      timeOptions.forEach(opt => opt.classList.remove("selected"));
+    });
+
+    // Close modal
+    modalCancel.addEventListener("click", () => {
+      modal.classList.remove("active");
+    });
+
+    // Click outside modal to close
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        modal.classList.remove("active");
+      }
+    });
+
+    // Time option selection
+    timeOptions.forEach(option => {
+      option.addEventListener("click", () => {
+        timeOptions.forEach(opt => opt.classList.remove("selected"));
+        option.classList.add("selected");
+        selectedHours = parseFloat(option.dataset.hours);
+        modalConfirm.disabled = false;
+      });
+    });
+
+    // Confirm extension
+    modalConfirm.addEventListener("click", async () => {
+      if (!selectedHours) return;
+
+      modal.classList.remove("active");
+
+      const cost = selectedHours * 70;
+      const label = selectedHours === 0.5 ? "30 Minutes" :
+        selectedHours === 1 ? "1 Hour" :
+          `${selectedHours} Hours`;
+
+      const confirmed = confirm(`Extend locker booking by ${label}? Cost: ₹${cost}`);
+
+      if (confirmed) {
+        alert("Payment Successful!");
+
+        try {
+          const addMillis = selectedHours * 3600000;
+          const newDuration = currentDuration + addMillis;
+
+          const newSessionEnd = (localStartTime > 0) ? (localStartTime + newDuration) : 0;
+
+          await updateDoc(doc(db, "lockers", `locker_${lockerIdNumeric}`), {
+            duration: newDuration,
+            sessionEnd: newSessionEnd
+          });
+
+          await update(ref(rtdb, `lockers/${lockerIdNumeric}`), {
+            duration: newDuration,
+            sessionEnd: newSessionEnd
+          });
+
+          alert(`Time Extended Successfully! (+${label})`);
+        } catch (e) {
+          console.error(e);
+          alert("Failed to extend time. Please try again.");
+        }
+      }
+    });
+
+    /* ================= RTDB UNLOCK COUNT LISTENER ================= */
+    const unlocksRef = ref(rtdb, `lockers/${lockerIdNumeric}/unlockCount`);
+    onValue(unlocksRef, async (snapshot) => {
+      const count = snapshot.val() || 0;
+      const el = document.getElementById("totalUnlocks");
+      if (el) el.textContent = count;
+
+      // FORCE START TRIGGER: If unlocked at least once...
+      if (count > 0) {
+        try {
+          // 1. Fetch comprehensive state from Firestore first
+          const lockerDocRef = doc(db, "lockers", `locker_${lockerIdNumeric}`);
+          const docSnap = await getDoc(lockerDocRef);
+
+          if (!docSnap.exists()) return;
+
+          const data = docSnap.data();
+
+          // 2. Only proceed if locker is ACTIVE
+          if (data.status === "ACTIVE") {
+            // 3. Check for existing start time in Firestore OR RTDB
+            let existingStart = data.startTime;
+
+            if (!existingStart || existingStart === 0) {
+              // Double check RTDB just in case
+              const stRef = ref(rtdb, `lockers/${lockerIdNumeric}/startTime`);
+              const stSnap = await get(stRef);
+              existingStart = stSnap.val();
+            }
+
+            // 4. If absolutely NO start time found anywhere, THEN start it
+            if (!existingStart || existingStart === 0) {
+              console.log("Unlock detected & no start time found. Starting timer...");
+              const now = Date.now();
+              localStartTime = now;
+
+              // Calculate initial SessionEnd
+              const sessionEnd = now + (data.duration || 0);
+
+              await updateDoc(lockerDocRef, { startTime: now, sessionEnd: sessionEnd });
+              await update(ref(rtdb, `lockers/${lockerIdNumeric}`), { startTime: now, sessionEnd: sessionEnd });
+            } else {
+              // Timer is already valid, ensure localState matches
+              localStartTime = existingStart;
+            }
+          }
+        } catch (err) {
+          console.error("Error in unlock logic:", err);
+        }
+      }
+    });
+
+    /* ================= REAL-TIME TIMER LOGIC ================= */
+    const lockerRef = doc(db, "lockers", `locker_${lockerId}`);
+    const rtdbStartTimeRef = ref(rtdb, `lockers/${lockerIdNumeric}/startTime`);
+
+    let timerInterval = null;
+
+    // 1. Listen to RTDB for immediate Start Time update from ESP32
+    onValue(rtdbStartTimeRef, (snapshot) => {
+      const val = snapshot.val();
+      // Check if value is a valid numeric timestamp (and not placeholder object)
+      if (typeof val === 'number' && val > 0) {
+        localStartTime = val;
+
+        // Sync to Firestore if missing there
+        updateDoc(doc(db, "lockers", `locker_${lockerIdNumeric}`), {
+          startTime: val
+        }).catch(() => { });
+      }
+    });
+
+    // 2. Listen to Firestore for general status
+    onSnapshot(lockerRef, (docSnap) => {
+      if (!docSnap.exists()) return;
+
+      const data = docSnap.data();
+      const pin = data.currentPin || "####";
+      const duration = data.duration || 0;
+      currentDuration = duration;
+
+      // START TIME PRIORITY: Firestore > Local RTDB Cache > 0
+      const startTime = data.startTime || localStartTime || 0;
+
+      // Display PIN
+      const pinBoxes = document.querySelectorAll(".pin-inputs input");
+      const pinStr = String(pin).padStart(4, "0");
+      pinBoxes.forEach((box, i) => { box.value = pinStr[i] || "-"; });
+
+      const statusEl = document.getElementById("lockerStatus");
+      const timeRemainingEl = document.getElementById("timeRemaining");
+      const extendBtn = document.getElementById("extendBtn");
+
+      if (timerInterval) clearInterval(timerInterval);
+
+      // --- STATUS LOGIC ---
+
+      // A. Active but NO Start Time -> READY STATE
+      if (data.status === "ACTIVE" && (!startTime || startTime === 0)) {
+        statusEl.className = "status ready"; // Blue
+        statusEl.textContent = "READY TO START";
+        timeRemainingEl.textContent = "Open Locker First";
+        timeRemainingEl.style.fontSize = "20px";
+        extendBtn.style.display = "inline-flex"; // Allow extending even before start
+      }
+
+      // B. Active WITH Start Time -> TIMER RUNNING
+      else if (data.status === "ACTIVE" && startTime > 0) {
+
+        statusEl.className = "status locked"; // Red
+        statusEl.textContent = "LOCKED";
+
+        extendBtn.style.display = "inline-flex";
+
+        // Calculate Session End dynamically based on potentially new duration
+        // Note: data.sessionEnd should ideally match this, but we calc to be safe on UI
+        const sessionEnd = startTime + duration;
+
+        const updateTimer = () => {
+          const now = Date.now();
+          const diff = sessionEnd - now;
+
+          if (diff <= 0) {
+            clearInterval(timerInterval);
+            expireLocker();
+            return;
+          }
+
+          timeRemainingEl.style.fontSize = "32px";
+          const h = Math.floor(diff / (1000 * 60 * 60));
+          const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const s = Math.floor((diff % (1000 * 60)) / 1000);
+          timeRemainingEl.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        };
+
+        timerInterval = setInterval(updateTimer, 1000);
+        updateTimer(); // Immediate run
+      }
+
+      // C. Inactive / Expired
+      else {
+        statusEl.className = "status unlocked";
+        statusEl.textContent = "UNLOCKED";
+        timeRemainingEl.textContent = "00:00:00";
+        extendBtn.style.display = "none";
+      }
+
+      function expireLocker() {
+        statusEl.className = "status unlocked";
+        statusEl.textContent = "UNLOCKED";
+        timeRemainingEl.textContent = "00:00:00";
+        extendBtn.style.display = "none";
+
+        if (data.status === "ACTIVE") {
+          const updates = { status: "AVAILABLE", startTime: null, duration: 0, currentPin: null, userId: null, sessionEnd: 0 };
+          updateDoc(doc(db, "lockers", `locker_${lockerIdNumeric}`), updates);
+          update(ref(rtdb, `lockers/${lockerIdNumeric}`), { status: "AVAILABLE", pin: null, startTime: 0, duration: 0, unlockCount: 0, sessionEnd: 0 });
+        }
+      }
+    });
+
+    // 🚪 Logout
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    });
+  </script>
+
+  <script src="bg-animation.js"></script>
+</body>
+
+</html>

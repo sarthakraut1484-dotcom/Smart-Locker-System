@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Locker Dashboard</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      /* Dark mode indigo */
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --accent: #8b5cf6;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      /* Glass effect */
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Navbar */
+    nav {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 5%;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-left svg {
+      width: 28px;
+      height: 28px;
+      fill: url(#gradient-primary);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .username {
+      font-size: 15px;
+      color: var(--text-main);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logout-btn {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+
+    .logout-btn:hover {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+      transform: translateY(-1px);
+    }
+
+    /* Main Content */
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 24px;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      color: var(--text-main);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .welcome {
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      font-size: 16px;
+    }
+
+    /* Stats Grid */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: var(--surface);
+      padding: 28px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      opacity: 0;
+      transition: 0.3s;
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .card-title {
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .card-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Action Cards */
+    .action-card {
+      cursor: pointer;
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+
+    .action-card .card-title {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .action-card .card-value {
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 28px;
+    }
+
+    .action-card:hover {
+      transform: translateY(-4px) scale(1.02);
+    }
+
+    .secondary-card {
+      background: rgba(255, 255, 255, 0.05);
+      /* Slightly lighter glass */
+      cursor: pointer;
+    }
+
+    .secondary-card .card-value {
+      color: var(--primary);
+      font-size: 28px;
+    }
+
+    /* Active Bookings Section */
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .active-box {
+      background: var(--surface);
+      padding: 24px;
+      border-radius: var(--radius);
+      margin-top: 20px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .active-box:hover {
+      transform: scale(1.01);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary);
+    }
+
+    .box-left {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .active-box-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 18px;
+      color: var(--text-main);
+    }
+
+    .active-box-details {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .box-right {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      padding: 12px 20px;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: 0.3s;
+    }
+
+    .active-box:hover .box-right {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px dashed var(--border);
+    }
+
+    .empty-state h3 {
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-left span {
+        display: none;
+      }
+
+      .container {
+        padding: 0 20px;
+        margin: 20px auto;
+      }
+
+      .active-box {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+      }
+
+      .box-right {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- SVG Gradient Definition -->
+  <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+    <linearGradient id="gradient-primary" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+  </svg>
+
+  <nav>
+    <div class="nav-left">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path
+          d="M12 2C9.243 2 7 4.243 7 7v2H6c-1.103 0-2 .897-2 2v9c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-9c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zM9 7c0-1.654 1.346-3 3-3s3 1.346 3 3v2H9V7z" />
+      </svg>
+      <span>Smart Locker</span>
+    </div>
+
+    <div class="nav-right">
+      <div class="username" id="userNameDisplay">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        User
+      </div>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2 id="welcomeUser">Hi, User! 👋</h2>
+    <p class="welcome">Here's what's happening with your lockers today.</p>
+
+    <div class="stats">
+      <div class="card">
+        <div class="card-title">Active Bookings</div>
+        <div class="card-value" id="activeBookings">0</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Available Lockers</div>
+        <div class="card-value" id="availableLockers">0</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Total Spent</div>
+        <div class="card-value" id="totalSpent">₹0</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="card action-card" onclick="window.location.href='select-locker.html'">
+        <div class="card-title">New Booking</div>
+        <div class="card-value">Book Locker <span>→</span></div>
+      </div>
+
+      <div class="card secondary-card" onclick="window.location.href='history.html'">
+        <div class="card-title">Records</div>
+        <div class="card-value">View History</div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      Your Active Lockers
+    </div>
+    <div id="activeBoxContainer"></div>
+  </div>
+  <!-- Shared Locker Data -->
+  <script src="locker-data.js"></script>
+  <script src="bg-animation.js"></script>
+
+  <script type="module">
+    /* ================= FIREBASE IMPORTS ================= */
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      query,
+      where,
+      onSnapshot,
+      doc,
+      updateDoc,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getDatabase, ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    /* ================= FIREBASE INIT ================= */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+      authDomain: "asep-smart-locker.firebaseapp.com",
+      databaseURL: "https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "asep-smart-locker",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+    const auth = getAuth(app);
+
+    /* ================= AUTH STATE LISTENER ================= */
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in, verify/update session storage
+        const sessionUser = {
+          uid: user.uid,
+          email: user.email,
+          name: user.email.split("@")[0],
+          loginTime: Date.now()
+        };
+        sessionStorage.setItem("currentUser", JSON.stringify(sessionUser));
+
+        initializeDashboard(user);
+      } else {
+        // No user is signed in, redirect to login
+        window.location.href = "login.html";
+      }
+    });
+
+    function initializeDashboard(user) {
+      /* ================= USER NAME DISPLAY ================= */
+      const username = user.email.split("@")[0];
+
+      document.getElementById("welcomeUser").innerHTML = `Hi, ${username}! 👋`;
+
+      document.getElementById("userNameDisplay").innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        ${username}
+      `;
+
+      /* ================= REAL-TIME DASHBOARD ================= */
+      setupBookingsListener(user.uid);
+      setupLockersListener();
+
+      // periodic cleanup
+      setInterval(checkAndExpireLockers, 15000);
+      checkAndExpireLockers();
+    }
+
+    async function checkAndExpireLockers() {
+      try {
+        const snapshot = await getDocs(collection(db, "lockers"));
+        const now = Date.now();
+
+        snapshot.forEach(async (docSnap) => {
+          const data = docSnap.data();
+          // Condition 1: Active AND Started AND Expired
+          if (data.status === "ACTIVE" && data.startTime && (data.startTime + data.duration <= now)) {
+            console.log(`Expiring locker ${docSnap.id}...`);
+
+            // 1. Update Firestore
+            await updateDoc(doc(db, "lockers", docSnap.id), {
+              status: "AVAILABLE",
+              userId: null,
+              startTime: null,
+              duration: 0,
+              currentPin: null,
+              sessionEnd: null // Legacy cleanup
+            });
+
+            // 2. Update RTDB
+            const lockerIdNumeric = docSnap.id.replace("locker_", "");
+            await update(ref(rtdb, `lockers/${lockerIdNumeric}`), {
+              status: "AVAILABLE",
+              pin: null,
+              startTime: 0,
+              duration: 0,
+              sessionEnd: 0
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Error expired check:", err);
+      }
+    }
+
+    function setupBookingsListener(uid) {
+      // 1. Listen to OWN active lockers directly from Lockers collection
+      // This ensures we ONLY show what is currently active in the system status.
+      // The previous method queried 'bookings' history which might not be updated on expire.
+      const lockersQuery = query(
+        collection(db, "lockers"),
+        where("userId", "==", uid),
+        where("status", "==", "ACTIVE")
+      );
+
+      onSnapshot(lockersQuery, (snapshot) => {
+        let activeCount = 0;
+        const activeBoxContainer = document.getElementById("activeBoxContainer");
+        activeBoxContainer.innerHTML = "";
+
+        if (snapshot.empty) {
+          showEmptyState(activeBoxContainer);
+          document.getElementById("activeBookings").textContent = 0;
+          calculateTotalSpent(uid); // Still calc spent
+          return;
+        }
+
+        let hasActive = false;
+
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const lockerId = docSnap.id.replace("locker_", "");
+
+          const now = Date.now();
+          let isActive = true;
+
+          // Double check: If it has started, is it expired?
+          if (data.startTime && (data.startTime + data.duration <= now)) {
+            isActive = false;
+          }
+
+          if (isActive) {
+            activeCount++;
+            hasActive = true;
+
+            // Format data for render (bookings doc has 'lockerId', lockers doc has 'id' implied)
+            const renderData = {
+              lockerId: lockerId,
+              pin: data.currentPin,
+              startTime: data.startTime,
+              duration: data.duration
+            };
+            renderActiveBooking(activeBoxContainer, renderData);
+          }
+        });
+
+        if (!hasActive) {
+          showEmptyState(activeBoxContainer);
+        }
+
+        document.getElementById("activeBookings").textContent = activeCount;
+
+        // Calculate Total Spent separately
+        calculateTotalSpent(uid);
+
+      }, (error) => {
+        console.error("Error fetching active lockers:", error);
+      });
+    }
+
+    async function calculateTotalSpent(uid) {
+      const q = query(collection(db, "bookings"), where("userId", "==", uid));
+      try {
+        const snap = await getDocs(q);
+        let total = 0;
+        snap.forEach(d => total += Number(d.data().amount || 0));
+        document.getElementById("totalSpent").textContent = `₹${total}`;
+      } catch (e) {
+        console.error("Error calculating spent:", e);
+      }
+    }
+
+    function setupLockersListener() {
+      const TOTAL_LOCKERS = 20;
+      onSnapshot(collection(db, "lockers"), (snapshot) => {
+        let bookedCount = 0;
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          // Count if ACTIVE
+          if (data.status === "ACTIVE") {
+            // If started, ensure not expired
+            if (data.startTime) {
+              if (data.startTime + data.duration > Date.now()) {
+                bookedCount++;
+              }
+            } else {
+              // Not started yet = Booked
+              bookedCount++;
+            }
+          }
+        });
+        const availableTotal = Math.max(0, TOTAL_LOCKERS - bookedCount);
+        document.getElementById("availableLockers").textContent = availableTotal;
+      });
+    }
+
+    function showEmptyState(container) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <h3>No Active Bookings</h3>
+          <p>Your booked lockers will appear here.</p>
+        </div>
+      `;
+    }
+
+    function renderActiveBooking(container, data) {
+      const box = document.createElement("div");
+      box.className = "active-box";
+
+      let statusText = "";
+      if (!data.startTime) {
+        statusText = `<span style="color:var(--secondary);">Ready to Start</span>`;
+      } else {
+        const expiresAt = new Date(data.startTime + data.duration);
+        statusText = `Expires: ${expiresAt.toLocaleTimeString()}`;
+      }
+
+      box.innerHTML = `
+        <div class="box-left">
+          <div class="active-box-title">Locker #${data.lockerId}</div>
+          <div class="active-box-details">
+            Pin: <strong>${data.pin}</strong><br>
+            ${statusText}
+          </div>
+        </div>
+        <div class="box-right">View/Unlock</div>
+      `;
+      box.onclick = () => {
+        // Pass essential data for unlock page
+        sessionStorage.setItem("selectedLocker", JSON.stringify({
+          id: data.lockerId,
+          pin: data.pin,
+          startTime: data.startTime, // Pass startTime
+          duration: data.duration    // Pass duration
+        }));
+        window.location.href = "unlock.html";
+      };
+      container.appendChild(box);
+    }
+
+    /* ================= LOGOUT ================= */
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      auth.signOut().then(() => {
+        sessionStorage.clear();
+        window.location.href = "login.html";
+      });
+    });
+  </script>
+</body>
+
+</html>

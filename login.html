@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Locker Login</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      /* Slightly lighter indigo for dark mode */
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      /* Glass effect */
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: #000;
+      /* Dark background for Flickering Grid */
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      overflow: hidden;
+      /* Prevent scrollbars from canvas */
+    }
+
+    #flickering-grid-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .login-container {
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 40px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
+      animation: fadeUp 0.6s ease-out;
+      position: relative;
+      z-index: 10;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .logo svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 15px;
+      transition: 0.2s;
+      outline: none;
+      color: var(--text-main);
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-top: 10px;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      color: #94a3b8;
+      font-size: 13px;
+      margin: 24px 0;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .divider span {
+      padding: 0 10px;
+    }
+
+    .google-btn {
+      width: 100%;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      /* Transparent white */
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: 0.2s;
+    }
+
+    .google-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .links {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .links a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .links a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+
+
+<body>
+  <canvas id="flickering-grid-canvas"></canvas>
+
+  <div class="login-container">
+    <div class="header">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <h1>Welcome Back</h1>
+      <p class="subtitle">Please enter your details to sign in.</p>
+    </div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="emailPhone">Email Address</label>
+        <input type="email" id="email" placeholder="Enter your email" required>
+
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+      </div>
+
+      <button type="submit" class="login-btn">Login</button>
+    </form>
+
+
+
+    <div class="links">
+      Don't have an account? <a href="signup.html">Sign up</a><br><br>
+      <a href="index.html" style="color:var(--text-muted); font-weight:500;">← Back to Home</a>
+    </div>
+  </div>
+
+  <script>
+    class FlickeringGrid {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.squareSize = 40; // Size of each grid square
+        this.gridGap = 5; // Gap between squares
+        this.flickerChance = 0; // Probability of a square flickering
+        this.color = 'rgb(30, 30, 30)'; // Base color of squares
+        this.flickerColor = 'rgb(100, 100, 100)'; // Brighter color for flicker
+
+        this.cols = 0;
+        this.rows = 0;
+        this.squares = [];
+        this.lastTime = 0;
+        this.flickerInterval = 50; // Ms between flicker updates
+        this.flickerTimer = 0;
+
+        this.init();
+      }
+
+      init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate(0);
+      }
+
+      resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+
+        this.cols = Math.ceil(this.canvas.width / (this.squareSize + this.gridGap));
+        this.rows = Math.ceil(this.canvas.height / (this.squareSize + this.gridGap));
+
+        // Initialize squares with base state
+        this.squares = new Array(this.cols * this.rows).fill(0).map(() => ({
+          opacity: 1,
+          flickering: false,
+          flickerDuration: 0,
+          currentFlickerTime: 0
+        }));
+      }
+
+      draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for (let i = 0; i < this.cols; i++) {
+          for (let j = 0; j < this.rows; j++) {
+            const index = i * this.rows + j;
+            const square = this.squares[index];
+            const x = i * (this.squareSize + this.gridGap);
+            const y = j * (this.squareSize + this.gridGap);
+
+            if (square.flickering) {
+              this.ctx.fillStyle = this.flickerColor;
+              this.ctx.globalAlpha = Math.random() * 0.5 + 0.5; // Random brightness while flickering
+            } else {
+              this.ctx.fillStyle = this.color;
+              this.ctx.globalAlpha = 1;
+            }
+
+            this.ctx.fillRect(x, y, this.squareSize, this.squareSize);
+          }
+        }
+        this.ctx.globalAlpha = 1; // Reset alpha
+      }
+
+      update(deltaTime) {
+        this.flickerTimer += deltaTime;
+
+        if (this.flickerTimer > this.flickerInterval) {
+          // Update flicker states
+          for (let i = 0; i < this.squares.length; i++) {
+            const square = this.squares[i];
+
+            if (square.flickering) {
+              square.currentFlickerTime += this.flickerInterval;
+              if (square.currentFlickerTime > square.flickerDuration) {
+                square.flickering = false;
+              }
+            } else if (Math.random() < this.flickerChance * 0.1) { // Low chance to start flickering
+              square.flickering = true;
+              square.flickerDuration = Math.random() * 500 + 200; // Flicker for 200-700ms
+              square.currentFlickerTime = 0;
+            }
+          }
+          this.flickerTimer = 0;
+        }
+      }
+
+      animate(time) {
+        const deltaTime = time - this.lastTime;
+        this.lastTime = time;
+
+        this.update(deltaTime);
+        this.draw();
+
+        requestAnimationFrame((t) => this.animate(t));
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('flickering-grid-canvas');
+      new FlickeringGrid(canvas);
+    });
+
+
+  </script>
+  <script type="module" src="login.js"></script>
+</body>
+
+</html>

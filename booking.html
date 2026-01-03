@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complete Your Booking | Smart Locker</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      /* Dark mode indigo */
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --accent: #8b5cf6;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      /* Glass effect */
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    nav {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 5%;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+    }
+
+    .nav-left svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--primary);
+    }
+
+    .nav-back {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: 0.2s;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 16px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+    }
+
+    .nav-back:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .nav-back svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .username {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .logout-btn {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 24px;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      color: var(--text-main);
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 32px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .card h3 {
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 15px;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .duration-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .duration-btn {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .duration-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .duration-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .custom-duration {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--text-main);
+    }
+
+    .custom-duration input {
+      width: 70px;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      outline: none;
+      transition: 0.2s;
+    }
+
+    .custom-duration input:focus {
+      border-color: var(--primary);
+    }
+
+    .summary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .summary hr {
+      margin: 16px 0;
+      border-top: 1px dashed var(--border);
+      border-bottom: none;
+    }
+
+    .total .detail-label {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .total .detail-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .payment-btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-top: 8px;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .payment-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+    }
+
+    /* FUNCTIONAL FIX: allow clicking over bg animation */
+    .container,
+    .card,
+    .duration-btn,
+    .custom-duration,
+    .payment-btn {
+      position: relative;
+      z-index: 5;
+      pointer-events: auto;
+    }
+
+    body::before {
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav>
+    <div class="nav-left">
+      <a href="select-locker.html" class="nav-back">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M19 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H19v-2z" />
+        </svg>
+        Back
+      </a>
+      <span style="margin-left:12px; display:flex; align-items:center; gap:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path
+            d="M12 2C9.243 2 7 4.243 7 7v2H6c-1.103 0-2 .897-2 2v9c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-9c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zM9 7c0-1.654 1.346-3 3-3s3 1.346 3 3v2H9V7z" />
+        </svg>
+        Smart Locker
+      </span>
+    </div>
+
+    <div class="nav-right">
+      <div class="username" id="userDisplay">User</div>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2>Complete Booking</h2>
+
+    <div class="card">
+      <h3>Locker Details</h3>
+      <div class="detail-row"><span class="detail-label">Locker ID</span><span class="detail-value"
+          id="lockerId">#</span></div>
+      <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value">Pune Junction, Coach
+          S3</span></div>
+      <div class="detail-row"><span class="detail-label">Size Category</span><span class="detail-value"
+          id="lockerSize"></span></div>
+    </div>
+
+    <div class="card">
+      <h3>Select Duration</h3>
+      <div class="duration-buttons">
+        <button class="duration-btn" data-hours="1">1 Hour</button>
+        <button class="duration-btn" data-hours="2">2 Hours</button>
+        <button class="duration-btn active" data-hours="3">3 Hours</button>
+        <button class="duration-btn" data-hours="4">4 Hours</button>
+        <button class="duration-btn" data-hours="5">5 Hours</button>
+      </div>
+
+      <div class="custom-duration">
+        Or enter custom hours:
+        <input type="number" id="customHours" min="1" max="24" placeholder="3" />
+      </div>
+    </div>
+
+    <div class="card summary">
+      <h3>Payment Summary</h3>
+      <div class="detail-row"><span class="detail-label">Locker (#<span id="summaryLocker"></span>)</span><span
+          class="detail-value" id="summaryDuration">3 hours</span></div>
+      <div class="detail-row"><span class="detail-label">Rate per hour</span><span class="detail-value"
+          id="summaryRate"></span></div>
+      <div class="detail-row"><span class="detail-label">Subtotal</span><span class="detail-value"
+          id="summaryAmount"></span></div>
+      <hr />
+      <div class="detail-row total"><span class="detail-label">Grand Total</span><span class="detail-value"
+          id="summaryTotal"></span></div>
+    </div>
+
+    <button type="button" class="payment-btn" id="proceedBtn">
+      Proceed to Payment
+    </button>
+
+  </div>
+  <script type="module">
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      runTransaction,
+      collection,
+      addDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import {
+      getDatabase,
+      ref,
+      set
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    /* ================= FIREBASE INIT ================= */
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+      authDomain: "asep-smart-locker.firebaseapp.com",
+      databaseURL: "https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "asep-smart-locker",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+
+    /* ================= URL PARAM CHECK (QR Code Support) ================= */
+    const urlParams = new URLSearchParams(window.location.search);
+    // Check both 'id' (from ESP32) and 'lockerId' (legacy) parameters
+    const lockerIdParam = urlParams.get('id') || urlParams.get('lockerId') || '4'; // Default to Locker 4
+
+    // Always set locker in session storage
+    const lockerObj = {
+      id: lockerIdParam,
+      size: "Standard",
+      price: 70
+    };
+    sessionStorage.setItem("selectedLocker", JSON.stringify(lockerObj));
+
+    /* ================= AUTH STATE CHECK ================= */
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        document.getElementById("userDisplay").textContent = user.email.split("@")[0];
+      } else {
+        // Safe Redirect: Store return URL in session
+        sessionStorage.setItem("postLoginRedirect", window.location.href);
+        window.location.href = "login.html";
+      }
+    });
+
+    /* ================= LOCKER CHECK ================= */
+
+    const locker = JSON.parse(sessionStorage.getItem("selectedLocker"));
+    if (!locker) {
+      alert("Please select a locker first.");
+      window.location.href = "select-locker.html";
+    }
+
+    document.getElementById("lockerId").textContent = "#" + locker.id;
+    document.getElementById("lockerSize").textContent = locker.size;
+    document.getElementById("summaryLocker").textContent = locker.id;
+
+    /* ================= BOOKING LOGIC ================= */
+
+    let rate = typeof locker.price === 'number' ? locker.price : parseInt(locker.price.toString().replace("₹", "").replace("/hr", ""));
+    let selectedHours = 3;
+
+    /* ===== DURATION SELECTION FIX ===== */
+
+    const durationBtns = document.querySelectorAll(".duration-btn");
+    const customInput = document.getElementById("customHours");
+
+    function updatePaymentSummaryUI() {
+      const subtotal = rate * selectedHours;
+
+      document.getElementById("summaryDuration").textContent = `${selectedHours} hours`;
+      document.getElementById("summaryRate").textContent = `₹${rate}/hr`;
+      document.getElementById("summaryAmount").textContent = `₹${subtotal}`;
+      document.getElementById("summaryTotal").textContent = `₹${subtotal}`;
+    }
+
+    durationBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        durationBtns.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        selectedHours = Number(btn.dataset.hours);
+        customInput.value = selectedHours;
+
+        updatePaymentSummaryUI();
+      });
+    });
+
+    customInput.addEventListener("input", () => {
+      selectedHours = Number(customInput.value) || 1;
+      durationBtns.forEach(b => b.classList.remove("active"));
+      updatePaymentSummaryUI();
+    });
+
+    // Initial render
+    updatePaymentSummaryUI();
+
+    function generatePIN() {
+      return Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
+    document.getElementById("proceedBtn").addEventListener("click", async () => {
+      console.log("Proceed Button Clicked");
+      if (!currentUser) {
+        console.error("No currentUser found!");
+        alert("User not authenticated. Please wait or login again.");
+        return;
+      }
+      console.log("Authenticated User:", currentUser.uid);
+
+      const pin = generatePIN();
+      const durationMs = selectedHours * 60 * 60 * 1000;
+
+      const lockerRef = doc(db, "lockers", `locker_${locker.id}`);
+      console.log("Target Locker Ref:", lockerRef.path);
+
+      try {
+        // 1. Transaction to prevent double booking
+        console.log("Starting Transaction...");
+        await runTransaction(db, async (transaction) => {
+          const lockerSnap = await transaction.get(lockerRef);
+          const data = lockerSnap.exists() ? lockerSnap.data() : null;
+
+          // Check if active and NOT expired.
+          // New Logic: Check if status is ACTIVE. Expiry check depends on if started.
+          if (data && data.status === "ACTIVE") {
+            // If started, check expiry
+            if (data.startTime && (data.startTime + data.duration > Date.now())) {
+              throw new Error("This locker is already booked.");
+            }
+            // If not started (startTime is null), it's still booked (waiting for user).
+            if (data.startTime === null) {
+              throw new Error("This locker is booked and waiting for the user.");
+            }
+          }
+
+          transaction.set(lockerRef, {
+            status: "ACTIVE",
+            currentPin: pin,
+            startTime: null,      // Timer hasn't started yet
+            duration: durationMs, // Store planned duration
+            lastUpdated: Date.now(),
+            userId: currentUser.uid
+          });
+        });
+        console.log("Transaction Committed! Locker state updated.");
+
+        // 2. Add to Bookings History
+        const amount = rate * selectedHours;
+        const bookingData = {
+          userId: currentUser.uid,
+          lockerId: locker.id,
+          hours: selectedHours,
+          amount: amount,
+          pin: pin,
+          createdAt: Date.now(),
+          startTime: null,
+          duration: durationMs,
+          status: "CONFIRMED"
+        };
+        console.log("Attempting adding booking doc:", bookingData);
+
+        const docRef = await addDoc(collection(db, "bookings"), bookingData);
+        console.log("Booking Doc Added! ID:", docRef.id);
+
+        // 3. Update Realtime Database
+        try {
+          await set(ref(rtdb, `lockers/${locker.id}`), {
+            status: "ACTIVE",
+            pin: pin,
+            startTime: 0, // 0 indicates not started
+            duration: durationMs
+          });
+          console.log("✅ RTDB Updated Successfully!");
+        } catch (e) {
+          console.warn("⚠️ RTDB Update Failed:", e);
+        }
+
+        // ✅ SHOW CONFIRMATION
+        alert(
+          `Booking Confirmed!\n\nLocker: ${locker.id}\nPIN: ${pin}\nDuration: ${selectedHours} hours`
+        );
+
+        // Optional: store for dashboard confirmation
+        sessionStorage.setItem("bookingSuccess", JSON.stringify({
+          lockerId: locker.id,
+          pin: pin,
+          hours: selectedHours
+        }));
+
+        console.log("Redirecting to face1.html...");
+        // ✅ REDIRECT AFTER USER CLICKS OK
+        window.location.href = "face1.html";
+
+      } catch (err) {
+        console.error("Booking Error:", err);
+        alert(err.message || "Booking failed. Please try again.");
+      }
+    });
+
+    /* ================= LOGOUT ================= */
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    });
+  </script>
+
+
+
+  <script src="bg-animation.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up | Smart Locker System</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      /* Slightly lighter indigo for dark mode */
+      --primary-dark: #4f46e5;
+      --secondary: #38bdf8;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.03);
+      /* Glass effect */
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: #000;
+      /* Dark background for Flickering Grid */
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      padding-top: 40px;
+      /* Extra padding for taller form */
+      padding-bottom: 40px;
+      /* overflow: hidden; Removed to allow scrolling if form is tall */
+    }
+
+    #flickering-grid-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .container {
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 40px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
+      animation: fadeUp 0.6s ease-out;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .icon {
+      width: 64px;
+      height: 64px;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 24px;
+    }
+
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      position: relative;
+      text-align: left;
+    }
+
+    .form-group i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 16px;
+      transition: 0.2s;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px 12px 42px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      outline: none;
+      font-size: 15px;
+      color: var(--text-main);
+      transition: 0.2s;
+      background: transparent;
+    }
+
+    label {
+      position: absolute;
+      left: 42px;
+      top: 13px;
+      color: #94a3b8;
+      font-size: 14px;
+      pointer-events: none;
+      transition: 0.2s;
+      background: transparent;
+      padding: 0 4px;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    input:focus+label,
+    input:not(:placeholder-shown)+label {
+      top: -9px;
+      left: 36px;
+      font-size: 12px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    input:focus~i {
+      color: var(--primary);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+
+    .login-link {
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .login-link a,
+    .back-home a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .login-link a:hover,
+    .back-home a:hover {
+      text-decoration: underline;
+    }
+
+    .back-home {
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 30px 20px;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+
+
+<body>
+
+  <canvas id="flickering-grid-canvas"></canvas>
+
+  <div class="container">
+    <div class="icon">
+      <i class="fa-solid fa-lock"></i>
+    </div>
+
+    <h2>Create Account</h2>
+    <p class="subtitle">Join Smart Locker System today</p>
+
+    <form id="signupForm">
+      <div class="form-group">
+        <input type="text" id="name" placeholder=" " required />
+        <label for="name">Full Name</label>
+        <i class="fa-regular fa-user"></i>
+      </div>
+
+      <div class="form-group">
+        <input type="email" id="email" placeholder=" " required />
+        <label for="email">Email Address</label>
+        <i class="fa-regular fa-envelope"></i>
+      </div>
+
+      <div class="form-group">
+        <input type="tel" id="phone" placeholder=" " required />
+        <label for="phone">Phone Number</label>
+        <i class="fa-solid fa-phone"></i>
+      </div>
+
+      <div class="form-group">
+        <input type="password" id="password" placeholder=" " required />
+        <label for="password">Password</label>
+        <i class="fa-solid fa-lock"></i>
+      </div>
+
+      <div class="form-group">
+        <input type="password" id="confirm" placeholder=" " required />
+        <label for="confirm">Confirm Password</label>
+        <i class="fa-solid fa-lock"></i>
+      </div>
+
+      <button class="btn" type="submit">Create Account</button>
+    </form>
+
+    <p class="login-link">Already have an account? <a href="login.html">Log In</a></p>
+    <p class="back-home"><a href="index.html">← Back to Home</a></p>
+  </div>
+
+  <!-- Signup Script -->
+ 
+
+
+  <script>
+    class FlickeringGrid {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.squareSize = 40;
+        this.gridGap = 5;
+        this.flickerChance = 0;
+        this.color = 'rgb(30, 30, 30)';
+        this.flickerColor = 'rgb(100, 100, 100)';
+
+        this.cols = 0;
+        this.rows = 0;
+        this.squares = [];
+        this.lastTime = 0;
+        this.flickerInterval = 50;
+        this.flickerTimer = 0;
+
+        this.init();
+      }
+
+      init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate(0);
+      }
+
+      resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+
+        this.cols = Math.ceil(this.canvas.width / (this.squareSize + this.gridGap));
+        this.rows = Math.ceil(this.canvas.height / (this.squareSize + this.gridGap));
+
+        this.squares = new Array(this.cols * this.rows).fill(0).map(() => ({
+          opacity: 1,
+          flickering: false,
+          flickerDuration: 0,
+          currentFlickerTime: 0
+        }));
+      }
+
+      draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for (let i = 0; i < this.cols; i++) {
+          for (let j = 0; j < this.rows; j++) {
+            const index = i * this.rows + j;
+            const square = this.squares[index];
+            const x = i * (this.squareSize + this.gridGap);
+            const y = j * (this.squareSize + this.gridGap);
+
+            if (square.flickering) {
+              this.ctx.fillStyle = this.flickerColor;
+              this.ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+            } else {
+              this.ctx.fillStyle = this.color;
+              this.ctx.globalAlpha = 1;
+            }
+
+            this.ctx.fillRect(x, y, this.squareSize, this.squareSize);
+          }
+        }
+        this.ctx.globalAlpha = 1;
+      }
+
+      update(deltaTime) {
+        this.flickerTimer += deltaTime;
+
+        if (this.flickerTimer > this.flickerInterval) {
+          for (let i = 0; i < this.squares.length; i++) {
+            const square = this.squares[i];
+
+            if (square.flickering) {
+              square.currentFlickerTime += this.flickerInterval;
+              if (square.currentFlickerTime > square.flickerDuration) {
+                square.flickering = false;
+              }
+            } else if (Math.random() < this.flickerChance * 0.1) {
+              square.flickering = true;
+              square.flickerDuration = Math.random() * 500 + 200;
+              square.currentFlickerTime = 0;
+            }
+          }
+          this.flickerTimer = 0;
+        }
+      }
+
+      animate(time) {
+        const deltaTime = time - this.lastTime;
+        this.lastTime = time;
+
+        this.update(deltaTime);
+        this.draw();
+
+        requestAnimationFrame((t) => this.animate(t));
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('flickering-grid-canvas');
+      new FlickeringGrid(canvas);
+    });
+  </script>
+ <script type="module" src="signup.js"></script>
+</body>
+
+</html>
