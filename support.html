@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support | Smart Locker</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #38bdf8;
+            --background: #000000;
+            --surface: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+            --radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        #flickering-grid-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 5%;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+            color: var(--primary);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .logo:hover {
+            transform: scale(1.02);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-actions a {
+            text-decoration: none;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .nav-actions a:hover {
+            color: var(--primary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+            color: white;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 120px 24px 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 56px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -1px;
+        }
+
+        .hero h1 span {
+            color: var(--primary);
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Content */
+        .content {
+            max-width: 1100px;
+            margin: -60px auto 80px;
+            padding: 0 24px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .support-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .support-card {
+            background: var(--surface);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .support-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .support-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .support-icon {
+            width: 70px;
+            height: 70px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 32px;
+            transition: 0.3s;
+        }
+
+        .support-card:hover .support-icon {
+            background: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .support-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 12px;
+        }
+
+        .support-card p {
+            color: var(--text-muted);
+            font-size: 15px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .support-card a {
+            display: inline-block;
+            padding: 10px 24px;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .support-card a:hover {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+        }
+
+        /* Contact Form */
+        .contact-form {
+            background: var(--surface);
+            padding: 48px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            max-width: 700px;
+            margin: 0 auto;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .contact-form.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .contact-form h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            color: var(--primary);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 15px;
+            outline: none;
+            transition: 0.3s;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-group select {
+            cursor: pointer;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+        }
+
+        /* Footer */
+        footer {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 60px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            margin-top: 80px;
+        }
+
+        .footer-links {
+            margin: 24px 0;
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: 0.2s;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .copy {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 42px;
+            }
+
+            .support-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .contact-form {
+                padding: 32px 24px;
+            }
+
+            .nav-actions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="flickering-grid-canvas"></canvas>
+
+    <header class="navbar">
+        <a href="index.html" class="logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Smart Locker</span>
+        </a>
+        <div class="nav-actions">
+            <a href="login.html">Login</a>
+            <a href="signup.html" class="btn-primary" style="color:white; padding:10px 24px;">Sign Up</a>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>We're Here to <span>Help</span></h1>
+        <p>Get in touch with our support team for any questions or assistance.</p>
+    </section>
+
+    <section class="content">
+        <div class="support-grid">
+            <div class="support-card">
+                <div class="support-icon">📧</div>
+                <h3>Email Support</h3>
+                <p>Send us an email and we'll respond within 24 hours.</p>
+                <a href="mailto:support@smartlocker.com">support@smartlocker.com</a>
+            </div>
+
+            <div class="support-card">
+                <div class="support-icon">💬</div>
+                <h3>Live Chat</h3>
+                <p>Chat with our support team in real-time for instant help.</p>
+                <a href="#" onclick="alert('Live chat feature coming soon!'); return false;">Start Chat</a>
+            </div>
+
+            <div class="support-card">
+                <div class="support-icon">📞</div>
+                <h3>Phone Support</h3>
+                <p>Call us Monday-Saturday, 9 AM - 8 PM IST.</p>
+                <a href="tel:+911234567890">+91 123 456 7890</a>
+            </div>
+
+            <div class="support-card">
+                <div class="support-icon">❓</div>
+                <h3>FAQ</h3>
+                <p>Find quick answers to common questions.</p>
+                <a href="faq.html">View FAQ</a>
+            </div>
+
+            <div class="support-card">
+                <div class="support-icon">📍</div>
+                <h3>Visit Us</h3>
+                <p>Stop by our office for in-person assistance.</p>
+                <a href="contact.html">Get Directions</a>
+            </div>
+
+            <div class="support-card">
+                <div class="support-icon">🐦</div>
+                <h3>Social Media</h3>
+                <p>Follow us for updates and quick support.</p>
+                <a href="#" onclick="alert('Social links coming soon!'); return false;">@SmartLocker</a>
+            </div>
+        </div>
+
+        <div class="contact-form">
+            <h2>Send Us a Message</h2>
+            <form id="supportForm" onsubmit="return handleSubmit(event)">
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required placeholder="your.email@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+91 98765 43210">
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Issue Category *</label>
+                    <select id="category" name="category" required>
+                        <option value="">Select a category</option>
+                        <option value="booking">Booking Issues</option>
+                        <option value="payment">Payment Problems</option>
+                        <option value="access">Access & PIN Issues</option>
+                        <option value="technical">Technical Support</option>
+                        <option value="refund">Refund Request</option>
+                        <option value="feedback">Feedback</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="subject">Subject *</label>
+                    <input type="text" id="subject" name="subject" required
+                        placeholder="Brief description of your issue">
+                </div>
+
+                <div class="form-group">
+                    <label for="message">Message *</label>
+                    <textarea id="message" name="message" required
+                        placeholder="Please provide detailed information about your issue..."></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn">Submit Request</button>
+            </form>
+        </div>
+
+        <div
+            style="text-align: center; margin-top: 60px; padding: 40px; background: var(--surface); border-radius: 20px; border: 1px solid var(--border);">
+            <h3 style="font-family: 'Outfit', sans-serif; color: var(--primary); margin-bottom: 16px; font-size: 24px;">
+                Operating Hours</h3>
+            <p style="color: var(--text-muted); font-size: 16px; line-height: 1.8;">
+                <strong style="color: var(--text-main);">Monday - Friday:</strong> 9:00 AM - 8:00 PM IST<br>
+                <strong style="color: var(--text-main);">Saturday:</strong> 10:00 AM - 6:00 PM IST<br>
+                <strong style="color: var(--text-main);">Sunday:</strong> Closed (Email support available)
+            </p>
+        </div>
+    </section>
+
+    <footer>
+        <div style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:700; margin-bottom:8px;">Smart Locker
+            System</div>
+        <div class="footer-links">
+            <a href="contact.html">Contact</a>
+            <a href="about.html">About</a>
+            <a href="terms.html">Terms</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html" style="color:white;">Support</a>
+        </div>
+        <p class="copy">© 2025 Smart Locker System. All rights reserved.</p>
+    </footer>
+
+    <script>
+        class FlickeringGrid {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.squareSize = 40;
+                this.gridGap = 5;
+                this.flickerChance = 0;
+                this.color = 'rgb(30, 30, 30)';
+                this.flickerColor = 'rgb(100, 100, 100)';
+
+                this.cols = 0;
+                this.rows = 0;
+                this.squares = [];
+                this.lastTime = 0;
+                this.flickerInterval = 50;
+                this.flickerTimer = 0;
+
+                this.init();
+            }
+
+            init() {
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.animate(0);
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+
+                this.cols = Math.ceil(this.canvas.width / (this.squareSize + this.gridGap));
+                this.rows = Math.ceil(this.canvas.height / (this.squareSize + this.gridGap));
+
+                this.squares = new Array(this.cols * this.rows).fill(0).map(() => ({
+                    opacity: 1,
+                    flickering: false,
+                    flickerDuration: 0,
+                    currentFlickerTime: 0
+                }));
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                for (let i = 0; i < this.cols; i++) {
+                    for (let j = 0; j < this.rows; j++) {
+                        const index = i * this.rows + j;
+                        const square = this.squares[index];
+                        const x = i * (this.squareSize + this.gridGap);
+                        const y = j * (this.squareSize + this.gridGap);
+
+                        if (square.flickering) {
+                            this.ctx.fillStyle = this.flickerColor;
+                            this.ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+                        } else {
+                            this.ctx.fillStyle = this.color;
+                            this.ctx.globalAlpha = 1;
+                        }
+
+                        this.ctx.fillRect(x, y, this.squareSize, this.squareSize);
+                    }
+                }
+                this.ctx.globalAlpha = 1;
+            }
+
+            update(deltaTime) {
+                this.flickerTimer += deltaTime;
+
+                if (this.flickerTimer > this.flickerInterval) {
+                    for (let i = 0; i < this.squares.length; i++) {
+                        const square = this.squares[i];
+
+                        if (square.flickering) {
+                            square.currentFlickerTime += this.flickerInterval;
+                            if (square.currentFlickerTime > square.flickerDuration) {
+                                square.flickering = false;
+                            }
+                        } else if (Math.random() < this.flickerChance * 0.1) {
+                            square.flickering = true;
+                            square.flickerDuration = Math.random() * 500 + 200;
+                            square.currentFlickerTime = 0;
+                        }
+                    }
+                    this.flickerTimer = 0;
+                }
+            }
+
+            animate(time) {
+                const deltaTime = time - this.lastTime;
+                this.lastTime = time;
+
+                this.update(deltaTime);
+                this.draw();
+
+                requestAnimationFrame((t) => this.animate(t));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('flickering-grid-canvas');
+            new FlickeringGrid(canvas);
+
+            // Intersection Observer for animations
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(e => {
+                    if (e.isIntersecting) {
+                        e.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            document.querySelectorAll('.support-card, .contact-form').forEach(el => observer.observe(el));
+        });
+
+        function handleSubmit(event) {
+            event.preventDefault();
+
+            // Get form data
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                category: document.getElementById('category').value,
+                subject: document.getElementById('subject').value,
+                message: document.getElementById('message').value
+            };
+
+            // Here you would normally send this to a server
+            console.log('Support request submitted:', formData);
+
+            // Show success message
+            alert('Thank you for contacting us! We\'ll get back to you within 24 hours.');
+
+            // Reset form
+            document.getElementById('supportForm').reset();
+
+            return false;
+        }
+    </script>
+
+</body>
+
+</html>

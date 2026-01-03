@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ | Smart Locker</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #38bdf8;
+            --background: #000000;
+            --surface: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+            --radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        #flickering-grid-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 5%;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+            color: var(--primary);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .logo:hover {
+            transform: scale(1.02);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-actions a {
+            text-decoration: none;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .nav-actions a:hover {
+            color: var(--primary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+            color: white;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 120px 24px 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 56px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -1px;
+        }
+
+        .hero h1 span {
+            color: var(--primary);
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* FAQ Content */
+        .content {
+            max-width: 900px;
+            margin: -60px auto 80px;
+            padding: 0 24px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .faq-item {
+            background: var(--surface);
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .faq-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .faq-question {
+            padding: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-main);
+            user-select: none;
+            transition: 0.3s;
+        }
+
+        .faq-question:hover {
+            color: var(--primary);
+        }
+
+        .faq-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+            color: var(--primary);
+        }
+
+        .faq-item.active .faq-icon {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.4s ease;
+            padding: 0 24px;
+        }
+
+        .faq-item.active .faq-answer {
+            max-height: 500px;
+            padding: 0 24px 24px;
+        }
+
+        .faq-answer p {
+            color: var(--text-muted);
+            font-size: 16px;
+            line-height: 1.7;
+        }
+
+        /* Search Box */
+        .search-box {
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 16px 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            color: var(--text-main);
+            font-size: 16px;
+            outline: none;
+            transition: 0.3s;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Categories */
+        .categories {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .category-btn {
+            padding: 10px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .category-btn:hover,
+        .category-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Footer */
+        footer {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 60px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .footer-links {
+            margin: 24px 0;
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: 0.2s;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .copy {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 42px;
+            }
+
+            .faq-question {
+                font-size: 16px;
+                padding: 20px;
+            }
+
+            .nav-actions {
+                display: none;
+            }
+
+            .categories {
+                gap: 8px;
+            }
+
+            .category-btn {
+                font-size: 13px;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="flickering-grid-canvas"></canvas>
+
+    <header class="navbar">
+        <a href="index.html" class="logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Smart Locker</span>
+        </a>
+        <div class="nav-actions">
+            <a href="login.html">Login</a>
+            <a href="signup.html" class="btn-primary" style="color:white; padding:10px 24px;">Sign Up</a>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>Frequently Asked <span>Questions</span></h1>
+        <p>Find answers to common questions about Smart Locker System.</p>
+    </section>
+
+    <section class="content">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Search for questions..." />
+        </div>
+
+        <div class="categories">
+            <button class="category-btn active" data-category="all">All</button>
+            <button class="category-btn" data-category="booking">Booking</button>
+            <button class="category-btn" data-category="payment">Payment</button>
+            <button class="category-btn" data-category="security">Security</button>
+            <button class="category-btn" data-category="usage">Usage</button>
+        </div>
+
+        <div id="faqContainer">
+            <!-- Booking Questions -->
+            <div class="faq-item" data-category="booking">
+                <div class="faq-question">
+                    <span>How do I book a locker?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Simply sign up or log in to your account, select your preferred locker size and duration,
+                        complete the
+                        payment, and you'll receive a unique PIN instantly. The entire process takes less than 2
+                        minutes!</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="booking">
+                <div class="faq-question">
+                    <span>Can I extend my booking duration?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Yes! You can extend your booking from your dashboard before it expires. Simply select the locker
+                        and choose
+                        the additional time you need. Extended time will be charged at the standard hourly rate.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="booking">
+                <div class="faq-question">
+                    <span>What if I lose my PIN code?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Don't worry! You can view your active PINs anytime in your dashboard. If you're still having
+                        trouble,
+                        contact our support team with your booking details, and we'll help you regain access.</p>
+                </div>
+            </div>
+
+            <!-- Payment Questions -->
+            <div class="faq-item" data-category="payment">
+                <div class="faq-question">
+                    <span>What payment methods do you accept?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>We accept all major payment methods including UPI, Credit/Debit Cards, Net Banking, and digital
+                        wallets.
+                        All transactions are secured with bank-grade encryption.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="payment">
+                <div class="faq-question">
+                    <span>Is my payment information secure?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Absolutely! We use industry-standard SSL encryption and do not store your card details on our
+                        servers. All
+                        payments are processed through secure, PCI-compliant payment gateways.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="payment">
+                <div class="faq-question">
+                    <span>Can I get a refund if I cancel?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Refunds are available if you cancel within 15 minutes of booking and haven't unlocked the locker
+                        yet. After
+                        that, bookings are non-refundable, but you can transfer your booking to another user through our
+                        platform.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Security Questions -->
+            <div class="faq-item" data-category="security">
+                <div class="faq-question">
+                    <span>How secure are the lockers?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Our lockers feature reinforced steel construction, electronic locks with encrypted PIN codes, and
+                        24/7
+                        CCTV monitoring. Each locker is individually secured and can only be accessed with your unique
+                        PIN.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="security">
+                <div class="faq-question">
+                    <span>What happens if someone else knows my PIN?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>PINs are unique, time-sensitive, and generated securely. Never share your PIN with anyone. If you
+                        suspect
+                        your PIN has been compromised, reset it immediately from your dashboard or contact support.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="security">
+                <div class="faq-question">
+                    <span>Are there cameras monitoring the lockers?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Yes, all locker areas are covered by 24/7 CCTV surveillance for your security. Camera footage is
+                        securely
+                        stored and only accessed in case of security incidents or user requests.</p>
+                </div>
+            </div>
+
+            <!-- Usage Questions -->
+            <div class="faq-item" data-category="usage">
+                <div class="faq-question">
+                    <span>What can I store in the locker?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>You can store personal belongings like bags, luggage, electronics, documents, and valuables.
+                        Prohibited
+                        items include weapons, explosives, illegal substances, perishable food, and hazardous materials.
+                    </p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="usage">
+                <div class="faq-question">
+                    <span>What are the locker sizes available?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>We offer multiple sizes: Small (for laptops, handbags), Medium (for backpacks, small suitcases),
+                        and Large
+                        (for large suitcases and multiple bags). You can view exact dimensions during the booking
+                        process.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="usage">
+                <div class="faq-question">
+                    <span>Can I access my locker multiple times?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Yes! You can unlock and lock your locker as many times as you need during your booking period
+                        using the
+                        same PIN code.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-category="usage">
+                <div class="faq-question">
+                    <span>What happens if my booking expires while items are in the locker?</span>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>You'll receive notifications 30 minutes before expiry. If your booking expires with items inside,
+                        you'll
+                        need to extend your booking to regain access. After 24 hours, a late fee applies, and items may
+                        be removed
+                        and stored separately.</p>
+                </div>
+            </div>
+        </div>
+
+        <div
+            style="text-align: center; margin-top: 60px; padding: 40px; background: var(--surface); border-radius: 20px; border: 1px solid var(--border);">
+            <h2 style="font-family: 'Outfit', sans-serif; color: var(--primary); margin-bottom: 16px;">Still have
+                questions?
+            </h2>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">Our support team is here to help!</p>
+            <a href="support.html" class="btn-primary" style="text-decoration: none; display: inline-block;">Contact
+                Support</a>
+        </div>
+    </section>
+
+    <footer>
+        <div style="font-family:'Outfit', sans-serif; font-size:20px; font-weight:700; margin-bottom:8px;">Smart Locker
+            System</div>
+        <div class="footer-links">
+            <a href="contact.html">Contact</a>
+            <a href="about.html">About</a>
+            <a href="terms.html">Terms</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="faq.html" style="color:white;">FAQ</a>
+            <a href="support.html">Support</a>
+        </div>
+        <p class="copy">© 2025 Smart Locker System. All rights reserved.</p>
+    </footer>
+
+    <script>
+        class FlickeringGrid {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.squareSize = 40;
+                this.gridGap = 5;
+                this.flickerChance = 0;
+                this.color = 'rgb(30, 30, 30)';
+                this.flickerColor = 'rgb(100, 100, 100)';
+
+                this.cols = 0;
+                this.rows = 0;
+                this.squares = [];
+                this.lastTime = 0;
+                this.flickerInterval = 50;
+                this.flickerTimer = 0;
+
+                this.init();
+            }
+
+            init() {
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.animate(0);
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+
+                this.cols = Math.ceil(this.canvas.width / (this.squareSize + this.gridGap));
+                this.rows = Math.ceil(this.canvas.height / (this.squareSize + this.gridGap));
+
+                this.squares = new Array(this.cols * this.rows).fill(0).map(() => ({
+                    opacity: 1,
+                    flickering: false,
+                    flickerDuration: 0,
+                    currentFlickerTime: 0
+                }));
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                for (let i = 0; i < this.cols; i++) {
+                    for (let j = 0; j < this.rows; j++) {
+                        const index = i * this.rows + j;
+                        const square = this.squares[index];
+                        const x = i * (this.squareSize + this.gridGap);
+                        const y = j * (this.squareSize + this.gridGap);
+
+                        if (square.flickering) {
+                            this.ctx.fillStyle = this.flickerColor;
+                            this.ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+                        } else {
+                            this.ctx.fillStyle = this.color;
+                            this.ctx.globalAlpha = 1;
+                        }
+
+                        this.ctx.fillRect(x, y, this.squareSize, this.squareSize);
+                    }
+                }
+                this.ctx.globalAlpha = 1;
+            }
+
+            update(deltaTime) {
+                this.flickerTimer += deltaTime;
+
+                if (this.flickerTimer > this.flickerInterval) {
+                    for (let i = 0; i < this.squares.length; i++) {
+                        const square = this.squares[i];
+
+                        if (square.flickering) {
+                            square.currentFlickerTime += this.flickerInterval;
+                            if (square.currentFlickerTime > square.flickerDuration) {
+                                square.flickering = false;
+                            }
+                        } else if (Math.random() < this.flickerChance * 0.1) {
+                            square.flickering = true;
+                            square.flickerDuration = Math.random() * 500 + 200;
+                            square.currentFlickerTime = 0;
+                        }
+                    }
+                    this.flickerTimer = 0;
+                }
+            }
+
+            animate(time) {
+                const deltaTime = time - this.lastTime;
+                this.lastTime = time;
+
+                this.update(deltaTime);
+                this.draw();
+
+                requestAnimationFrame((t) => this.animate(t));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('flickering-grid-canvas');
+            new FlickeringGrid(canvas);
+
+            // FAQ Accordion
+            const faqItems = document.querySelectorAll('.faq-item');
+            faqItems.forEach(item => {
+                const question = item.querySelector('.faq-question');
+                question.addEventListener('click', () => {
+                    item.classList.toggle('active');
+                });
+            });
+
+            // Search Functionality
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                faqItems.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+
+            // Category Filter
+            const categoryBtns = document.querySelectorAll('.category-btn');
+            categoryBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    categoryBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    const category = btn.getAttribute('data-category');
+                    faqItems.forEach(item => {
+                        if (category === 'all' || item.getAttribute('data-category') === category) {
+                            item.style.display = 'block';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                });
+            });
+
+            // Intersection Observer for animations
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(e => {
+                    if (e.isIntersecting) {
+                        e.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            faqItems.forEach(item => observer.observe(item));
+        });
+    </script>
+
+</body>
+
+</html>
