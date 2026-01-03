@@ -108,6 +108,11 @@
       color: var(--primary);
     }
 
+    /* Hide mobile menu button on desktop */
+    .mobile-menu-btn {
+      display: none;
+    }
+
     .btn-primary {
       background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       color: white;
@@ -645,29 +650,121 @@
 
     @media (max-width: 768px) {
       .hero {
-        padding: 80px 20px;
+        padding: 60px 20px 40px;
+        min-height: auto;
       }
 
       .navbar {
-        padding: 16px 20px;
+        padding: 12px 16px;
+      }
+
+      .logo {
+        font-size: 18px;
+      }
+
+      .logo svg {
+        width: 20px;
+        height: 20px;
       }
 
       .nav-links {
         display: none;
       }
 
-      /* Simplified mobile: hidden links */
-      .grid-3 {
-        grid-template-columns: 1fr;
+      /* Mobile menu button */
+      .mobile-menu-btn {
+        display: block;
+        background: var(--primary);
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
       }
 
+      /* Hero badges - stack vertically */
+      .hero-badges {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        max-width: 280px;
+        margin: 0 auto 32px;
+      }
+
+      .badge-item {
+        font-size: 13px;
+        width: 100%;
+        justify-content: center;
+      }
+
+      /* Hero heading */
+      .hero h1 {
+        font-size: 36px !important;
+        line-height: 1.2;
+        margin-bottom: 16px;
+      }
+
+      .hero p {
+        font-size: 16px;
+        padding: 0 10px;
+        margin-bottom: 24px;
+      }
+
+      /* Stack buttons vertically */
+      .button-group {
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+        max-width: 320px;
+        margin: 0 auto;
+      }
+
+      .button-group .btn-primary,
+      .button-group .btn-outline {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 15px;
+      }
+
+      /* Feature cards */
+      .grid-3 {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .feature-card {
+        padding: 32px 24px;
+      }
+
+      /* CTA section */
       .cta-section {
-        padding: 60px 20px;
+        padding: 50px 20px;
         margin: 20px;
+      }
+
+      .cta-section h2 {
+        font-size: 28px;
+      }
+
+      .cta-section p {
+        font-size: 16px;
       }
 
       .stat-number {
         font-size: 36px;
+      }
+
+      /* Footer */
+      footer {
+        padding: 40px 20px;
+      }
+
+      .footer-content {
+        flex-direction: column;
+        gap: 24px;
+        text-align: center;
       }
     }
   </style>
@@ -688,6 +785,7 @@
       <a href="login.html" class="link">Login</a>
       <a href="signup.html" class="btn-primary" style="padding: 8px 20px; font-size: 14px;">Sign Up</a>
     </div>
+    <a href="login.html" class="mobile-menu-btn">Login</a>
   </nav>
 
   <section class="hero">
