@@ -309,7 +309,10 @@
       collection,
       query,
       where,
-      onSnapshot
+      onSnapshot,
+      getDocs,
+      deleteDoc,
+      doc
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     /* ================= FIREBASE INIT ================= */
@@ -424,7 +427,42 @@
 
     loadHistory();
 
-    loadHistory();
+    /* ================= CLEAR HISTORY HANDLER ================= */
+    document.getElementById("clearHistory").addEventListener("click", async () => {
+      const confirmed = confirm("Are you sure you want to delete all booking history? This action cannot be undone.");
+
+      if (!confirmed) return;
+
+      try {
+        const q = query(
+          collection(db, "bookings"),
+          where("userId", "==", currentUser.uid)
+        );
+
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          alert("No history to delete.");
+          return;
+        }
+
+        // Delete all bookings for this user
+        const deletePromises = [];
+        snapshot.forEach((docSnap) => {
+          deletePromises.push(deleteDoc(doc(db, "bookings", docSnap.id)));
+        });
+
+        await Promise.all(deletePromises);
+
+        alert(`Successfully deleted ${snapshot.size} booking record(s).`);
+
+        // The onSnapshot listener in loadHistory() will automatically update the UI
+      } catch (error) {
+        console.error("Error clearing history:", error);
+        alert("Failed to clear history. Please try again.");
+      }
+    });
+
 
   </script>
 
