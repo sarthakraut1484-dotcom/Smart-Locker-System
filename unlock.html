@@ -693,7 +693,7 @@
         selectedHours === 1 ? "1 Hour" :
           `${selectedHours} Hours`;
 
-      const confirmed = confirm(`Extend locker booking by ${label}? Cost: ₹${cost}`);
+      const confirmed = confirm(`Extend locker booking by ${label}? Cost: ₹${cost.toFixed(2)}`);
 
       if (confirmed) {
         alert("Payment Successful!");

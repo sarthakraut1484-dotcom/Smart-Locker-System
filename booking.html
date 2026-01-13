@@ -471,9 +471,9 @@
       const subtotal = rate * selectedHours;
 
       document.getElementById("summaryDuration").textContent = `${selectedHours} hours`;
-      document.getElementById("summaryRate").textContent = `₹${rate}/hr`;
-      document.getElementById("summaryAmount").textContent = `₹${subtotal}`;
-      document.getElementById("summaryTotal").textContent = `₹${subtotal}`;
+      document.getElementById("summaryRate").textContent = `₹${rate.toFixed(2)}/hr`;
+      document.getElementById("summaryAmount").textContent = `₹${subtotal.toFixed(2)}`;
+      document.getElementById("summaryTotal").textContent = `₹${subtotal.toFixed(2)}`;
     }
 
     durationBtns.forEach(btn => {

@@ -608,7 +608,7 @@
         const snap = await getDocs(q);
         let total = 0;
         snap.forEach(d => total += Number(d.data().amount || 0));
-        document.getElementById("totalSpent").textContent = `₹${total}`;
+        document.getElementById("totalSpent").textContent = `₹${total.toFixed(2)}`;
       } catch (e) {
         console.error("Error calculating spent:", e);
       }
