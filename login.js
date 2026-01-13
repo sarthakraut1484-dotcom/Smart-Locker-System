@@ -3,6 +3,7 @@ import {
   getAuth,
   signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 🔥 Firebase config */
 const firebaseConfig = {
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 /* 🔐 EMAIL LOGIN */
 
@@ -35,12 +37,25 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-    // ✅ STORE SESSION (THIS WAS MISSING)
+    // Fetch user profile from Firestore
+    let userName = email.split("@")[0]; // Fallback to email username
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        userName = userData.name || userName;
+      }
+    } catch (error) {
+      console.warn("Could not fetch user profile, using email as name:", error);
+    }
+
+    // ✅ STORE SESSION (with actual name)
     sessionStorage.setItem("currentUser", JSON.stringify({
-      uid: userCredential.user.uid,
-      email: userCredential.user.email,
-      name: email.split("@")[0],
+      uid: user.uid,
+      email: user.email,
+      name: userName,
       loginTime: Date.now()
     }));
 

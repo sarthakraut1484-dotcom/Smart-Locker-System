@@ -439,7 +439,8 @@
       onSnapshot,
       doc,
       updateDoc,
-      getDocs
+      getDocs,
+      getDoc
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getDatabase, ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -457,28 +458,44 @@
     const auth = getAuth(app);
 
     /* ================= AUTH STATE LISTENER ================= */
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is signed in, verify/update session storage
+        // Fetch user profile from Firestore for actual name
+        let userName = user.email.split("@")[0]; // Fallback
+
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            userName = userData.name || userName;
+          }
+        } catch (error) {
+          console.warn("Could not fetch user profile:", error);
+          // Try to get from session storage as backup
+          const sessionUser = JSON.parse(sessionStorage.getItem("currentUser"));
+          if (sessionUser && sessionUser.name) {
+            userName = sessionUser.name;
+          }
+        }
+
+        // User is signed in, update session storage with name
         const sessionUser = {
           uid: user.uid,
           email: user.email,
-          name: user.email.split("@")[0],
+          name: userName,
           loginTime: Date.now()
         };
         sessionStorage.setItem("currentUser", JSON.stringify(sessionUser));
 
-        initializeDashboard(user);
+        initializeDashboard(user, userName);
       } else {
         // No user is signed in, redirect to login
         window.location.href = "login.html";
       }
     });
 
-    function initializeDashboard(user) {
+    function initializeDashboard(user, username) {
       /* ================= USER NAME DISPLAY ================= */
-      const username = user.email.split("@")[0];
-
       document.getElementById("welcomeUser").innerHTML = `Hi, ${username}! 👋`;
 
       document.getElementById("userNameDisplay").innerHTML = `
