@@ -861,11 +861,18 @@
         updateTimer(); // Immediate run
       }
 
-      // C. Inactive / Expired
+      // C. Inactive / Expired / Early Termination
       else {
+        // Clear any running timer when status becomes AVAILABLE
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+
         statusEl.className = "status unlocked";
-        statusEl.textContent = "UNLOCKED";
+        statusEl.textContent = data.status === "AVAILABLE" ? "SESSION ENDED" : "UNLOCKED";
         timeRemainingEl.textContent = "00:00:00";
+        timeRemainingEl.style.fontSize = "32px";
         extendBtn.style.display = "none";
       }
 
