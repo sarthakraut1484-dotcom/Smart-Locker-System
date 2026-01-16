@@ -777,6 +777,7 @@
     /* ================= REAL-TIME TIMER LOGIC ================= */
     const lockerRef = doc(db, "lockers", `locker_${lockerId}`);
     const rtdbStartTimeRef = ref(rtdb, `lockers/${lockerIdNumeric}/startTime`);
+    const rtdbStatusRef = ref(rtdb, `lockers/${lockerIdNumeric}/status`);
 
     let timerInterval = null;
 
@@ -791,6 +792,54 @@
         updateDoc(doc(db, "lockers", `locker_${lockerIdNumeric}`), {
           startTime: val
         }).catch(() => { });
+      }
+    });
+
+    // 1.5. Listen to RTDB for Status Changes (Early Termination Detection)
+    onValue(rtdbStatusRef, async (snapshot) => {
+      const rtdbStatus = snapshot.val();
+
+      // If ESP32 sets status to AVAILABLE (early termination or expiration)
+      if (rtdbStatus === "AVAILABLE") {
+        console.log("RTDB Status changed to AVAILABLE - syncing to Firestore");
+
+        // Immediately stop the timer
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+
+        // Update UI immediately
+        const statusEl = document.getElementById("lockerStatus");
+        const timeRemainingEl = document.getElementById("timeRemaining");
+        const extendBtn = document.getElementById("extendBtn");
+
+        if (statusEl) {
+          statusEl.className = "status unlocked";
+          statusEl.textContent = "SESSION ENDED";
+        }
+        if (timeRemainingEl) {
+          timeRemainingEl.textContent = "00:00:00";
+          timeRemainingEl.style.fontSize = "32px";
+        }
+        if (extendBtn) {
+          extendBtn.style.display = "none";
+        }
+
+        // Sync to Firestore to update database
+        try {
+          await updateDoc(doc(db, "lockers", `locker_${lockerIdNumeric}`), {
+            status: "AVAILABLE",
+            startTime: null,
+            duration: 0,
+            currentPin: null,
+            userId: null,
+            sessionEnd: 0
+          });
+          console.log("Firestore synced with early termination");
+        } catch (err) {
+          console.error("Error syncing to Firestore:", err);
+        }
       }
     });
 
