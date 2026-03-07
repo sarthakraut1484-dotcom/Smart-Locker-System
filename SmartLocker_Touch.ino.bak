@@ -1,10 +1,10 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <Keypad.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
+#include <XPT2046_Touchscreen.h>
 #include "qrcodegen.h"
 #include <time.h>
 
@@ -27,17 +27,25 @@
 #define TFT_CS    5
 #define TFT_DC    2
 #define TFT_RST   4
+// SCK=18, MOSI=23, MISO=19 (Default VSPI)
 
-/* ================= KEYPAD ================= */
-char keys[4][4] = {
-  {'1','2','3','A'},
-  {'4','5','6','B'},
-  {'7','8','9','C'},
-  {'*','0','#','D'}
-};
-byte rowPins[4] = {33, 32, 25, 26};
-byte colPins[4] = {27, 14, 12, 13};
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, 4, 4);
+/* ================= TOUCH SCREEN ================= */
+#define TOUCH_CS  15
+#define TOUCH_IRQ 27
+// T_CLK=18, T_DIN=23, T_DO=19 (Same as TFT)
+
+/* ================= KEYPAD UI SETTINGS ================= */
+#define KEYPAD_Y_START 160
+#define KEYPAD_HEIGHT  160
+#define KEYPAD_WIDTH   240
+#define BTN_W (KEYPAD_WIDTH / 3) // 80
+#define BTN_H (KEYPAD_HEIGHT / 4) // 40
+
+// Touch Calibration (Adjust these if touches are inaccurate)
+#define TS_MINX 300
+#define TS_MAXX 3800
+#define TS_MINY 300
+#define TS_MAXY 3800
 
 /* ================= STATE ================= */
 enum LockerState { LOCKED, UNLOCKED };
@@ -71,8 +79,10 @@ long long debugStartTime = 0;
 const long  gmtOffset_sec = 0; // Set to 0 to force UTC (matches Firebase)
 const int   daylightOffset_sec = 0;
 
-/* ================= TFT OBJECTS ================= */
+/* ================= OBJECTS ================= */
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
+XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
+
 uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
 uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
 
@@ -83,7 +93,9 @@ uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
 #define QR_FG      ST77XX_BLACK
 #define INFO_COLOR ST77XX_GREEN
 #define WARN_COLOR ST77XX_WHITE
-#define ERROR_COLOR ST77XX_CYAN // Inverted display: Cyan (0x07FF) becomes Red (0xF800)
+#define ERROR_COLOR ST77XX_CYAN // Inverted: Cyan->Red
+#define BTN_COLOR   0x52AA      // Dark Grey/Blueish
+#define BTN_TEXT    ST77XX_WHITE
 
 /* ================= FORWARD DECLARATIONS ================= */
 void centerText(const char* text, int y, int size, uint16_t color);
@@ -93,59 +105,83 @@ void drawInfoMode();
 void drawPinState();
 void drawTerminationMode();
 void pollLockerStatus();
-void handleKeypad();
+void handleTouchKeypad();
 void checkPIN();
 void checkTerminationPIN();
 void terminateSession();
 void unlockLocker();
 void handleAutoLock();
 void checkSessionExpiration();
+// UI Helpers
+void drawKeypad();
+char getTouchKey();
 
 /* ================= SETUP ================= */
 void setup() {
   Serial.begin(115200);
   delay(1000);
   
-  // Hardware Init
+  // 1. PIN SAFETY: Explicitly set CS pins HIGH to disable SPI devices initially
+  // This prevents the Touch controller from interfering with TFT initialization
+  pinMode(TFT_CS, OUTPUT);
+  digitalWrite(TFT_CS, HIGH); 
+  
+  pinMode(TOUCH_CS, OUTPUT);
+  digitalWrite(TOUCH_CS, HIGH);
+
+  // 2. Hardware Init
   pinMode(LOCK_PIN, OUTPUT);
   digitalWrite(LOCK_PIN, LOW); // Locked
   
+  // 3. SPI BUS Init (Explicitly defines global SPI pins)
+  // SCK=18, MISO=19, MOSI=23, SS=5
+  SPI.begin(18, 19, 23, 5);
+  
+  // 4. TFT Init
+  // Manual Reset to ensure clean state
+  pinMode(TFT_RST, OUTPUT);
+  digitalWrite(TFT_RST, HIGH);
+  delay(100);
+  digitalWrite(TFT_RST, LOW);
+  delay(100);
+  digitalWrite(TFT_RST, HIGH);
+  delay(200);
+
   tft.init(240, 320); 
   tft.setRotation(2);
-  tft.invertDisplay(true);
+  tft.invertDisplay(true); // Try removing this if colors are inverted (White screen usually means no-init, but check this)
   tft.fillScreen(BG_COLOR);
   
+  // 5. Touch Init (After TFT is established)
+  // DISABLE TOUCH TEMPORARILY TO DEBUG DISPLAY
+  // ts.begin();
+  // ts.setRotation(2); // Match TFT Rotation
+  
+  // Force Touch CS HIGH to silence it completely
+  digitalWrite(TOUCH_CS, HIGH); 
+  
+  // Set safe SPI speed for Breadboard wiring
+  tft.setSPISpeed(20000000); // 20 MHz
+
   centerText("Connecting...", 150, 2, TEXT_COLOR);
   
   // WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   int w = 0;
-  while (WiFi.status() != WL_CONNECTED) { 
-    delay(500); 
-    Serial.print(".");
-    w++;
-    
-    // Timeout after 30 seconds (60 * 500ms)
-    if (w > 60) { 
-        tft.fillScreen(BG_COLOR);
-        centerText("WiFi Failed", 120, 3, ERROR_COLOR);
-        centerText("Restarting...", 160, 2, ERROR_COLOR);
-        delay(3000);
-        ESP.restart();
-    }
+  while (WiFi.status() != WL_CONNECTED && w < 20) { 
+    delay(200); 
+    w++; 
   }
   
-  tft.fillScreen(BG_COLOR);
   centerText("Connected!", 150, 2, INFO_COLOR);
   delay(1000);
   
   // Time Sync
   configTime(gmtOffset_sec, daylightOffset_sec, "pool.ntp.org", "time.nist.gov");
-  tft.fillScreen(BG_COLOR);
-  centerText("Syncing Time...", 150, 2, TEXT_COLOR);
+  centerText("Syncing Time...", 180, 2, TEXT_COLOR);
   
   time_t now = time(NULL);
-  // Wait a bit for time to sync, but don't block forever
+  // Wait a bit for time to sync
   unsigned long tStart = millis();
   while (now < 24 * 3600 && millis() - tStart < 5000) { 
     delay(100);
@@ -154,14 +190,20 @@ void setup() {
   
   // Initial Fetch
   pollLockerStatus();
-  forceRedraw = true; // Ensure first draw happens
+  forceRedraw = true; 
 }
 
 /* ================= LOOP ================= */
 void loop() {
-  // 1. PIN & Lock Logic (Always Active)
+  // 1. PIN & Lock Logic
   if (state == LOCKED) {
-    handleKeypad();
+    // Only handle keypad if we are in a mode that needs it (INFO or TERMINATION)
+    // In QR mode (AVAILABLE), keypad is not shown usually, but if needed we can enable it.
+    // However, original logic ran handleKeypad() always in LOCKED state.
+    // We will only process touch if the keypad is actually drawn (Active or Termination).
+    if (currentDisplayMode == DISP_INFO || terminationMode) {
+      handleTouchKeypad();
+    }
   } else {
     handleAutoLock();
   }
@@ -176,9 +218,8 @@ void loop() {
   }
   
   // 3. UI Updates
-  if (state == LOCKED) { // Only update screen if not currently unlocking
+  if (state == LOCKED) { 
     if (terminationMode) {
-      // In termination mode, show termination screen
       static unsigned long lastTerminationDraw = 0;
       if (forceRedraw || millis() - lastTerminationDraw >= 1000) {
         drawTerminationMode();
@@ -189,7 +230,7 @@ void loop() {
         drawQRMode();
       }
     } else {
-      // Info Mode (Timer) - Update every second
+      // Info Mode (Timer)
       static unsigned long lastTimerDraw = 0;
       if (forceRedraw || millis() - lastTimerDraw >= 1000) {
         drawInfoMode();
@@ -203,7 +244,7 @@ void loop() {
 
 void centerText(const char* text, int y, int size, uint16_t color) {
   tft.setTextSize(size);
-  tft.setTextColor(color, BG_COLOR); // Use background color to overwrite previous text
+  tft.setTextColor(color, BG_COLOR); 
   int16_t x1, y1;
   uint16_t w, h;
   tft.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
@@ -216,18 +257,13 @@ void displayQRCode(const char* text, int yPos, int maxScale) {
   bool ok = qrcodegen_encodeText(text, tempBuffer, qrcode, qrcodegen_Ecc_LOW,
                                  qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX,
                                  qrcodegen_Mask_AUTO, true);
-  
   if (ok) {
     int size = qrcodegen_getSize(qrcode);
     int scale = maxScale;
-    
-    while ((size * scale) > tft.width() - 20) {
-      scale--;
-    }
+    while ((size * scale) > tft.width() - 20) scale--;
     
     int pxSize = size * scale;
     int x = (tft.width() - pxSize) / 2;
-
     int margin = 5;
     tft.fillRect(x - margin, yPos - margin, pxSize + (margin * 2), pxSize + (margin * 2), QR_BG);
     
@@ -241,30 +277,102 @@ void displayQRCode(const char* text, int yPos, int maxScale) {
   }
 }
 
+// Draw the Virtual Keypad
+void drawKeypad() {
+  tft.setTextSize(3);
+  tft.setTextColor(BTN_TEXT);
+  
+  // Layout: 4 rows, 3 cols
+  // Keys: 1 2 3 / 4 5 6 / 7 8 9 / * 0 #
+  char keys[4][3] = {
+    {'1','2','3'},
+    {'4','5','6'},
+    {'7','8','9'},
+    {'*','0','#'}
+  };
+
+  for(int r=0; r<4; r++) {
+    for(int c=0; c<3; c++) {
+      int x = c * BTN_W;
+      int y = KEYPAD_Y_START + (r * BTN_H);
+      
+      // Button Outline
+      tft.drawRect(x, y, BTN_W, BTN_H, ST77XX_WHITE);
+      
+      // Determine Text Position
+      // Center of button
+      int tx = x + (BTN_W / 2) - 9; // Approx offset for Size 3 char
+      int ty = y + (BTN_H / 2) - 10;
+      
+      tft.setCursor(tx, ty);
+      tft.print(keys[r][c]);
+    }
+  }
+}
+
+// Map Touch to Key
+char getTouchKey() {
+  if (!ts.touched()) return 0;
+  
+  TS_Point p = ts.getPoint();
+  
+  // Simple debounce: Wait until release? 
+  // For better UX, registers on press, then wait for release or hold-off.
+  // We'll use a simple hold-off delay in the loop, or 'wait for release' here.
+  // Wait for release is safer to avoid multiple chars.
+  while (ts.touched()) {
+    delay(10);
+  }
+  
+  // Map Raw to Screen Coordinates
+  // Note: Check actual calibration on device. 
+  // Assuming map mapping is linear.
+  int screenX = map(p.x, TS_MINX, TS_MAXX, 0, 240);
+  int screenY = map(p.y, TS_MINY, TS_MAXY, 0, 320);
+  
+  // Check if touch is within Keypad Area
+  if (screenY < KEYPAD_Y_START) return 0;
+  
+  int r = (screenY - KEYPAD_Y_START) / BTN_H;
+  int c = screenX / BTN_W;
+  
+  if (r >= 0 && r < 4 && c >= 0 && c < 3) {
+    char keys[4][3] = {
+      {'1','2','3'},
+      {'4','5','6'},
+      {'7','8','9'},
+      {'*','0','#'}
+    };
+    return keys[r][c];
+  }
+  
+  return 0;
+}
+
 void drawPinState() {
   // Clear the area where PIN stars will be shown
-  // Y=210 is above the "Enter PIN" text at Y=250
-  tft.fillRect(0, 210, 240, 30, BG_COLOR);
+  // Moved up to Y=120 to fit Keypad
+  tft.fillRect(0, 120, 240, 30, BG_COLOR);
   
   if (enteredPIN.length() > 0) {
     String masked = "";
     for (int i = 0; i < enteredPIN.length(); i++) {
       masked += "*";
     }
-    centerText(masked.c_str(), 210, 3, TEXT_COLOR);
+    centerText(masked.c_str(), 120, 3, TEXT_COLOR);
   }
 }
 
 void drawTerminationPinState() {
-  // Clear the area where termination PIN stars will be shown
-  tft.fillRect(0, 210, 240, 30, BG_COLOR);
+  // Moved to Y=120
+  tft.fillRect(0, 120, 240, 30, BG_COLOR);
   
   if (terminationPIN.length() > 0) {
     String masked = "";
     for (int i = 0; i < terminationPIN.length(); i++) {
       masked += "*";
     }
-    centerText(masked.c_str(), 210, 3, TEXT_COLOR);
+    centerText(masked.c_str(), 120, 3, TEXT_COLOR);
   }
 }
 
@@ -272,19 +380,18 @@ void drawTerminationMode() {
   if (forceRedraw) {
     tft.fillScreen(BG_COLOR);
     
-    centerText("TERMINATE", 20, 3, WARN_COLOR);
-    centerText("SESSION", 60, 3, WARN_COLOR);
-    centerText("", 100, 2, TEXT_COLOR);
-    centerText("Enter PIN to", 120, 2, TEXT_COLOR);
-    centerText("confirm early", 150, 2, TEXT_COLOR);
-    centerText("termination", 180, 2, TEXT_COLOR);
+    // Header
+    centerText("TERMINATE", 10, 3, WARN_COLOR);
+    centerText("SESSION", 40, 3, WARN_COLOR);
     
-    centerText("Press # confirm", 250, 2, TEXT_COLOR);
-    centerText("Press C cancel", 280, 2, TEXT_COLOR);
+    // Instructions
+    centerText("Enter PIN to confirm", 80, 2, TEXT_COLOR);
+    
+    // Show Keypad
+    drawKeypad();
     
     forceRedraw = false;
   }
-  
   drawTerminationPinState();
 }
 
@@ -297,52 +404,39 @@ void drawQRMode() {
     forceRedraw = false;
   }
   
-  // Appends Locker ID and Timestamp
   String dynamicURL = "https://smart-locker-system-two.vercel.app/booking.html?id=" + String(LOCKER_ID) + "&t=" + String(millis());
   displayQRCode(dynamicURL.c_str(), 50, 7);
-  
   lastQrUpdate = millis();
 }
 
 void drawInfoMode() {
-  // Dynamic Updates (Timer)
   unsigned long long nowMs = (unsigned long long)time(NULL) * 1000ULL;
-
   bool showTimer = (currentUnlockCount > 0);
   
   if (forceRedraw) {
     tft.fillScreen(BG_COLOR);
     
     // Header
-    centerText("Locker 04", 20, 3, TEXT_COLOR);
-    centerText("Booking Confirmed", 60, 2, INFO_COLOR);
+    centerText("Locker 04", 10, 3, TEXT_COLOR);
     
     if (showTimer) {
-      centerText("Expires In:", 110, 2, TEXT_COLOR);
+        centerText("Expires In:", 50, 2, INFO_COLOR);
     } else {
-      centerText("Waiting User", 120, 2, TEXT_COLOR);
-      centerText("to Unlock", 150, 2, TEXT_COLOR);
+        centerText("Waiting User", 50, 2, TEXT_COLOR);
     }
     
-    // Footer Instructions
-    centerText("Enter PIN & #", 250, 2, TEXT_COLOR);
-    centerText("Press * to Exit", 280, 2, TEXT_COLOR);
-    
+    // Show Keypad
+    drawKeypad();
     drawPinState();
     
     forceRedraw = false;
   }
   
   if (showTimer) {
-    // Current time is now UTC (since we set offset to 0)
-    unsigned long long nowMs = (unsigned long long)time(NULL) * 1000ULL;
-    
     long remainingSeconds = 0;
-    // Check if sessionEnd is in the future
     if (currentSessionEnd > nowMs) {
       remainingSeconds = (long)((currentSessionEnd - nowMs) / 1000);
     }
-    
     if (remainingSeconds < 0) remainingSeconds = 0;
     
     int hours = remainingSeconds / 3600;
@@ -352,17 +446,66 @@ void drawInfoMode() {
     char timeStr[16];
     sprintf(timeStr, "%02d:%02d:%02d", hours, minutes, seconds);
     
-    // Only update the time digits
-    centerText(timeStr, 140, 4, TEXT_COLOR);
+    // Timer Position Y=80
+    centerText(timeStr, 80, 4, TEXT_COLOR);
+  }
+}
+
+void handleTouchKeypad() {
+  char key = getTouchKey();
+  if (!key) return;
+  
+  Serial.print("Touch Key: ");
+  Serial.println(key);
+
+  if (terminationMode) {
+    if (key >= '0' && key <= '9') {
+      terminationPIN += key;
+      drawTerminationPinState();
+    }
+    else if (key == '#') {
+      if (terminationPIN.length() > 0) checkTerminationPIN();
+      terminationPIN = "";
+      drawTerminationPinState();
+    }
+    else if (key == '*') { // 'C' logic mapped to '*' on NumPad? Or allow 'C' logic if needed. 
+       // Original code had 'C' or '*'. Keypad has '*' so we use '*'.
+       // Reset Termination
+       terminationMode = false;
+       terminationPIN = "";
+       forceRedraw = true;
+    }
+    return;
+  }
+  
+  // Normal Mode
+  if (key >= '0' && key <= '9') {
+    enteredPIN += key;
+    drawPinState();
+  }
+  else if (key == '#') {
+    if (enteredPIN.length() > 0) checkPIN();
+    else Serial.println("No PIN");
+    enteredPIN = "";
+    drawPinState();
+  }
+  else if (key == '*') {
+     if (currentBackendStatus == "ACTIVE") {
+       terminationMode = true;
+       terminationPIN = "";
+       forceRedraw = true;
+     } else {
+       enteredPIN = "";
+       drawPinState();
+     }
   }
 }
 
 void pollLockerStatus() {
   if (WiFi.status() != WL_CONNECTED) return;
-
+  
   HTTPClient http;
   String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-  
   http.begin(url);
   int httpCode = http.GET();
   String payload = http.getString();
@@ -375,24 +518,18 @@ void pollLockerStatus() {
     const char* st = doc["status"];
     unsigned long long endTs = doc["sessionEnd"].as<unsigned long long>();
     
-    // FALLBACK: If sessionEnd is 0, try to calculate from startTime + duration (mirrors web logic)
     if (endTs == 0) {
        long long start = doc["startTime"];
        long duration = doc["duration"]; 
-       
        debugStartTime = start;
        debugDuration = duration;
-
-       if (start > 0 && duration > 0) {
-         endTs = (unsigned long long)start + (unsigned long long)duration;
-       }
+       if (start > 0 && duration > 0) endTs = (unsigned long long)start + (unsigned long long)duration;
     } else {
        debugStartTime = doc["startTime"] | 0;
        debugDuration = doc["duration"] | 0;
     }
     
     int unlocks = doc["unlockCount"] | 0; 
-    
     String newStatus = st ? String(st) : "AVAILABLE";
     
     if (newStatus != currentBackendStatus || unlocks != currentUnlockCount) {
@@ -401,11 +538,7 @@ void pollLockerStatus() {
       
       currentBackendStatus = newStatus;
       bool sameSession = ((unsigned long long)endTs == currentSessionEnd);
-      
-      if (currentSessionEnd == 0 && endTs > 0) {
-        sameSession = true;
-      }
-      
+      if (currentSessionEnd == 0 && endTs > 0) sameSession = true;
       currentSessionEnd = (unsigned long long)endTs;
       
       if (sameSession) {
@@ -418,7 +551,6 @@ void pollLockerStatus() {
         currentDisplayMode = DISP_INFO;
       } else {
         currentDisplayMode = DISP_QR;
-        // Exit termination mode if we're back to AVAILABLE
         terminationMode = false;
         terminationPIN = "";
       }
@@ -431,81 +563,12 @@ void pollLockerStatus() {
   }
 }
 
-void handleKeypad() {
-  char key = keypad.getKey();
-  if (!key) return;
-  
-  // Handle termination mode separately
-  if (terminationMode) {
-    if (key >= '0' && key <= '9') {
-      terminationPIN += key;
-      Serial.print(key);
-      Serial.print(" ");
-      drawTerminationPinState();
-    }
-    else if (key == '#') {
-      Serial.println("[TERMINATE SUBMIT]");
-      if (terminationPIN.length() > 0) {
-        checkTerminationPIN();
-      }
-      terminationPIN = "";
-      drawTerminationPinState();
-    }
-    else if (key == 'C' || key == '*') {
-      // Cancel termination
-      Serial.println("[TERMINATE CANCELLED]");
-      terminationMode = false;
-      terminationPIN = "";
-      forceRedraw = true;
-    }
-    return;
-  }
-  
-  // Normal keypad handling
-  if (key >= '0' && key <= '9') {
-    enteredPIN += key;
-    Serial.print(key);
-    Serial.print(" ");
-    drawPinState();
-  }
-  else if (key == '#') {
-    Serial.println("[SUBMIT]");
-    if (enteredPIN.length() > 0) {
-      checkPIN();
-    } else {
-      Serial.println("No PIN entered");
-    }
-    enteredPIN = "";
-    drawPinState();
-  }
-  else if (key == '*') {
-    // Check if we're in an active booking
-    if (currentBackendStatus == "ACTIVE") {
-      // Enter termination mode
-      Serial.println("[ENTERING TERMINATION MODE]");
-      terminationMode = true;
-      terminationPIN = "";
-      forceRedraw = true;
-    } else {
-      // Normal clear PIN function
-      enteredPIN = "";
-      Serial.println("\nPIN cleared");
-      drawPinState();
-    }
-  }
-}
-
 void checkPIN() {
-  Serial.println("Checking PIN...");
-  
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected!");
-    return;
-  }
+  // Logic remains same, visuals adjusted to redraw keypad on fail
+  if (WiFi.status() != WL_CONNECTED) return;
   
   HTTPClient http;
   String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-  
   http.begin(url);
   int httpCode = http.GET();
   String payload = http.getString();
@@ -514,31 +577,20 @@ void checkPIN() {
   if (httpCode == 200 && payload.length() > 0 && payload != "null") {
     StaticJsonDocument<1024> doc;
     deserializeJson(doc, payload);
-    
     const char* firebasePIN = doc["pin"];
     const char* status = doc["status"];
     
     if (String(status) == "ACTIVE" && enteredPIN == String(firebasePIN)) {
-      Serial.println("*** UNLOCKING ***");
-      
-      // PRE-SYNC: Update state immediately so UI works before next poll
       unsigned long long endTs = doc["sessionEnd"].as<unsigned long long>();
-      
-      // FALLBACK for PRE-SYNC
       if (endTs == 0) {
          long long start = doc["startTime"];
          long duration = doc["duration"]; 
-         if (start > 0 && duration > 0) {
-           endTs = (unsigned long long)start + (unsigned long long)duration;
-         }
+         if (start > 0 && duration > 0) endTs = (unsigned long long)start + (unsigned long long)duration;
       }
-      
       currentSessionEnd = endTs;
       currentBackendStatus = "ACTIVE";
-      
       unlockLocker();
     } else {
-      Serial.println("*** WRONG PIN ***");
       tft.fillScreen(BG_COLOR);
       centerText("Wrong PIN", 100, 2, ERROR_COLOR);
       centerText("Try Again", 130, 2, ERROR_COLOR);
@@ -549,16 +601,9 @@ void checkPIN() {
 }
 
 void checkTerminationPIN() {
-  Serial.println("Checking Termination PIN...");
-  
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected!");
-    return;
-  }
-  
+  if (WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
   String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-  
   http.begin(url);
   int httpCode = http.GET();
   String payload = http.getString();
@@ -567,18 +612,14 @@ void checkTerminationPIN() {
   if (httpCode == 200 && payload.length() > 0 && payload != "null") {
     StaticJsonDocument<1024> doc;
     deserializeJson(doc, payload);
-    
     const char* firebasePIN = doc["pin"];
     const char* status = doc["status"];
     
     if (String(status) == "ACTIVE" && terminationPIN == String(firebasePIN)) {
-      Serial.println("*** TERMINATING SESSION ***");
       terminateSession();
     } else {
-      Serial.println("*** WRONG TERMINATION PIN ***");
       tft.fillScreen(BG_COLOR);
       centerText("Wrong PIN", 100, 2, ERROR_COLOR);
-      centerText("Try Again", 130, 2, ERROR_COLOR);
       delay(2000);
       terminationMode = false;
       terminationPIN = "";
@@ -588,28 +629,16 @@ void checkTerminationPIN() {
 }
 
 void terminateSession() {
-  Serial.println("=== TERMINATING SESSION ===");
-  
-  // 1. Update Firebase to AVAILABLE
   if (WiFi.status() == WL_CONNECTED) {
      HTTPClient http;
      String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-     
-     // Resetting status, clearing PIN, and zeroing timers
      String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0}";
-     
      http.begin(url);
-     int code = http.sendRequest("PATCH", json);
+     http.sendRequest("PATCH", json);
      http.end();
-     Serial.print("Termination Backend Code: ");
-     Serial.println(code);
   }
-  
-  // 2. Force Lock
   digitalWrite(LOCK_PIN, LOW);
   state = LOCKED;
-  
-  // 3. Reset Local State
   currentBackendStatus = "AVAILABLE";
   currentSessionEnd = 0;
   currentUnlockCount = 0;
@@ -618,12 +647,9 @@ void terminateSession() {
   terminationMode = false;
   debugStartTime = 0;
   debugDuration = 0;
-  
-  // 4. Update UI
   currentDisplayMode = DISP_QR;
   forceRedraw = true;
   
-  // 5. Show confirmation message
   tft.fillScreen(BG_COLOR);
   centerText("Session", 100, 2, INFO_COLOR);
   centerText("Terminated", 130, 2, INFO_COLOR);
@@ -632,107 +658,48 @@ void terminateSession() {
 }
 
 void unlockLocker() {
-  Serial.println("=== UNLOCKING ===");
-  digitalWrite(LOCK_PIN, HIGH); // Unlocking
+  digitalWrite(LOCK_PIN, HIGH);
   unlockStart = millis();
   state = UNLOCKED;
-  
-  // Immediate UI Update
   currentUnlockCount++; 
   forceRedraw = true; 
   
-  // 1. Update Unlock Count in Firebase
   HTTPClient http;
   String countUrl = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + "/unlockCount.json?auth=" + String(FIREBASE_SECRET);
   http.begin(countUrl);
   int getCode = http.GET();
   String countPayload = http.getString();
   http.end();
-  
   int currentCount = 0;
-  if (getCode == 200 && countPayload != "null") {
-    currentCount = countPayload.toInt();
-  }
+  if (getCode == 200 && countPayload != "null") currentCount = countPayload.toInt();
   currentCount++;
-  
   http.begin(countUrl);
   http.PUT(String(currentCount));
   http.end();
 
-  // 2. FIRST UNLOCK: Start the Timer if it hasn't started (startTime == 0)
   if (debugStartTime == 0) {
-     Serial.println("First Unlock! Starting Timer...");
-     
-     // Calculate Now in UTC (ms)
      unsigned long long nowUTC = (unsigned long long)time(NULL) * 1000ULL;
-     
-     // Write to Firebase
      String startUrl = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + "/startTime.json?auth=" + String(FIREBASE_SECRET);
      http.begin(startUrl);
-     http.PUT(String((unsigned long long)nowUTC)); // Write as number
+     http.PUT(String((unsigned long long)nowUTC));
      http.end();
-     
-     // Update Local State immediately so timer appears
      debugStartTime = nowUTC;
-     
-     // Recalculate Session End locally
-     if (debugDuration > 0) {
-        currentSessionEnd = nowUTC + (unsigned long long)debugDuration;
-     }
+     if (debugDuration > 0) currentSessionEnd = nowUTC + (unsigned long long)debugDuration;
   }
 }
 
 void handleAutoLock() {
   if (millis() - unlockStart >= UNLOCK_TIME) {
-    digitalWrite(LOCK_PIN, LOW); // Locking
+    digitalWrite(LOCK_PIN, LOW);
     state = LOCKED;
     enteredPIN = "";
-    Serial.println("=== LOCKED ===");
   }
 }
 
 void checkSessionExpiration() {
-  // Only check if we are currently ACTIVE and have a valid session end time
   if (currentBackendStatus != "ACTIVE" || currentSessionEnd == 0) return;
-
-  // Use the same time source as the rest of the app
   unsigned long long nowMs = (unsigned long long)time(NULL) * 1000ULL;
-
-  // Check if time has passed
   if (nowMs > currentSessionEnd) {
-    Serial.println("Session Expired! Resetting...");
-    
-    // 1. Force Lock
-    digitalWrite(LOCK_PIN, LOW);
-    state = LOCKED;
-    
-    // 2. Update Firebase to AVAILABLE
-    if (WiFi.status() == WL_CONNECTED) {
-       HTTPClient http;
-       String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-       
-       // Resetting status, clearing PIN, and zeroing timers
-       String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0}";
-       
-       http.begin(url);
-       int code = http.sendRequest("PATCH", json);
-       http.end();
-       Serial.print("Reset Backend Code: ");
-       Serial.println(code);
-    }
-    
-    // 3. Reset Local State
-    currentBackendStatus = "AVAILABLE";
-    currentSessionEnd = 0;
-    currentUnlockCount = 0;
-    enteredPIN = "";
-    terminationPIN = "";
-    terminationMode = false;
-    debugStartTime = 0;
-    debugDuration = 0;
-    
-    // 4. Update UI
-    currentDisplayMode = DISP_QR;
-    forceRedraw = true;
+    terminateSession(); // Re-use logic for reset
   }
 }

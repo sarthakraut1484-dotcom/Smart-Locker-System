@@ -23,7 +23,7 @@ const rtdb = getDatabase(app);
 
 async function resetLockers() {
   const batch = writeBatch(db);
-  const lockersRef = collection(db, "lockers");
+  const lockersRef = collection(db, "lockers");   
 
   try {
     console.log("Fetching lockers...");
