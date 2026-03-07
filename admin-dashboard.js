@@ -116,6 +116,12 @@ onSnapshot(lockersRef, (snapshot) => {
     document.getElementById("stat-occupied").textContent = occupied;
     document.getElementById("stat-maintenance").textContent = maintenance;
 
+    // Dynamically update the pie chart if it exists
+    if (window.myStatusChart) {
+        window.myStatusChart.data.datasets[0].data = [available, occupied, maintenance];
+        window.myStatusChart.update();
+    }
+
     renderLockersGrid("ALL");
     renderActiveSessions();
     updateDashboardActiveSessions();
@@ -463,14 +469,16 @@ function initCharts() {
     // Status Chart
     const statusCanvas = document.getElementById('statusChart');
     if (statusCanvas) {
-        new Chart(statusCanvas, {
+        window.myStatusChart = new Chart(statusCanvas, {
             type: 'doughnut',
             data: {
                 labels: ['Available', 'Occupied', 'Maintenance'],
                 datasets: [{
-                    data: [parseInt(document.getElementById("stat-available").textContent) || 12,
-                    parseInt(document.getElementById("stat-occupied").textContent) || 5,
-                    parseInt(document.getElementById("stat-maintenance").textContent) || 3],
+                    data: [
+                        parseInt(document.getElementById("stat-available").textContent) || 0,
+                        parseInt(document.getElementById("stat-occupied").textContent) || 0,
+                        parseInt(document.getElementById("stat-maintenance").textContent) || 0
+                    ],
                     backgroundColor: ['#2ea043', '#da3633', '#e3b341'],
                     borderWidth: 0
                 }]
