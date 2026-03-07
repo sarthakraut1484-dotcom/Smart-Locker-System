@@ -717,12 +717,11 @@
         <section id="view-history" class="view-section">
             <div class="row mb-4">
                 <div class="col-md-9 mb-3 mb-md-0">
-                    <input type="text" class="form-control bg-dark text-white border-secondary"
-                        id="history-locker-filter" placeholder="Search by Locker ID or User..."
-                        onkeyup="if(event.key === 'Enter') fetchHistory()">
+                    <input type="date" class="form-control bg-dark text-white border-secondary" id="history-date-filter"
+                        onchange="fetchHistory()">
                 </div>
                 <div class="col-md-3">
-                    <button class="btn btn-primary w-100" onclick="fetchHistory()">Search</button>
+                    <button class="btn btn-primary w-100" onclick="fetchHistory()">Filter by Date</button>
                 </div>
             </div>
 

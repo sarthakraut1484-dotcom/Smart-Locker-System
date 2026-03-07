@@ -434,20 +434,37 @@ function initAlertsAndHistory() {
 }
 
 window.fetchHistory = function () {
-    const filterInput = document.getElementById("history-locker-filter");
+    const filterInput = document.getElementById("history-date-filter");
     if (!filterInput) return;
 
-    const filterText = filterInput.value.toLowerCase().trim();
+    // YYYY-MM-DD
+    const filterDateStr = filterInput.value;
     const rows = document.querySelectorAll("#history-tbody-list tr");
 
     rows.forEach(row => {
         // Skip informational messages like "no history found"
         if (row.cells.length < 2) return;
 
-        // Match against Locker ID or User column texts
-        const rowText = row.innerText.toLowerCase();
+        // If no date is selected, show all
+        if (!filterDateStr) {
+            row.style.display = "";
+            return;
+        }
 
-        if (rowText.includes(filterText)) {
+        const rowDate = new Date(row.cells[0].innerText);
+        if (isNaN(rowDate)) {
+            row.style.display = "";
+            return;
+        }
+
+        // Parse YYYY-MM-DD from the input
+        const filterParts = filterDateStr.split('-');
+        if (filterParts.length !== 3) return;
+
+        // Note: JS getMonth is 0-indexed while HTML input month is 1-indexed
+        if (rowDate.getFullYear() == filterParts[0] &&
+            (rowDate.getMonth() + 1) == parseInt(filterParts[1]) &&
+            rowDate.getDate() == parseInt(filterParts[2])) {
             row.style.display = "";
         } else {
             row.style.display = "none";
