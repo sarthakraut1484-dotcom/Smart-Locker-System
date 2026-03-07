@@ -537,21 +537,27 @@
             }
           }
 
+          const userContact = currentUser.email || currentUser.phoneNumber || currentUser.uid;
+
           transaction.set(lockerRef, {
             status: "ACTIVE",
             currentPin: pin,
             startTime: null,      // Timer hasn't started yet
             duration: durationMs, // Store planned duration
             lastUpdated: Date.now(),
-            userId: currentUser.uid
+            userId: currentUser.uid,
+            userContact: userContact
           });
         });
         console.log("Transaction Committed! Locker state updated.");
 
         // 2. Add to Bookings History
         const amount = rate * selectedHours;
+        const userContact = currentUser.email || currentUser.phoneNumber || currentUser.uid;
+
         const bookingData = {
           userId: currentUser.uid,
+          userContact: userContact,
           lockerId: locker.id,
           hours: selectedHours,
           amount: amount,

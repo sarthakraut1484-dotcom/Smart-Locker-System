@@ -310,10 +310,13 @@ function renderActiveSessions() {
         const startStr = l.startTime ? new Date(l.startTime).toLocaleString() : "Syncing...";
         const endStr = l.sessionEnd ? new Date(l.sessionEnd).toLocaleString() : "Unknown";
 
+        // Display human-readable contact if available
+        const userContactDisplay = l.userContact || l.userId || "Unknown";
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
       <td>Locker ${l.id}</td>
-      <td class="text-truncate" style="max-width:120px;">${l.userId || "Unknown"}</td>
+      <td class="text-truncate" style="max-width:150px;" title="${userContactDisplay}">${userContactDisplay}</td>
       <td>${l.currentPin || "****"}</td>
       <td>${startStr}</td>
       <td>${endStr}</td>
@@ -412,12 +415,14 @@ function initAlertsAndHistory() {
                 const timeVal = data.createdAt || data.timestamp || Date.now();
                 const dateStr = new Date(timeVal).toLocaleString();
 
+                // Favor the human-readable userContact if it exists (email/phone), else fallback to UID
+                const displayUser = data.userContact || data.userId || "Guest";
+
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                   <td>${dateStr}</td>
                   <td><b>Locker ${data.lockerId || '-'}</b></td>
-                  <td class="text-truncate" style="max-width:150px;" title="${data.userId}">${data.userId || "Guest"}</td>
-                  <td><span class="text-info">${data.pin || "****"}</span></td>
+                  <td class="text-truncate" style="max-width:200px;" title="${displayUser}">${displayUser}</td>
                   <td>${data.duration ? (data.duration / 3600000).toFixed(1) : (data.hours || '--')}</td>
                   <td><span class="text-success fw-bold">₹${data.amount || '0'}</span></td>
                   <td><span class="badge bg-secondary">${data.status || 'CONFIRMED'}</span></td>
