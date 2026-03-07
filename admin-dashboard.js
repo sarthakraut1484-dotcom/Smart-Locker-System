@@ -77,29 +77,38 @@ let allLockers = [];
 const lockersRef = collection(db, "lockers");
 
 onSnapshot(lockersRef, (snapshot) => {
-    allLockers = [];
-    let available = 0, occupied = 0, maintenance = 0;
+    const TOTAL_LOCKERS = 20;
+    const lockerMap = new Map();
+
+    // Pre-fill 20 lockers
+    for (let i = 1; i <= TOTAL_LOCKERS; i++) {
+        lockerMap.set(i.toString(), {
+            id: i.toString(),
+            status: "AVAILABLE"
+        });
+    }
 
     snapshot.forEach(docSnap => {
         const data = docSnap.data();
         const id = docSnap.id.replace("locker_", "");
-
-        // Default to AVAILABLE if not set
         const status = data.status || "AVAILABLE";
 
-        allLockers.push({
+        lockerMap.set(id, {
             id,
             ...data,
             status
         });
-
-        if (status === "AVAILABLE") available++;
-        else if (status === "ACTIVE") occupied++;
-        else if (status === "MAINTENANCE") maintenance++;
     });
 
-    // Sort by locker ID numeric
+    allLockers = Array.from(lockerMap.values());
     allLockers.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+    let available = 0, occupied = 0, maintenance = 0;
+    allLockers.forEach(l => {
+        if (l.status === "AVAILABLE") available++;
+        else if (l.status === "ACTIVE") occupied++;
+        else if (l.status === "MAINTENANCE") maintenance++;
+    });
 
     // Update Stats
     document.getElementById("stat-total").textContent = allLockers.length;
@@ -344,10 +353,7 @@ function initAlertsAndHistory() {
     const alertsTbody = document.querySelector("#alerts-table tbody");
     const dashAlerts = document.getElementById("dashboard-alerts-list");
 
-    const alertsData = [
-        { time: new Date(Date.now() - 600000), type: "WARNING", locker: "5", msg: "Door open too long", status: "Active" },
-        { time: new Date(Date.now() - 3600000), type: "EXPIRED", locker: "12", msg: "Session expired 1h ago", status: "Active" }
-    ];
+    const alertsData = []; // Removed dummy alerts for now
 
     if (alertsData.length > 0) {
         if (dashAlerts) {
@@ -374,10 +380,14 @@ function initAlertsAndHistory() {
         </tr>
       `).join("");
         }
-
-        const alertsCount = document.getElementById("alertsCount");
-        if (alertsCount) alertsCount.textContent = alertsData.length;
+    } else {
+        // Show empty state
+        if (dashAlerts) dashAlerts.innerHTML = '<p class="text-muted text-center mt-5">No active alerts</p>';
+        if (alertsTbody) alertsTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No active alerts</td></tr>';
     }
+
+    const alertsCount = document.getElementById("alertsCount");
+    if (alertsCount) alertsCount.textContent = alertsData.length.toString();
 
     // History - query from bookings if it exists.
     const historyTbody = document.querySelector("#history-table tbody");
@@ -394,12 +404,12 @@ function initAlertsAndHistory() {
                 const dateStr = data.timestamp ? new Date(data.timestamp).toLocaleString() : "Unknown";
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
-          <td>${dateStr}</td>
-          <td>Locker ${data.lockerId}</td>
-          <td class="text-truncate" style="max-width:150px;">${data.userId || "Guest"}</td>
-          <td>${data.duration ? (data.duration / 3600000).toFixed(1) + 'h' : '--'}</td>
-          <td><span class="badge bg-secondary">Completed</span></td>
-        `;
+                  <td>${dateStr}</td>
+                  <td>Locker ${data.lockerId}</td>
+                  <td class="text-truncate" style="max-width:150px;">${data.userId || "Guest"}</td>
+                  <td>${data.duration ? (data.duration / 3600000).toFixed(1) + 'h' : '--'}</td>
+                  <td><span class="badge bg-secondary">Completed</span></td>
+                `;
                 historyTbody.appendChild(tr);
             });
         });
