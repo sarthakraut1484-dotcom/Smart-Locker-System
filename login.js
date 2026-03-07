@@ -36,6 +36,18 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   const password = document.getElementById("password").value;
 
   try {
+    // 👑 HARDCODED ADMIN CHECK
+    if (email === "Admin@0861" && password === "Admin@0861") {
+      sessionStorage.setItem("adminUser", JSON.stringify({
+        uid: "hardcoded-admin",
+        email: "Admin@0861",
+        loginTime: Date.now()
+      }));
+      window.location.href = "admin-dashboard.html";
+      return;
+    }
+
+    // NORMAL USER FIREBASE CHECK
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
