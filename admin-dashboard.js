@@ -434,7 +434,25 @@ function initAlertsAndHistory() {
 }
 
 window.fetchHistory = function () {
-    console.log("Applying filters to history... (UI update demo)");
+    const filterInput = document.getElementById("history-locker-filter");
+    if (!filterInput) return;
+
+    const filterText = filterInput.value.toLowerCase().trim();
+    const rows = document.querySelectorAll("#history-tbody-list tr");
+
+    rows.forEach(row => {
+        // Skip informational messages like "no history found"
+        if (row.cells.length < 2) return;
+
+        // Match against Locker ID or User column texts
+        const rowText = row.innerText.toLowerCase();
+
+        if (rowText.includes(filterText)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+    });
 };
 
 initAlertsAndHistory();
