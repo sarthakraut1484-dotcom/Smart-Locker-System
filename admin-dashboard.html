@@ -480,6 +480,12 @@
             padding: 24px;
         }
 
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
         .chart-card h3 {
             font-size: 16px;
             margin-bottom: 20px;
@@ -746,15 +752,21 @@
             <div class="charts-grid">
                 <div class="chart-card">
                     <h3>Daily Usage Trend</h3>
-                    <canvas id="usageChart" height="250"></canvas>
+                    <div class="chart-wrapper">
+                        <canvas id="usageChart"></canvas>
+                    </div>
                 </div>
                 <div class="chart-card">
                     <h3>Locker Status Distribution</h3>
-                    <canvas id="statusChart" height="250"></canvas>
+                    <div class="chart-wrapper">
+                        <canvas id="statusChart"></canvas>
+                    </div>
                 </div>
                 <div class="chart-card">
                     <h3>Peak Usage Hours</h3>
-                    <canvas id="peakChart" height="250"></canvas>
+                    <div class="chart-wrapper">
+                        <canvas id="peakChart"></canvas>
+                    </div>
                 </div>
             </div>
         </section>

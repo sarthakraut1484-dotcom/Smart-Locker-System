@@ -422,16 +422,17 @@
 
     /* ================= URL PARAM CHECK (QR Code Support) ================= */
     const urlParams = new URLSearchParams(window.location.search);
-    // Check both 'id' (from ESP32) and 'lockerId' (legacy) parameters
-    const lockerIdParam = urlParams.get('id') || urlParams.get('lockerId') || '4'; // Default to Locker 4
+    const lockerIdParam = urlParams.get('id') || urlParams.get('lockerId');
 
-    // Always set locker in session storage
-    const lockerObj = {
-      id: lockerIdParam,
-      size: "Standard",
-      price: 70
-    };
-    sessionStorage.setItem("selectedLocker", JSON.stringify(lockerObj));
+    // Only set from URL if explicitly provided, otherwise rely on sessionStorage from previous page
+    if (lockerIdParam) {
+      const lockerObj = {
+        id: lockerIdParam,
+        size: "Standard",
+        price: 70
+      };
+      sessionStorage.setItem("selectedLocker", JSON.stringify(lockerObj));
+    }
 
     /* ================= AUTH STATE CHECK ================= */
     onAuthStateChanged(auth, (user) => {
