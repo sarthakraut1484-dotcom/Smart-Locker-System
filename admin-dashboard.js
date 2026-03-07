@@ -396,25 +396,31 @@ function initAlertsAndHistory() {
     if (alertsCount) alertsCount.textContent = alertsData.length.toString();
 
     // History - query from bookings if it exists.
-    const historyTbody = document.querySelector("#history-table tbody");
+    const historyTbody = document.getElementById("history-tbody-list");
     if (historyTbody) {
         const bookingsRef = collection(db, "bookings");
-        onSnapshot(query(bookingsRef, orderBy("timestamp", "desc"), limit(20)), (snap) => {
+        // Use 'createdAt' based on how booking.html saves it
+        onSnapshot(query(bookingsRef, orderBy("createdAt", "desc"), limit(20)), (snap) => {
             historyTbody.innerHTML = "";
             if (snap.empty) {
-                historyTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No history found</td></tr>`;
+                historyTbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No history found</td></tr>`;
                 return;
             }
             snap.forEach(docSnap => {
                 const data = docSnap.data();
-                const dateStr = data.timestamp ? new Date(data.timestamp).toLocaleString() : "Unknown";
+                // Check either createdAt or fallback to timestamp
+                const timeVal = data.createdAt || data.timestamp || Date.now();
+                const dateStr = new Date(timeVal).toLocaleString();
+
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                   <td>${dateStr}</td>
-                  <td>Locker ${data.lockerId}</td>
-                  <td class="text-truncate" style="max-width:150px;">${data.userId || "Guest"}</td>
-                  <td>${data.duration ? (data.duration / 3600000).toFixed(1) + 'h' : '--'}</td>
-                  <td><span class="badge bg-secondary">Completed</span></td>
+                  <td><b>Locker ${data.lockerId || '-'}</b></td>
+                  <td class="text-truncate" style="max-width:150px;" title="${data.userId}">${data.userId || "Guest"}</td>
+                  <td><span class="text-info">${data.pin || "****"}</span></td>
+                  <td>${data.duration ? (data.duration / 3600000).toFixed(1) : (data.hours || '--')}</td>
+                  <td><span class="text-success fw-bold">₹${data.amount || '0'}</span></td>
+                  <td><span class="badge bg-secondary">${data.status || 'CONFIRMED'}</span></td>
                 `;
                 historyTbody.appendChild(tr);
             });
