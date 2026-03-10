@@ -100,6 +100,7 @@
         .brand i {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             font-size: 28px;
         }
@@ -197,6 +198,7 @@
             letter-spacing: -0.03em;
             background: linear-gradient(to right, #fff, var(--text-muted));
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -520,7 +522,7 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Lockers</div>
-                    <div class="stat-value">20</div>
+                    <div class="stat-value" id="statTotal">20</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Available</div>
@@ -689,62 +691,52 @@
 
         // REAL-TIME DATA HANDLING
         let lockerData = {};
+        // Initialize with 20 lockers from locker-data.js or default
+        for (let i = 1; i <= 20; i++) {
+            lockerData[i] = { 
+                status: "AVAILABLE", 
+                doorStatus: "CLOSED", 
+                occupancy: "EMPTY",
+                currentPin: "---",
+                userName: "N/A",
+                startTime: null,
+                duration: 0
+            };
+        }
 
         function initRealtime() {
-            // Listen to Firestore Lockers
-            onSnapshot(collection(db, "lockers"), (snapshot) => {
-                let avail = 0, occ = 0, maint = 0;
-                const gridDash = document.getElementById("dashboardLockerGrid");
-                const gridFull = document.getElementById("fullLockerGrid");
-                const sessionsBody = document.getElementById("sessionsBody");
-                const alertsContainer = document.getElementById("alertsContainer");
+            // 1. Listen to Realtime Database (ESP32 Hardware Status)
+            onValue(ref(rtdb, "lockers"), (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
                 
-                gridDash.innerHTML = "";
-                gridFull.innerHTML = "";
-                sessionsBody.innerHTML = "";
-                let alertHtml = "";
-                let alertCount = 0;
+                Object.keys(data).forEach(id => {
+                    if (lockerData[id]) {
+                        lockerData[id].doorStatus = data[id].doorStatus || "CLOSED";
+                        lockerData[id].occupancy = data[id].occupancy || "EMPTY";
+                        // Some systems might store status here too
+                        if (data[id].status && !lockerData[id].firestoreStatus) {
+                            lockerData[id].status = data[id].status;
+                        }
+                    }
+                });
+                renderUI();
+            });
 
+            // 2. Listen to Firestore (Booking & System Status)
+            onSnapshot(collection(db, "lockers"), (snapshot) => {
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
                     const id = docSnap.id.replace("locker_", "");
-                    lockerData[id] = data;
-
-                    if (data.status === "AVAILABLE") avail++;
-                    else if (data.status === "ACTIVE") occ++;
-                    else if (data.status === "MAINTENANCE") maint++;
-
-                    // Render Card
-                    const cardHtml = createLockerCard(id, data);
-                    gridFull.insertAdjacentHTML('beforeend', cardHtml);
-                    if (data.status !== "AVAILABLE") gridDash.insertAdjacentHTML('beforeend', cardHtml);
-
-                    // Sessions
-                    if (data.status === "ACTIVE") {
-                        sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
-                    }
-
-                    // Alerts (Example Logic: Door open too long)
-                    if (data.doorStatus === "OPEN") {
-                        alertCount++;
-                        alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} door is detected OPEN.`);
+                    if (lockerData[id]) {
+                        lockerData[id] = { ...lockerData[id], ...data };
+                        lockerData[id].firestoreStatus = true; // Mark that we have firestore data
                     }
                 });
-
-                document.getElementById("statAvailable").textContent = avail;
-                document.getElementById("statOccupied").textContent = occ;
-                document.getElementById("statMaintenance").textContent = maint;
-                
-                if (alertCount > 0) {
-                    document.getElementById("alertBadge").classList.remove("d-none");
-                    document.getElementById("alertBadge").textContent = alertCount;
-                    alertsContainer.innerHTML = alertHtml;
-                } else {
-                    document.getElementById("alertBadge").classList.add("d-none");
-                }
+                renderUI();
             });
 
-            // Listen to Bookings (Revenue)
+            // 3. Listen to Bookings (Revenue & History)
             onSnapshot(collection(db, "bookings"), (snapshot) => {
                 let rev = 0;
                 const body = document.getElementById("historyBody");
@@ -760,6 +752,70 @@
                 document.getElementById("statRevenue").textContent = `₹${rev.toFixed(2)}`;
                 updateCharts(historyData);
             });
+        }
+
+        function renderUI() {
+            let avail = 0, occ = 0, maint = 0;
+            const gridDash = document.getElementById("dashboardLockerGrid");
+            const gridFull = document.getElementById("fullLockerGrid");
+            const sessionsBody = document.getElementById("sessionsBody");
+            const alertsContainer = document.getElementById("alertsContainer");
+            
+            gridDash.innerHTML = "";
+            gridFull.innerHTML = "";
+            sessionsBody.innerHTML = "";
+            let alertHtml = "";
+            let alertCount = 0;
+
+            Object.keys(lockerData).forEach(id => {
+                const data = lockerData[id];
+
+                if (data.status === "AVAILABLE") avail++;
+                else if (data.status === "ACTIVE") occ++;
+                else if (data.status === "MAINTENANCE") maint++;
+
+                // Render Card
+                const cardHtml = createLockerCard(id, data);
+                gridFull.insertAdjacentHTML('beforeend', cardHtml);
+                
+                // Dashboard Grid (Only show non-available or abnormal status)
+                if (data.status !== "AVAILABLE" || data.doorStatus === "OPEN") {
+                    gridDash.insertAdjacentHTML('beforeend', cardHtml);
+                }
+
+                // Sessions
+                if (data.status === "ACTIVE") {
+                    sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
+                }
+
+                // Alerts (Hardware Alerts)
+                if (data.doorStatus === "OPEN" && data.status !== "ACTIVE") {
+                    alertCount++;
+                    alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} is OPEN while status is ${data.status}.`);
+                }
+            });
+
+            document.getElementById("statTotal").textContent = Object.keys(lockerData).length;
+            document.getElementById("statAvailable").textContent = avail;
+            document.getElementById("statOccupied").textContent = occ;
+            document.getElementById("statMaintenance").textContent = maint;
+            
+            if (alertCount > 0) {
+                document.getElementById("alertBadge").classList.remove("d-none");
+                document.getElementById("alertBadge").textContent = alertCount;
+                alertsContainer.innerHTML = alertHtml;
+            } else {
+                document.getElementById("alertBadge").classList.add("d-none");
+                // Restore empty state if no alerts
+                if (alertsContainer.children.length === 0) {
+                     alertsContainer.innerHTML = `
+                        <div class="empty-state text-center py-5">
+                            <i class="bi bi-check2-circle text-success" style="font-size: 48px;"></i>
+                            <h5 class="mt-3">System Clear</h5>
+                            <p class="text-muted">No active security alerts or hardware failures detected.</p>
+                        </div>`;
+                }
+            }
         }
 
         function createLockerCard(id, data) {
