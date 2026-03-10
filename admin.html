@@ -838,11 +838,11 @@
                 body.innerHTML = "";
                 const historyData = [];
 
-                snapshot.forEach(docSnap => {
+                snapshot.docs.forEach((docSnap, index) => {
                     const data = docSnap.data();
                     rev += Number(data.amount || 0);
                     historyData.push(data);
-                    body.insertAdjacentHTML('afterbegin', createHistoryRow(data));
+                    body.insertAdjacentHTML('afterbegin', createHistoryRow(data, index));
                 });
                 document.getElementById("statRevenue").textContent = `₹${rev.toFixed(2)}`;
                 updateCharts(historyData);
@@ -958,17 +958,45 @@
             `;
         }
 
-        function createHistoryRow(data) {
+        const userCache = {};
+        async function fetchUserData(uid, elementId) {
+            if (!uid) return;
+            if (userCache[uid]) {
+                const el = document.getElementById(elementId);
+                if (el) el.textContent = userCache[uid];
+                return;
+            }
+            try {
+                const userDoc = await getDoc(doc(db, "users", uid));
+                if (userDoc.exists()) {
+                    const uData = userDoc.data();
+                    userCache[uid] = uData.name || uData.email || uid.substring(0, 6);
+                    const el = document.getElementById(elementId);
+                    if (el) el.textContent = userCache[uid];
+                }
+            } catch (e) {}
+        }
+
+        function createHistoryRow(data, index) {
             const timestamp = data.startTime || data.createdAt;
             const date = timestamp ? new Date(timestamp).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: '2-digit'
             }) : "-";
+            
+            const cellId = `user-history-${index}`;
+            const userName = data.userName || data.userContact || "User";
+            
+            // If it's generic "User", try to fetch from UID background
+            if (userName === "User" && data.userId) {
+                setTimeout(() => fetchUserData(data.userId, cellId), 100);
+            }
+
             return `
                 <tr>
                     <td><span style="color: #cbd5e1">${date}</span></td>
-                    <td class="fw-bold" style="color: #ffffff">${data.userName || data.userContact || "User"}</td>
+                    <td class="fw-bold" style="color: #ffffff" id="${cellId}">${userName}</td>
                     <td><span class="badge bg-secondary">#${data.lockerId}</span></td>
                     <td>${data.hours || 0} hrs</td>
                     <td class="fw-bold text-success">₹${data.amount || 0}</td>
