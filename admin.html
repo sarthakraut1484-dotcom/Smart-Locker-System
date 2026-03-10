@@ -655,15 +655,57 @@
 
         <!-- ANALYTICS -->
         <section id="analytics" class="dash-section">
-            <div class="row">
+            <!-- Analytics Overview Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg. Booking Revenue</div>
+                        <div class="stat-value" id="statsAvgRev">₹0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg. Duration</div>
+                        <div class="stat-value" id="statsAvgDur">0 hrs</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Bookings</div>
+                        <div class="stat-value" id="statsTotalBookings">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">Peak Day</div>
+                        <div class="stat-value" id="statsPeakDay">N/A</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
                 <div class="col-lg-8">
                     <div class="chart-container">
+                        <h6 class="text-muted mb-4">Revenue Trends</h6>
                         <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
                 <div class="col-lg-4">
                     <div class="chart-container">
+                        <h6 class="text-muted mb-4">Current Availability</h6>
                         <canvas id="usageChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <h6 class="text-muted mb-4">Booking Volume (Daily)</h6>
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <h6 class="text-muted mb-4">Most Popular Lockers</h6>
+                        <canvas id="popularityChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -1081,52 +1123,130 @@
         };
 
         // ANALYTICS CHARTS
-        let revChart, usageChart;
+        let revChart, usageChart, volumeChart, popularityChart;
         function updateCharts(data) {
             const ctx1 = document.getElementById('revenueChart').getContext('2d');
             const ctx2 = document.getElementById('usageChart').getContext('2d');
+            const ctx3 = document.getElementById('volumeChart').getContext('2d');
+            const ctx4 = document.getElementById('popularityChart').getContext('2d');
 
             if (revChart) revChart.destroy();
             if (usageChart) usageChart.destroy();
+            if (volumeChart) volumeChart.destroy();
+            if (popularityChart) popularityChart.destroy();
 
-            // Group by date for revenue
-            const daily = {};
+            // Data Processing
+            const dailyRev = {};
+            const dailyVol = {};
+            const popularity = {};
+            let totalRev = 0;
+            let totalDur = 0;
+            let validBookings = 0;
+
             data.forEach(b => {
                 const ts = b.startTime || b.createdAt;
                 if (!ts) return;
-                const date = new Date(ts).toLocaleDateString();
-                daily[date] = (daily[date] || 0) + Number(b.amount || 0);
+
+                const date = new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+                const amount = Number(b.amount || 0);
+                const hours = Number(b.hours || 0);
+
+                // Revenue & Volume
+                dailyRev[date] = (dailyRev[date] || 0) + amount;
+                dailyVol[date] = (dailyVol[date] || 0) + 1;
+
+                // Popularity
+                const lId = b.lockerId || "Unknown";
+                popularity[lId] = (popularity[lId] || 0) + 1;
+
+                totalRev += amount;
+                totalDur += hours;
+                validBookings++;
             });
 
+            // Summary Stats
+            document.getElementById("statsTotalBookings").textContent = validBookings;
+            document.getElementById("statsAvgRev").textContent = `₹${validBookings > 0 ? (totalRev / validBookings).toFixed(1) : 0}`;
+            document.getElementById("statsAvgDur").textContent = `${validBookings > 0 ? (totalDur / validBookings).toFixed(1) : 0} hrs`;
+            
+            let peakDay = "N/A", maxVol = 0;
+            Object.entries(dailyVol).forEach(([d, v]) => { if(v > maxVol) { maxVol = v; peakDay = d; } });
+            document.getElementById("statsPeakDay").textContent = peakDay;
+
+            // Chart 1: Revenue Line
             revChart = new Chart(ctx1, {
                 type: 'line',
                 data: {
-                    labels: Object.keys(daily),
+                    labels: Object.keys(dailyRev),
                     datasets: [{
-                        label: 'Revenue per Day',
-                        data: Object.values(daily),
+                        label: 'Daily Revenue',
+                        data: Object.values(dailyRev),
                         borderColor: '#8b5cf6',
                         backgroundColor: 'rgba(139, 92, 246, 0.1)',
                         fill: true,
-                        tension: 0.4
+                        tension: 0.4,
+                        borderWidth: 3
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }
             });
 
-            // Locker Distribution
-            const occCount = Object.values(lockerData).filter(l => l.status==='ACTIVE').length;
+            // Chart 2: Usage Donut
+            const totalLabels = Object.keys(lockerData).length;
+            const occCount = Object.values(lockerData).filter(l => l.status==='ACTIVE' || l.status==='OCCUPIED').length;
             usageChart = new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
                     labels: ['Occupied', 'Available'],
                     datasets: [{
-                        data: [occCount, 20 - occCount],
+                        data: [occCount, totalLabels - occCount],
                         backgroundColor: ['#ef4444', '#10b981'],
+                        hoverOffset: 4,
                         borderWidth: 0
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '70%',
+                    plugins: { legend: { position: 'bottom', labels: { color: '#fff', usePointStyle: true, padding: 20 } } } 
+                }
+            });
+
+            // Chart 3: Volume Bar
+            volumeChart = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(dailyVol),
+                    datasets: [{
+                        label: 'Bookings',
+                        data: Object.values(dailyVol),
+                        backgroundColor: '#38bdf8',
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }
+            });
+
+            // Chart 4: Popularity Radar or Horizontal Bar
+            const sortedLockerIds = Object.keys(popularity).sort((a,b) => popularity[b] - popularity[a]).slice(0, 8);
+            popularityChart = new Chart(ctx4, {
+                type: 'bar',
+                data: {
+                    labels: sortedLockerIds.map(id => `Locker #${id}`),
+                    datasets: [{
+                        label: 'Total Bookings',
+                        data: sortedLockerIds.map(id => popularity[id]),
+                        backgroundColor: '#fbbf24',
+                        borderRadius: 6
+                    }]
+                },
+                options: { 
+                    indexAxis: 'y',
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { display: false } } } 
+                }
             });
         }
 
