@@ -2,372 +2,752 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel | Smart Locker System</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Smart Locker System</title>
 
-  <!-- Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <style>
-    :root {
-      --primary: #8b5cf6; /* Purple for Admin */
-      --primary-dark: #7c3aed;
-      --secondary: #38bdf8;
-      --background: #000000;
-      --surface: rgba(255, 255, 255, 0.05);
-      --border: rgba(255, 255, 255, 0.1);
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --radius: 16px;
-    }
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #38bdf8;
+            --accent: #f472b6;
+            --background: #000000;
+            --surface: rgba(255, 255, 255, 0.05);
+            --sidebar: rgba(0, 0, 0, 0.8);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --radius: 16px;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
 
-    body {
-      background: var(--background);
-      color: var(--text-main);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+        body {
+            background: var(--background);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
 
-    /* Flickering Grid Background */
-    #flickering-grid-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      pointer-events: none;
-    }
+        #flickering-grid-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
 
-    /* Navbar */
-    nav {
-      background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 5%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
 
-    .nav-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 22px;
-      color: var(--primary);
-      font-family: 'Outfit', sans-serif;
-      font-weight: 700;
-    }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 40px;
+            padding-left: 8px;
+        }
 
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
+        .nav-menu {
+            list-style: none;
+            flex-grow: 1;
+        }
 
-    .admin-badge {
-      background: rgba(139, 92, 246, 0.2);
-      color: var(--primary);
-      padding: 4px 12px;
-      border-radius: 50px;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      border: 1px solid var(--primary);
-    }
+        .nav-item {
+            margin-bottom: 8px;
+        }
 
-    .logout-btn {
-      background: transparent;
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-      padding: 8px 16px;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: 0.2s;
-    }
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
 
-    .logout-btn:hover {
-      background: #ef4444;
-      color: white;
-      border-color: #ef4444;
-    }
+        .nav-link i {
+            font-size: 18px;
+        }
 
-    /* Main Container */
-    .container {
-      max-width: 1300px;
-      margin: 40px auto;
-      padding: 0 24px;
-    }
+        .nav-link:hover, .nav-link.active {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--primary);
+        }
 
-    h2 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 32px;
-      margin-bottom: 32px;
-    }
+        .nav-link.active {
+            font-weight: 600;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
 
-    /* Stats Grid */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 24px;
-      margin-bottom: 40px;
-    }
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 280px;
+            flex-grow: 1;
+            padding: 24px 40px;
+            width: calc(100% - 280px);
+        }
 
-    .stat-card {
-      background: var(--surface);
-      padding: 24px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-    }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
 
-    .stat-label {
-      color: var(--text-muted);
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
 
-    .stat-value {
-      font-family: 'Outfit', sans-serif;
-      font-size: 32px;
-      font-weight: 700;
-      color: var(--text-main);
-    }
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
 
-    /* Table Section */
-    .content-card {
-      background: var(--surface);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      padding: 24px;
-      backdrop-filter: blur(10px);
-    }
+        .logout-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
 
-    .table-responsive {
-      margin-top: 20px;
-    }
+        /* Dash Sections */
+        .dash-section {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
 
-    table {
-      width: 100%;
-      color: var(--text-main);
-      border-collapse: separate;
-      border-spacing: 0 8px;
-    }
+        .dash-section.active {
+            display: block;
+        }
 
-    th {
-      color: var(--text-muted);
-      font-weight: 600;
-      font-size: 13px;
-      text-transform: uppercase;
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-    }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-    td {
-      padding: 16px 12px;
-      background: rgba(255, 255, 255, 0.02);
-      font-size: 14px;
-    }
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
 
-    tr td:first-child { border-radius: 12px 0 0 12px; }
-    tr td:last-child { border-radius: 0 12px 12px 0; }
+        .stat-card {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
 
-    .status-badge {
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-    }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px;
+            background: var(--primary);
+            opacity: 0.6;
+        }
 
-    .status-active { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-    .status-expired { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .stat-label { color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
+        .stat-value { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 700; }
 
-    @media (max-width: 768px) {
-      .nav-left span { display: none; }
-    }
-  </style>
+        /* Locker Grid */
+        .locker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .locker-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .locker-card:hover { font-transform: translateY(-4px); border-color: rgba(255, 255, 255, 0.2); }
+
+        .locker-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+        .locker-id { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; }
+        
+        .status-pill { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .status-available { background: rgba(16, 185, 129, 0.2); color: #4ade80; }
+        .status-occupied { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .status-maintenance { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+        .locker-details { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+        .detail-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .detail-value { color: var(--text-main); font-weight: 600; }
+
+        .locker-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .action-btn { padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .action-btn:hover { background: var(--primary); border-color: var(--primary); }
+        .btn-danger-lite:hover { background: var(--danger); border-color: var(--danger); }
+
+        /* Table Styles */
+        .registry-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; overflow: hidden; }
+        .table { color: var(--text-main); margin-bottom: 0; }
+        .table th { border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+        .table td { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 16px 12px; font-size: 14px; vertical-align: middle; }
+        
+        /* Analytics Page */
+        .chart-container { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 24px; height: 400px; }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-280px); }
+            .sidebar.show { transform: translateX(0); }
+            .main-wrapper { margin-left: 0; width: 100%; }
+        }
+    </style>
 </head>
 
 <body>
-  <canvas id="flickering-grid-canvas"></canvas>
+    <canvas id="flickering-grid-canvas"></canvas>
 
-  <nav>
-    <div class="nav-left">
-      <i class="bi bi-shield-lock-fill"></i>
-      <span>Admin Dashboard</span>
-    </div>
-    <div class="nav-right">
-      <span class="admin-badge">Root Access</span>
-      <button class="logout-btn" id="logoutBtn">Logout</button>
-    </div>
-  </nav>
-
-  <div class="container">
-    <h2>System Overview</h2>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Users</div>
-        <div class="stat-value" id="totalUsers">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Active Bookings</div>
-        <div class="stat-value" id="activeBookings">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Revenue (Total)</div>
-        <div class="stat-value" id="totalRevenue">₹0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Available Lockers</div>
-        <div class="stat-value" id="availableLockers">0/20</div>
-      </div>
-    </div>
-
-    <div class="content-card">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">All Bookings Registry</h4>
-        <div class="input-group w-25">
-          <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
-          <input type="text" id="searchInput" class="form-control bg-dark text-light border-secondary" placeholder="Search user or email...">
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <i class="bi bi-shield-lock-fill"></i>
+            <span>SmartAdmin</span>
         </div>
-      </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link active" onclick="showSection('dashboard', this)">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('lockers', this)">
+                    <i class="bi bi-grid-3x3-gap"></i> Lockers
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('sessions', this)">
+                    <i class="bi bi-people"></i> Active Sessions
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('alerts', this)">
+                    <i class="bi bi-exclamation-triangle"></i> Alerts <span class="badge bg-danger ms-auto d-none" id="alertBadge">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('history', this)">
+                    <i class="bi bi-clock-history"></i> History
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('analytics', this)">
+                    <i class="bi bi-bar-chart-line"></i> Analytics
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('settings', this)">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
+            </li>
+        </ul>
+        <button class="logout-btn w-100" id="logoutBtn">
+            <i class="bi bi-box-arrow-left me-2"></i> Logout
+        </button>
+    </aside>
 
-      <div class="table-responsive">
-        <table id="bookingsTable">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Locker</th>
-              <th>PIN</th>
-              <th>Start Time</th>
-              <th>Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="bookingsBody">
-            <!-- Data will be populated here -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+    <main class="main-wrapper">
+        <header>
+            <h3 id="sectionTitle">Dashboard Overview</h3>
+            <div class="user-info">
+                <div class="text-end">
+                    <div class="fw-bold">Admin Account</div>
+                    <div class="text-muted small">System Root</div>
+                </div>
+                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; color: white;">A</div>
+            </div>
+        </header>
 
-  <script src="bg-animation.js"></script>
-  
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        <!-- DASHBOARD -->
+        <section id="dashboard" class="dash-section active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Lockers</div>
+                    <div class="stat-value">20</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Available</div>
+                    <div class="stat-value text-success" id="statAvailable">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Occupied</div>
+                    <div class="stat-value text-danger" id="statOccupied">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Maintenance</div>
+                    <div class="stat-value text-warning" id="statMaintenance">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Revenue</div>
+                    <div class="stat-value text-primary" id="statRevenue">₹0</div>
+                </div>
+            </div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
-      authDomain: "asep-smart-locker.firebaseapp.com",
-      projectId: "asep-smart-locker",
-    };
+            <h4 class="mb-4">Live System Monitor</h4>
+            <div class="locker-grid" id="dashboardLockerGrid">
+                <!-- Lockers will be rendered here -->
+            </div>
+        </section>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        <!-- LOCKERS -->
+        <section id="lockers" class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4>Grid Management</h4>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="resetAllLockers()">Emergency Reset All</button>
+                </div>
+            </div>
+            <div class="locker-grid" id="fullLockerGrid">
+                <!-- All 20 lockers -->
+            </div>
+        </section>
 
-    // 🔒 Security Check
-    const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
-    if (!currentUser || !currentUser.isAdmin) {
-      window.location.href = "login.html";
-    }
+        <!-- SESSIONS -->
+        <section id="sessions" class="dash-section">
+            <div class="registry-card">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Locker ID</th>
+                            <th>User Name</th>
+                            <th>PIN</th>
+                            <th>Start Time</th>
+                            <th>Remaining Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsBody">
+                        <!-- Dynamic sessions -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-    // 🚪 Logout
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      sessionStorage.clear();
-      window.location.href = "login.html";
-    });
+        <!-- ALERTS -->
+        <section id="alerts" class="dash-section">
+            <div id="alertsContainer">
+                <div class="empty-state text-center py-5">
+                    <i class="bi bi-check2-circle text-success" style="font-size: 48px;"></i>
+                    <h5 class="mt-3">System Clear</h5>
+                    <p class="text-muted">No active security alerts or hardware failures detected.</p>
+                </div>
+            </div>
+        </section>
 
-    // 📊 Fetch Stats & Logic
-    function initializeAdmin() {
-      // 1. Users Count
-      onSnapshot(collection(db, "users"), (snapshot) => {
-        document.getElementById("totalUsers").textContent = snapshot.size;
-      });
+        <!-- HISTORY -->
+        <section id="history" class="dash-section">
+            <div class="registry-card">
+                <div class="d-flex gap-3 mb-4">
+                    <input type="text" class="form-control bg-dark text-light border-secondary" placeholder="Search user or ID..." id="historySearch">
+                    <input type="date" class="form-control bg-dark text-light border-secondary" id="historyDateFilter">
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>User</th>
+                            <th>Locker</th>
+                            <th>Duration</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </section>
 
-      // 2. Lockers Status
-      onSnapshot(collection(db, "lockers"), (snapshot) => {
-        let active = 0;
-        snapshot.forEach(doc => {
-          if (doc.data().status === "ACTIVE") active++;
-        });
-        document.getElementById("activeBookings").textContent = active;
-        document.getElementById("availableLockers").textContent = `${20 - active}/20`;
-      });
+        <!-- ANALYTICS -->
+        <section id="analytics" class="dash-section">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="chart-container">
+                        <canvas id="usageChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-      // 3. Bookings Registry
-      const bookingsQuery = query(collection(db, "bookings"), orderBy("startTime", "desc"));
-      onSnapshot(bookingsQuery, (snapshot) => {
-        const body = document.getElementById("bookingsBody");
-        body.innerHTML = "";
-        let revenue = 0;
+        <!-- SETTINGS -->
+        <section id="settings" class="dash-section">
+            <div class="registry-card">
+                <h5>Admin Settings</h5>
+                <hr style="opacity: 0.1">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">System Name</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" value="Smart Locker Admin Panel">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">Support Email</label>
+                        <input type="email" class="form-control bg-dark text-light border-secondary" value="admin@asep.com">
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary px-4">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          revenue += Number(data.amount || 0);
+    <script src="bg-animation.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-          const row = document.createElement("tr");
-          const date = data.startTime ? new Date(data.startTime).toLocaleString() : "N/A";
-          
-          const status = (data.sessionEnd && data.sessionEnd > Date.now()) ? 
-            '<span class="status-badge status-active">Active</span>' : 
-            '<span class="status-badge status-expired">Completed</span>';
+        const firebaseConfig = {
+            apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+            authDomain: "asep-smart-locker.firebaseapp.com",
+            databaseURL: "https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "asep-smart-locker",
+        };
 
-          row.innerHTML = `
-            <td>
-              <div class="fw-bold">${data.userName || "Unknown"}</div>
-              <div class="text-muted small">${data.userEmail || "N/A"}</div>
-            </td>
-            <td>#${data.lockerId}</td>
-            <td><code>${data.pin}</code></td>
-            <td>${date}</td>
-            <td class="fw-bold">₹${data.amount || 0}</td>
-            <td>${status}</td>
-          `;
-          body.appendChild(row);
-        });
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const rtdb = getDatabase(app);
 
-        document.getElementById("totalRevenue").textContent = `₹${revenue.toFixed(2)}`;
-      });
-    </div>
+        // Security Check
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
+        if (!currentUser || !currentUser.isAdmin) { window.location.href = "login.html"; }
 
-    // Search functionality
-    document.getElementById("searchInput").addEventListener("input", (e) => {
-      const term = e.target.value.toLowerCase();
-      const rows = document.querySelectorAll("#bookingsBody tr");
-      rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(term) ? "" : "none";
-      });
-    });
+        document.getElementById("logoutBtn").onclick = () => { sessionStorage.clear(); window.location.href = "login.html"; };
 
-    initializeAdmin();
-  </script>
+        // NAVIGATION
+        window.showSection = (id, el) => {
+            document.querySelectorAll(".dash-section").forEach(s => s.classList.remove("active"));
+            document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
+            document.getElementById(id).classList.add("active");
+            el.classList.add("active");
+            document.getElementById("sectionTitle").textContent = el.textContent.trim();
+        };
+
+        // REAL-TIME DATA HANDLING
+        let lockerData = {};
+
+        function initRealtime() {
+            // Listen to Firestore Lockers
+            onSnapshot(collection(db, "lockers"), (snapshot) => {
+                let avail = 0, occ = 0, maint = 0;
+                const gridDash = document.getElementById("dashboardLockerGrid");
+                const gridFull = document.getElementById("fullLockerGrid");
+                const sessionsBody = document.getElementById("sessionsBody");
+                const alertsContainer = document.getElementById("alertsContainer");
+                
+                gridDash.innerHTML = "";
+                gridFull.innerHTML = "";
+                sessionsBody.innerHTML = "";
+                let alertHtml = "";
+                let alertCount = 0;
+
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const id = docSnap.id.replace("locker_", "");
+                    lockerData[id] = data;
+
+                    if (data.status === "AVAILABLE") avail++;
+                    else if (data.status === "ACTIVE") occ++;
+                    else if (data.status === "MAINTENANCE") maint++;
+
+                    // Render Card
+                    const cardHtml = createLockerCard(id, data);
+                    gridFull.insertAdjacentHTML('beforeend', cardHtml);
+                    if (data.status !== "AVAILABLE") gridDash.insertAdjacentHTML('beforeend', cardHtml);
+
+                    // Sessions
+                    if (data.status === "ACTIVE") {
+                        sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
+                    }
+
+                    // Alerts (Example Logic: Door open too long)
+                    if (data.doorStatus === "OPEN") {
+                        alertCount++;
+                        alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} door is detected OPEN.`);
+                    }
+                });
+
+                document.getElementById("statAvailable").textContent = avail;
+                document.getElementById("statOccupied").textContent = occ;
+                document.getElementById("statMaintenance").textContent = maint;
+                
+                if (alertCount > 0) {
+                    document.getElementById("alertBadge").classList.remove("d-none");
+                    document.getElementById("alertBadge").textContent = alertCount;
+                    alertsContainer.innerHTML = alertHtml;
+                } else {
+                    document.getElementById("alertBadge").classList.add("d-none");
+                }
+            });
+
+            // Listen to Bookings (Revenue)
+            onSnapshot(collection(db, "bookings"), (snapshot) => {
+                let rev = 0;
+                const body = document.getElementById("historyBody");
+                body.innerHTML = "";
+                const historyData = [];
+
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    rev += Number(data.amount || 0);
+                    historyData.push(data);
+                    body.insertAdjacentHTML('afterbegin', createHistoryRow(data));
+                });
+                document.getElementById("statRevenue").textContent = `₹${rev.toFixed(2)}`;
+                updateCharts(historyData);
+            });
+        }
+
+        function createLockerCard(id, data) {
+            const statusClass = `status-${data.status.toLowerCase()}`;
+            const doorStatus = data.doorStatus || "CLOSED";
+            const occupancy = data.occupancy || "EMPTY";
+            const timeLeft = data.startTime ? calculateRemaining(data.startTime, data.duration) : "N/A";
+
+            return `
+                <div class="locker-card">
+                    <div class="locker-header">
+                        <div class="locker-id">Locker #${id}</div>
+                        <span class="status-pill ${statusClass}">${data.status}</span>
+                    </div>
+                    <div class="locker-details">
+                        <div class="detail-row"><span>Door Status:</span> <span class="detail-value" style="color: ${doorStatus==='OPEN' ? 'var(--danger)' : 'var(--success)'}">${doorStatus}</span></div>
+                        <div class="detail-row"><span>Occupancy:</span> <span class="detail-value">${occupancy}</span></div>
+                        <div class="detail-row"><span>Remaining:</span> <span class="detail-value">${timeLeft}</span></div>
+                        <div class="detail-row"><span>PIN:</span> <span class="detail-value">${data.currentPin || "---"}</span></div>
+                    </div>
+                    <div class="locker-actions">
+                        <button class="action-btn" onclick="sendCommand('${id}', 'OPEN')">Open</button>
+                        <button class="action-btn" onclick="sendCommand('${id}', 'LOCK')">Lock</button>
+                        <button class="action-btn btn-danger-lite" onclick="endSession('${id}')">End Session</button>
+                        <button class="action-btn" onclick="setMaintenance('${id}')">Maint.</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createSessionRow(id, data) {
+            const date = data.startTime ? new Date(data.startTime).toLocaleTimeString() : "-";
+            return `
+                <tr>
+                    <td>#${id}</td>
+                    <td>${data.userName || "Unknown"}</td>
+                    <td><code>${data.currentPin}</code></td>
+                    <td>${date}</td>
+                    <td>${calculateRemaining(data.startTime, data.duration)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="sendCommand('${id}', 'OPEN')">Open</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="endSession('${id}')">Term.</button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function createHistoryRow(data) {
+            const date = data.startTime ? new Date(data.startTime).toLocaleDateString() : "-";
+            return `
+                <tr>
+                    <td>${date}</td>
+                    <td>${data.userName || "User"}</td>
+                    <td>#${data.lockerId}</td>
+                    <td>${data.hours || 0} hrs</td>
+                    <td class="fw-bold">₹${data.amount || 0}</td>
+                    <td><span class="status-pill status-available" style="font-size: 10px">Paid</span></td>
+                </tr>
+            `;
+        }
+
+        function createAlertItem(id, type, msg) {
+            return `
+                <div class="alert alert-danger mb-3 bg-dark border-danger text-light d-flex align-items-center">
+                    <i class="bi bi-exclamation-octagon-fill me-3 text-danger" style="font-size: 24px"></i>
+                    <div>
+                        <div class="fw-bold">Security Alert: ${type}</div>
+                        <div class="small opacity-75">${msg}</div>
+                    </div>
+                    <button class="btn btn-sm btn-danger ms-auto" onclick="sendCommand('${id}', 'CLOSE')">Force Lock</button>
+                </div>
+            `;
+        }
+
+        function calculateRemaining(start, dur) {
+            if (!start || !dur) return "---";
+            const end = start + dur;
+            const left = end - Date.now();
+            if (left <= 0) return "Expired";
+            const mins = Math.floor(left / 60000);
+            return `${mins}m left`;
+        }
+
+        // CONTROL ACTIONS
+        window.sendCommand = async (id, cmd) => {
+            console.log(`Sending command ${cmd} to Locker ${id}`);
+            // Logic: Update RTDB that ESP32 listens to
+            try {
+                await update(ref(rtdb, `lockers/${id}`), {
+                    command: cmd,
+                    commandTimestamp: Date.now()
+                });
+                alert(`Command ${cmd} sent to Locker #${id}`);
+            } catch (e) { alert("Action failed: " + e.message); }
+        };
+
+        window.endSession = async (id) => {
+            if (!confirm(`End session for Locker #${id}?`)) return;
+            try {
+                // Update Firestore
+                await updateDoc(doc(db, "lockers", `locker_${id}`), {
+                    status: "AVAILABLE",
+                    userId: null,
+                    startTime: null,
+                    duration: 0,
+                    currentPin: null,
+                    userName: null
+                });
+                // Update RTDB
+                await update(ref(rtdb, `lockers/${id}`), {
+                    status: "AVAILABLE",
+                    pin: null,
+                    sessionEnd: 0,
+                    command: "OPEN" // Automatically open door for user to take bags
+                });
+            } catch (e) { alert("Failed to end session: " + e.message); }
+        };
+
+        window.setMaintenance = async (id) => {
+            const current = lockerData[id].status;
+            const next = current === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
+            try {
+                await updateDoc(doc(db, "lockers", `locker_${id}`), { status: next });
+            } catch (e) { alert(e.message); }
+        };
+
+        window.resetAllLockers = async () => {
+             if (!confirm("This will RESET ALL LOCKERS to AVAILABLE status. Correct?")) return;
+             // Logic to batch update all 20 lockers
+             const snapshot = await getDocs(collection(db, "lockers"));
+             snapshot.forEach(async (d) => {
+                 await updateDoc(doc(db, "lockers", d.id), { status: "AVAILABLE", userId: null, currentPin: null });
+             });
+             alert("Global Reset triggered. Synching...");
+        };
+
+        // ANALYTICS CHARTS
+        let revChart, usageChart;
+        function updateCharts(data) {
+            const ctx1 = document.getElementById('revenueChart').getContext('2d');
+            const ctx2 = document.getElementById('usageChart').getContext('2d');
+
+            if (revChart) revChart.destroy();
+            if (usageChart) usageChart.destroy();
+
+            // Group by date for revenue
+            const daily = {};
+            data.forEach(b => {
+                const date = new Date(b.startTime).toLocaleDateString();
+                daily[date] = (daily[date] || 0) + Number(b.amount || 0);
+            });
+
+            revChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(daily),
+                    datasets: [{
+                        label: 'Revenue per Day',
+                        data: Object.values(daily),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+
+            // Locker Distribution
+            const occCount = Object.values(lockerData).filter(l => l.status==='ACTIVE').length;
+            usageChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Occupied', 'Available'],
+                    datasets: [{
+                        data: [occCount, 20 - occCount],
+                        backgroundColor: ['#ef4444', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        initRealtime();
+    </script>
 </body>
+
 </html>
