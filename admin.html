@@ -885,7 +885,7 @@
             return `
                 <tr>
                     <td><span class="fw-bold">#${id}</span></td>
-                    <td><div class="fw-bold">${data.userName || "Unknown"}</div></td>
+                    <td><div class="fw-bold" style="color: #ffffff">${data.userName || data.userContact || "Unknown"}</div></td>
                     <td><code>${data.currentPin}</code></td>
                     <td>${date}</td>
                     <td><span class="badge bg-dark">${calculateRemaining(data.startTime, data.duration)}</span></td>
@@ -907,7 +907,7 @@
             return `
                 <tr>
                     <td><span style="color: #cbd5e1">${date}</span></td>
-                    <td class="fw-bold" style="color: #ffffff">${data.userName || "User"}</td>
+                    <td class="fw-bold" style="color: #ffffff">${data.userName || data.userContact || "User"}</td>
                     <td><span class="badge bg-secondary">#${data.lockerId}</span></td>
                     <td>${data.hours || 0} hrs</td>
                     <td class="fw-bold text-success">₹${data.amount || 0}</td>

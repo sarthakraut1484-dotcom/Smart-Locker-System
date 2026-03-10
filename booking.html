@@ -513,6 +513,13 @@
 
       const pin = generatePIN();
       const durationMs = selectedHours * 60 * 60 * 1000;
+      
+      // Fetch user name from session for better display in admin
+      let userName = "User";
+      try {
+        const sessionUser = JSON.parse(sessionStorage.getItem("currentUser"));
+        if (sessionUser && sessionUser.name) userName = sessionUser.name;
+      } catch(e) {}
 
       const lockerRef = doc(db, "lockers", `locker_${locker.id}`);
       console.log("Target Locker Ref:", lockerRef.path);
@@ -546,7 +553,8 @@
             duration: durationMs, // Store planned duration
             lastUpdated: Date.now(),
             userId: currentUser.uid,
-            userContact: userContact
+            userContact: userContact,
+            userName: userName
           });
         });
         console.log("Transaction Committed! Locker state updated.");
@@ -558,6 +566,7 @@
         const bookingData = {
           userId: currentUser.uid,
           userContact: userContact,
+          userName: userName,
           lockerId: locker.id,
           hours: selectedHours,
           amount: amount,
@@ -578,7 +587,8 @@
             status: "ACTIVE",
             pin: pin,
             startTime: 0, // 0 indicates not started
-            duration: durationMs
+            duration: durationMs,
+            userName: userName
           });
           console.log("✅ RTDB Updated Successfully!");
         } catch (e) {
