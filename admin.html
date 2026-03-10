@@ -898,7 +898,11 @@
         }
 
         function createHistoryRow(data) {
-            const date = data.startTime ? new Date(data.startTime).toLocaleDateString() : "-";
+            const date = data.startTime ? new Date(data.startTime).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: '2-digit'
+            }) : "-";
             return `
                 <tr>
                     <td><span style="color: #cbd5e1">${date}</span></td>
