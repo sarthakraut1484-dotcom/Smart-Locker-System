@@ -135,13 +135,27 @@
         }
 
         .nav-link:hover {
-            color: #fff;
+            color: #ffffff !important;
             background: var(--surface);
             transform: translateX(4px);
         }
 
+        .stat-label { 
+            color: #cbd5e1 !important; 
+            font-size: 13px; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            margin-bottom: 12px; 
+            letter-spacing: 0.08em;
+        }
+
+        .locker-id { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; color: #ffffff !important; }
+
+        .detail-label { color: #cbd5e1 !important; font-weight: 500; }
+        .detail-value { color: #ffffff !important; font-weight: 700; }
+
         .nav-link.active {
-            color: #fff;
+            color: #ffffff !important;
             background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.05));
             border-color: rgba(139, 92, 246, 0.3);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -402,7 +416,7 @@
 
         .table { 
             background: transparent !important; 
-            color: var(--text-main) !important; 
+            color: #ffffff !important; 
             margin-bottom: 0; 
             width: 100%; 
             border-collapse: collapse;
@@ -422,7 +436,15 @@
             font-size: 14px; 
             vertical-align: middle; 
             background: transparent !important;
-            color: var(--text-main) !important;
+            color: #ffffff !important;
+        }
+
+        .table tbody td *, .table tbody td span, .table tbody td div {
+            color: #ffffff !important;
+        }
+
+        .text-muted {
+            color: #cbd5e1 !important;
         }
 
         .table tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
@@ -879,8 +901,8 @@
             const date = data.startTime ? new Date(data.startTime).toLocaleDateString() : "-";
             return `
                 <tr>
-                    <td><span class="text-muted">${date}</span></td>
-                    <td><span class="fw-bold">${data.userName || "User"}</span></td>
+                    <td><span style="color: #cbd5e1">${date}</span></td>
+                    <td class="fw-bold" style="color: #ffffff">${data.userName || "User"}</td>
                     <td><span class="badge bg-secondary">#${data.lockerId}</span></td>
                     <td>${data.hours || 0} hrs</td>
                     <td class="fw-bold text-success">₹${data.amount || 0}</td>
