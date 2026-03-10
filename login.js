@@ -1,7 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
   getAuth,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -75,5 +77,56 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
   } catch (error) {
     alert("Login failed: " + error.message);
+  }
+});
+
+/* 🌐 GOOGLE LOGIN */
+const googleProvider = new GoogleAuthProvider();
+
+document.getElementById("googleLogin").addEventListener("click", async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+
+    // Fetch user profile from Firestore (or extract from Google profile)
+    let userName = user.displayName || user.email.split("@")[0];
+    
+    // Attempt to see if we have a custom profile in Firestore
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        userName = userData.name || userName;
+      }
+    } catch (error) {
+      console.warn("Could not fetch user profile:", error);
+    }
+
+    // ✅ STORE SESSION
+    sessionStorage.setItem("currentUser", JSON.stringify({
+      uid: user.uid,
+      email: user.email,
+      name: userName,
+      loginTime: Date.now()
+    }));
+
+    // ✅ REDIRECT LOGIC
+    const storedRedirect = sessionStorage.getItem("postLoginRedirect");
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramRedirect = urlParams.get("redirect");
+
+    if (storedRedirect) {
+      sessionStorage.removeItem("postLoginRedirect");
+      window.location.href = storedRedirect;
+    } else if (paramRedirect) {
+      window.location.href = decodeURIComponent(paramRedirect);
+    } else {
+      window.location.href = "face1.html";
+    }
+
+  } catch (error) {
+    if (error.code !== "auth/cancelled-popup-request") {
+      alert("Google sign-in failed: " + error.message);
+    }
   }
 });

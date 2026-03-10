@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // 🔥 Firebase config (same everywhere)
 const firebaseConfig = {
@@ -75,5 +75,57 @@ document.querySelector("form").addEventListener("submit", async (e) => {
 
   } catch (error) {
     alert(error.message);
+  }
+});
+
+/* 🌐 GOOGLE SIGNUP */
+const googleProvider = new GoogleAuthProvider();
+
+document.getElementById("googleSignup").addEventListener("click", async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+
+    // Check if user already exists in Firestore
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    
+    if (!userDoc.exists()) {
+      // Create new user profile
+      await setDoc(doc(db, "users", user.uid), {
+        name: user.displayName || user.email.split("@")[0],
+        email: user.email,
+        phone: user.phoneNumber || "Not provided",
+        createdAt: Date.now(),
+        uid: user.uid,
+        provider: "google"
+      });
+    }
+
+    // Store in session
+    sessionStorage.setItem("currentUser", JSON.stringify({
+      name: user.displayName || user.email.split("@")[0],
+      email: user.email,
+      uid: user.uid
+    }));
+
+    alert("Signed up successfully with Google!");
+
+    // Redirect logic (consistent with email signup)
+    const storedRedirect = sessionStorage.getItem("postLoginRedirect");
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectParam = urlParams.get("redirect");
+
+    if (storedRedirect) {
+      window.location.href = "login.html";
+    } else if (redirectParam) {
+      window.location.href = `login.html?redirect=${redirectParam}`;
+    } else {
+      window.location.href = "login.html";
+    }
+
+  } catch (error) {
+    if (error.code !== "auth/cancelled-popup-request") {
+      alert("Google sign-up failed: " + error.message);
+    }
   }
 });
