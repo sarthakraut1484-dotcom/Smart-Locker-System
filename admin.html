@@ -898,7 +898,8 @@
         }
 
         function createHistoryRow(data) {
-            const date = data.startTime ? new Date(data.startTime).toLocaleDateString('en-GB', {
+            const timestamp = data.startTime || data.createdAt;
+            const date = timestamp ? new Date(timestamp).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: '2-digit'
@@ -1002,7 +1003,9 @@
             // Group by date for revenue
             const daily = {};
             data.forEach(b => {
-                const date = new Date(b.startTime).toLocaleDateString();
+                const ts = b.startTime || b.createdAt;
+                if (!ts) return;
+                const date = new Date(ts).toLocaleDateString();
                 daily[date] = (daily[date] || 0) + Number(b.amount || 0);
             });
 
