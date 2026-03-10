@@ -454,10 +454,11 @@
             background: var(--surface); 
             border-radius: var(--radius-lg); 
             border: 1px solid var(--border); 
-            padding: 32px; 
+            padding: 24px; 
             margin-bottom: 30px; 
-            min-height: 450px; 
+            min-height: 480px; 
             transition: all 0.3s ease;
+            position: relative;
         }
         .chart-container:hover { border-color: rgba(255, 255, 255, 0.15); }
 
@@ -1143,17 +1144,21 @@
             let totalDur = 0;
             let validBookings = 0;
 
-            data.forEach(b => {
+            // Sort data by timestamp first to ensure chronological order
+            const sortedData = [...data].sort((a, b) => (a.startTime || a.createdAt) - (b.startTime || b.createdAt));
+
+            sortedData.forEach(b => {
                 const ts = b.startTime || b.createdAt;
                 if (!ts) return;
 
-                const date = new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+                const dateObj = new Date(ts);
+                const dateKey = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
                 const amount = Number(b.amount || 0);
                 const hours = Number(b.hours || 0);
 
                 // Revenue & Volume
-                dailyRev[date] = (dailyRev[date] || 0) + amount;
-                dailyVol[date] = (dailyVol[date] || 0) + 1;
+                dailyRev[dateKey] = (dailyRev[dateKey] || 0) + amount;
+                dailyVol[dateKey] = (dailyVol[dateKey] || 0) + 1;
 
                 // Popularity
                 const lId = b.lockerId || "Unknown";
@@ -1173,6 +1178,10 @@
             Object.entries(dailyVol).forEach(([d, v]) => { if(v > maxVol) { maxVol = v; peakDay = d; } });
             document.getElementById("statsPeakDay").textContent = peakDay;
 
+            // Global Chart Defaults for better dark mode visibility
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+
             // Chart 1: Revenue Line
             revChart = new Chart(ctx1, {
                 type: 'line',
@@ -1182,34 +1191,47 @@
                         label: 'Daily Revenue',
                         data: Object.values(dailyRev),
                         borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        backgroundColor: 'rgba(139, 92, 246, 0.2)',
                         fill: true,
                         tension: 0.4,
-                        borderWidth: 3
+                        borderWidth: 3,
+                        pointBackgroundColor: '#8b5cf6',
+                        pointRadius: 4
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
             });
 
             // Chart 2: Usage Donut
-            const totalLabels = Object.keys(lockerData).length;
-            const occCount = Object.values(lockerData).filter(l => l.status==='ACTIVE' || l.status==='OCCUPIED').length;
+            const totalLockers = 20; // Hardcoded total for now
+            const activeCount = Object.values(lockerData).filter(l => l.status==='ACTIVE' || l.status==='OCCUPIED').length;
             usageChart = new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
                     labels: ['Occupied', 'Available'],
                     datasets: [{
-                        data: [occCount, totalLabels - occCount],
-                        backgroundColor: ['#ef4444', '#10b981'],
-                        hoverOffset: 4,
+                        data: [activeCount, totalLockers - activeCount],
+                        backgroundColor: ['#f43f5e', '#10b981'],
+                        hoverOffset: 10,
                         borderWidth: 0
                     }]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
-                    cutout: '70%',
-                    plugins: { legend: { position: 'bottom', labels: { color: '#fff', usePointStyle: true, padding: 20 } } } 
+                    cutout: '75%',
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#fff', usePointStyle: true, padding: 25, font: { size: 12 } } },
+                        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', padding: 12 }
+                    } 
                 }
             });
 
@@ -1219,33 +1241,46 @@
                 data: {
                     labels: Object.keys(dailyVol),
                     datasets: [{
-                        label: 'Bookings',
+                        label: 'Bookings Volume',
                         data: Object.values(dailyVol),
-                        backgroundColor: '#38bdf8',
-                        borderRadius: 6
+                        backgroundColor: '#0ea5e9',
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#38bdf8'
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { stepSize: 1, color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
             });
 
-            // Chart 4: Popularity Radar or Horizontal Bar
-            const sortedLockerIds = Object.keys(popularity).sort((a,b) => popularity[b] - popularity[a]).slice(0, 8);
+            // Chart 4: Popularity Bar
+            const sortedLockerIds = Object.keys(popularity).sort((a,b) => popularity[b] - popularity[a]).slice(0, 6);
             popularityChart = new Chart(ctx4, {
                 type: 'bar',
                 data: {
                     labels: sortedLockerIds.map(id => `Locker #${id}`),
                     datasets: [{
-                        label: 'Total Bookings',
+                        label: 'Usage Frequency',
                         data: sortedLockerIds.map(id => popularity[id]),
-                        backgroundColor: '#fbbf24',
-                        borderRadius: 6
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 8
                     }]
                 },
                 options: { 
                     indexAxis: 'y',
                     responsive: true, 
                     maintainAspectRatio: false, 
-                    scales: { x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { display: false } } } 
+                    scales: { 
+                        x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { stepSize: 1, color: '#94a3b8' } },
+                        y: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
                 }
             });
         }
