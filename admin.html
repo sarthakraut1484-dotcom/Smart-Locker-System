@@ -519,6 +519,105 @@
             box-shadow: 0 0 0 4px var(--primary-glow) !important;
         }
 
+        /* Modal Styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .custom-modal {
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 500px;
+            padding: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-overlay.show .custom-modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h5 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .modal-footer button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: #fff;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .main-wrapper { padding: 40px 30px; }
@@ -909,6 +1008,30 @@
             </div>
         </section>
     </main>
+
+    <!-- Custom Modal for Maintenance -->
+    <div class="modal-overlay" id="maintenanceModal">
+        <div class="custom-modal">
+            <div class="modal-header">
+                <h5 id="modalTitle">Report Maintenance Issue</h5>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4">
+                    <label>Locker ID</label>
+                    <input type="number" id="modalLockerId" class="form-control" placeholder="e.g. 5" min="1" max="20">
+                </div>
+                <div class="mb-0">
+                    <label>Describe the Issue</label>
+                    <textarea id="modalIssueDesc" class="form-control" rows="3" placeholder="Explain what's wrong..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" id="modalSubmitBtn" onclick="submitMaintenanceReport()">Submit Report</button>
+            </div>
+        </div>
+    </div>
 
     <script src="bg-animation.js"></script>
     <script type="module">
@@ -1334,21 +1457,54 @@
             logAdminAction(`Exported ${type} Data`, "Database");
         };
 
-        window.reportIssue = async () => {
-            const lockerId = prompt("Enter Locker ID (1-20):");
-            if (!lockerId) return;
-            if (isNaN(lockerId) || lockerId < 1 || lockerId > 20) {
-                alert("Invalid Locker ID. Please enter a number between 1 and 20.");
+        // MODERN MODAL LOGIC
+        window.activeMaintLocker = null;
+
+        window.openModal = (lockerId = null) => {
+            const modal = document.getElementById("maintenanceModal");
+            const idInput = document.getElementById("modalLockerId");
+            const descInput = document.getElementById("modalIssueDesc");
+            
+            modal.classList.add("show");
+            descInput.value = "";
+            
+            if (lockerId) {
+                idInput.value = lockerId;
+                idInput.readOnly = true;
+                document.getElementById("modalTitle").textContent = `Report Issue: Locker #${lockerId}`;
+            } else {
+                idInput.value = "";
+                idInput.readOnly = false;
+                document.getElementById("modalTitle").textContent = "Report New Maintenance Issue";
+            }
+            descInput.focus();
+        };
+
+        window.closeModal = () => {
+            document.getElementById("maintenanceModal").classList.remove("show");
+        };
+
+        window.submitMaintenanceReport = async () => {
+            const lockerId = document.getElementById("modalLockerId").value;
+            const issue = document.getElementById("modalIssueDesc").value;
+            
+            if (!lockerId || !issue) {
+                alert("Please fill in all fields.");
                 return;
             }
             
-            const issue = prompt(`Describe the issue for Locker #${lockerId}:`);
-            if (!issue) return;
-            
+            if (isNaN(lockerId) || lockerId < 1 || lockerId > 20) {
+                alert("Invalid Locker ID (1-20).");
+                return;
+            }
+
+            const btn = document.getElementById("modalSubmitBtn");
+            btn.disabled = true;
+            btn.textContent = "Submitting...";
+
             try {
                 const { addDoc, collection, updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
                 
-                // Add issue log
                 await addDoc(collection(db, "maintenance_logs"), {
                     lockerId,
                     issue,
@@ -1356,88 +1512,26 @@
                     status: "PENDING"
                 });
                 
-                // Set locker to maintenance
                 await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { status: "MAINTENANCE" });
                 
-                logAdminAction(`Manually reported issue for Locker #${lockerId}`, issue);
-                alert(`Locker #${lockerId} status updated to Maintenance.`);
-            } catch (e) { alert("Error reporting issue: " + e.message); }
+                logAdminAction(`Reported issue for Locker #${lockerId}`, issue);
+                closeModal();
+            } catch (e) {
+                alert("Error: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Submit Report";
+            }
         };
 
-        // Initialize admin logs on load
-        async function fetchLogs() {
-            try {
-                const { getDocs, query, collection, orderBy, limit } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-                const q = query(collection(db, "admin_logs"), orderBy("timestamp", "desc"), limit(50));
-                const snap = await getDocs(q);
-                const table = document.getElementById("logsTableBody");
-                table.innerHTML = "";
-                snap.forEach(docSnap => {
-                    const l = docSnap.data();
-                    table.insertAdjacentHTML('beforeend', `<tr><td>${new Date(l.timestamp).toLocaleTimeString()}</td><td>${l.action}</td><td>${l.target}</td><td>${l.admin}</td></tr>`);
-                });
-            } catch (e) {}
-        }
-        fetchLogs();
-
-
-        // CONTROL ACTIONS
-        window.sendCommand = async (id, cmd) => {
-            console.log(`Sending command ${cmd} to Locker ${id}`);
-            // Logic: Update RTDB that ESP32 listens to
-            try {
-                await update(ref(rtdb, `lockers/${id}`), {
-                    command: cmd,
-                    commandTimestamp: Date.now()
-                });
-                alert(`Command ${cmd} sent to Locker #${id}`);
-            } catch (e) { alert("Action failed: " + e.message); }
-        };
-
-        window.endSession = async (id) => {
-            if (!confirm(`End session for Locker #${id}?`)) return;
-            try {
-                // Update Firestore
-                await updateDoc(doc(db, "lockers", `locker_${id}`), {
-                    status: "AVAILABLE",
-                    userId: null,
-                    startTime: null,
-                    duration: 0,
-                    currentPin: null,
-                    userName: null
-                });
-                // Update RTDB
-                await update(ref(rtdb, `lockers/${id}`), {
-                    status: "AVAILABLE",
-                    pin: null,
-                    sessionEnd: 0,
-                    command: "OPEN" // Automatically open door for user to take bags
-                });
-                logAdminAction("Terminated Session", `Locker #${id}`);
-            } catch (e) { alert("Failed to end session: " + e.message); }
-        };
+        window.reportIssue = () => openModal();
 
         window.setMaintenance = async (id) => {
             const current = lockerData[id].status;
             const next = current === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
             
             if (next === "MAINTENANCE") {
-                const reason = prompt(`Set Locker #${id} to Maintenance. Reason:`);
-                if (!reason) return;
-                
-                try {
-                    await updateDoc(doc(db, "lockers", `locker_${id}`), { status: "MAINTENANCE" });
-                    
-                    const { addDoc, collection } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-                    await addDoc(collection(db, "maintenance_logs"), {
-                        lockerId: id,
-                        issue: reason,
-                        timestamp: Date.now(),
-                        status: "PENDING"
-                    });
-                    
-                    logAdminAction("Set to Maintenance", `Locker #${id} - ${reason}`);
-                } catch (e) { alert(e.message); }
+                openModal(id);
             } else {
                 if (confirm(`Restore Locker #${id} to Available status?`)) {
                     try {
