@@ -879,19 +879,73 @@
         <!-- SETTINGS -->
         <section id="settings" class="dash-section">
             <div class="registry-card">
-                <h5>Admin Settings</h5>
-                <hr style="opacity: 0.1">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0">System Configuration</h5>
+                    <button class="btn btn-primary px-4" id="saveSystemSettings" onclick="saveSystemSettings()">
+                        <i class="bi bi-shield-check me-2"></i> Save All Settings
+                    </button>
+                </div>
+
                 <div class="row g-4">
+                    <!-- Global Constraints -->
                     <div class="col-md-6">
-                        <label class="form-label text-muted small fw-bold">System Name</label>
-                        <input type="text" class="form-control bg-dark text-light border-secondary" value="LocknLeave Admin Panel">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.02)">
+                            <h6 class="mb-3 text-primary"><i class="bi bi-clock-history me-2"></i> Session Controls</h6>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">Min Session Duration (Hours)</label>
+                                <input type="number" id="setMinHours" class="form-control bg-dark text-light border-secondary" value="1">
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label text-muted small fw-bold">Max Session Duration (Hours)</label>
+                                <input type="number" id="setMaxHours" class="form-control bg-dark text-light border-secondary" value="24">
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Hardware Parameters -->
                     <div class="col-md-6">
-                        <label class="form-label text-muted small fw-bold">Support Email</label>
-                        <input type="email" class="form-control bg-dark text-light border-secondary" value="support@locknleave.com">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.02)">
+                            <h6 class="mb-3 text-warning"><i class="bi bi-cpu me-2"></i> Hardware Parameters</h6>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">Auto-Lock Delay (Seconds)</label>
+                                <input type="number" id="setAutoLock" class="form-control bg-dark text-light border-secondary" value="30">
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label text-muted small fw-bold">Vibration/Alert Sensitivity</label>
+                                <select id="setSensitivity" class="form-select bg-dark text-light border-secondary">
+                                    <option value="low">Low (Public Station)</option>
+                                    <option value="medium" selected>Medium (Standard)</option>
+                                    <option value="high">High (High Security Area)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-12">
-                        <button class="btn btn-primary px-4">Save Changes</button>
+
+                    <!-- Admin Info -->
+                    <div class="col-md-6">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.02)">
+                            <h6 class="mb-3 text-info"><i class="bi bi-info-circle me-2"></i> Branding & Support</h6>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">System Name</label>
+                                <input type="text" id="setSystemName" class="form-control bg-dark text-light border-secondary" value="LocknLeave">
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label text-muted small fw-bold">Support Email</label>
+                                <input type="email" id="setSupportEmail" class="form-control bg-dark text-light border-secondary" value="support@locknleave.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing Mirror (Syncs with Pricing Manager) -->
+                    <div class="col-md-6">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.02)">
+                            <h6 class="mb-3 text-success"><i class="bi bi-cash-coin me-2"></i> Default Pricing (Hourly)</h6>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small fw-bold">Base Hourly Rate (₹)</label>
+                                <input type="number" id="setBasePrice" class="form-control bg-dark text-light border-secondary" value="70">
+                            </div>
+                            <p class="text-muted small italic">Note: Plan-specific prices are managed in the <a href="#" onclick="showSection('pricing')">Pricing Manager</a> tab.</p>
+                        </div>
                     </div>
                 </div>
                 
@@ -1429,6 +1483,54 @@
                 alert("Pricing plans updated successfully!");
                 logAdminAction("Changed Price Plan", "System");
             } catch (e) { alert("Save failed: " + e.message); }
+        };
+
+        async function loadSettings() {
+            try {
+                const { getDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                const snap = await getDoc(doc(db, "settings", "system"));
+                if (snap.exists()) {
+                    const s = snap.data();
+                    if (s.minHours) document.getElementById("setMinHours").value = s.minHours;
+                    if (s.maxHours) document.getElementById("setMaxHours").value = s.maxHours;
+                    if (s.autoLock) document.getElementById("setAutoLock").value = s.autoLock;
+                    if (s.sensitivity) document.getElementById("setSensitivity").value = s.sensitivity;
+                    if (s.systemName) document.getElementById("setSystemName").value = s.systemName;
+                    if (s.supportEmail) document.getElementById("setSupportEmail").value = s.supportEmail;
+                    if (s.basePrice) document.getElementById("setBasePrice").value = s.basePrice;
+                }
+            } catch (e) {}
+        }
+        loadSettings();
+
+        window.saveSystemSettings = async () => {
+            const btn = document.getElementById("saveSystemSettings");
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Saving...`;
+
+            const config = {
+                minHours: document.getElementById("setMinHours").value,
+                maxHours: document.getElementById("setMaxHours").value,
+                autoLock: document.getElementById("setAutoLock").value,
+                sensitivity: document.getElementById("setSensitivity").value,
+                systemName: document.getElementById("setSystemName").value,
+                supportEmail: document.getElementById("setSupportEmail").value,
+                basePrice: document.getElementById("setBasePrice").value,
+                lastUpdated: Date.now(),
+                updatedBy: sessionStorage.getItem("adminUser") || "Admin"
+            };
+
+            try {
+                const { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                await setDoc(doc(db, "settings", "system"), config, { merge: true });
+                logAdminAction("Updated System Settings", "Global Configuration");
+                alert("Settings saved successfully!");
+            } catch (e) {
+                alert("Error saving settings: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="bi bi-shield-check me-2"></i> Save All Settings`;
+            }
         };
 
         window.exportData = async (type) => {
