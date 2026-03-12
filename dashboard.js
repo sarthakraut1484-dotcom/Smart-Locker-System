@@ -17,8 +17,8 @@ import { getDatabase, ref, update } from "https://www.gstatic.com/firebasejs/10.
 
 const firebaseConfig = {
   apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
-  authDomain: "asep-smart-locker.firebaseapp.com",
-  projectId: "asep-smart-locker",
+  authDomain: "asep-LocknLeave.firebaseapp.com",
+  projectId: "asep-LocknLeave",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -228,5 +228,6 @@ onSnapshot(collection(db, "lockers"), (snapshot) => {
     document.head.appendChild(style);
   }
 });
+
 
 
