@@ -228,3 +228,4 @@ onSnapshot(collection(db, "lockers"), (snapshot) => {
     document.head.appendChild(style);
   }
 });
+

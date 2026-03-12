@@ -129,3 +129,4 @@ document.getElementById("googleSignup").addEventListener("click", async () => {
     }
   }
 });
+

@@ -3,3 +3,4 @@ const lockers = Array.from({ length: 20 }, (_, i) => ({
   size: "Standard",
   price: 70
 }));
+
