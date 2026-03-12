@@ -1,3 +1,15 @@
 {
-  "cleanUrls": true
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/face1",
+      "destination": "/dashboard",
+      "permanent": true
+    },
+    {
+      "source": "/face1.html",
+      "destination": "/dashboard",
+      "permanent": true
+    }
+  ]
 }

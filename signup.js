@@ -67,7 +67,7 @@ document.querySelector("form").addEventListener("submit", async (e) => {
       // We do NOT need to pass it in URL if it is in Session.
       window.location.href = "login";
     } else if (redirectParam) {
-      window.location.href = `login.html?redirect=${redirectParam}`;
+      window.location.href = `login?redirect=${redirectParam}`;
     } else {
       window.location.href = "login";
     }
@@ -118,7 +118,7 @@ document.getElementById("googleSignup").addEventListener("click", async () => {
     if (storedRedirect) {
       window.location.href = "login";
     } else if (redirectParam) {
-      window.location.href = `login.html?redirect=${redirectParam}`;
+      window.location.href = `login?redirect=${redirectParam}`;
     } else {
       window.location.href = "login";
     }
@@ -129,6 +129,7 @@ document.getElementById("googleSignup").addEventListener("click", async () => {
     }
   }
 });
+
 
 
 

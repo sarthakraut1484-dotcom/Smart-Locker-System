@@ -27,7 +27,7 @@ const redirectParam = urlParams.get("redirect");
 if (redirectParam) {
   const signupLink = document.querySelector('a[href="signup"]');
   if (signupLink) {
-    signupLink.href = `signup.html?redirect=${redirectParam}`;
+    signupLink.href = `signup?redirect=${redirectParam}`;
   }
 }
 
@@ -143,6 +143,7 @@ document.getElementById("googleLogin").addEventListener("click", async () => {
     }
   }
 });
+
 
 
 
