@@ -65,11 +65,11 @@ document.querySelector("form").addEventListener("submit", async (e) => {
       // Don't clear it yet, let login.js handle it after they log in
       // actually, we redirect to login, so login.js will see it. 
       // We do NOT need to pass it in URL if it is in Session.
-      window.location.href = "login.html";
+      window.location.href = "login";
     } else if (redirectParam) {
       window.location.href = `login.html?redirect=${redirectParam}`;
     } else {
-      window.location.href = "login.html";
+      window.location.href = "login";
     }
 
 
@@ -116,11 +116,11 @@ document.getElementById("googleSignup").addEventListener("click", async () => {
     const redirectParam = urlParams.get("redirect");
 
     if (storedRedirect) {
-      window.location.href = "login.html";
+      window.location.href = "login";
     } else if (redirectParam) {
       window.location.href = `login.html?redirect=${redirectParam}`;
     } else {
-      window.location.href = "login.html";
+      window.location.href = "login";
     }
 
   } catch (error) {
@@ -129,4 +129,5 @@ document.getElementById("googleSignup").addEventListener("click", async () => {
     }
   }
 });
+
 

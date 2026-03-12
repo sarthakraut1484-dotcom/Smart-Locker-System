@@ -421,14 +421,14 @@
     </div>
 
     <div class="stats">
-      <div class="card action-card" onclick="window.location.href='select-locker.html'">
+      <div class="card action-card" onclick="window.location.href='select-locker'">
         <div class="card-title">
           <i class="bi bi-plus-circle me-2"></i>New Booking
         </div>
         <div class="card-value">Book Locker <i class="bi bi-arrow-right ms-2"></i></div>
       </div>
 
-      <div class="card secondary-card" onclick="window.location.href='history.html'">
+      <div class="card secondary-card" onclick="window.location.href='history'">
         <div class="card-title">
           <i class="bi bi-journal-text me-2"></i>Records
         </div>
@@ -508,7 +508,7 @@
         initializeDashboard(user, userName);
       } else {
         // No user is signed in, redirect to login
-        window.location.href = "login.html";
+        window.location.href = "login";
       }
     });
 
@@ -712,7 +712,7 @@
           startTime: data.startTime, // Pass startTime
           duration: data.duration    // Pass duration
         }));
-        window.location.href = "unlock.html";
+        window.location.href = "unlock";
       };
       container.appendChild(box);
     }
@@ -721,10 +721,11 @@
     document.getElementById("logoutBtn").addEventListener("click", () => {
       auth.signOut().then(() => {
         sessionStorage.clear();
-        window.location.href = "login.html";
+        window.location.href = "login";
       });
     });
   </script>
 </body>
 
 </html>
+

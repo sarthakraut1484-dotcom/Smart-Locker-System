@@ -25,7 +25,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const redirectParam = urlParams.get("redirect");
 
 if (redirectParam) {
-  const signupLink = document.querySelector('a[href="signup.html"]');
+  const signupLink = document.querySelector('a[href="signup"]');
   if (signupLink) {
     signupLink.href = `signup.html?redirect=${redirectParam}`;
   }
@@ -46,7 +46,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       isAdmin: true,
       loginTime: Date.now()
     }));
-    window.location.href = "admin.html";
+    window.location.href = "admin";
     return;
   }
 
@@ -85,7 +85,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     } else if (paramRedirect) {
       window.location.href = decodeURIComponent(paramRedirect);
     } else {
-      window.location.href = "face1.html";
+      window.location.href = "face1";
     }
 
   } catch (error) {
@@ -134,7 +134,7 @@ document.getElementById("googleLogin").addEventListener("click", async () => {
     } else if (paramRedirect) {
       window.location.href = decodeURIComponent(paramRedirect);
     } else {
-      window.location.href = "face1.html";
+      window.location.href = "face1";
     }
 
   } catch (error) {
@@ -143,4 +143,5 @@ document.getElementById("googleLogin").addEventListener("click", async () => {
     }
   }
 });
+
 

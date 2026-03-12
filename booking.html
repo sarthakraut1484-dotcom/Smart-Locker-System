@@ -319,7 +319,7 @@
 
   <nav>
     <div class="nav-left">
-      <a href="select-locker.html" class="nav-back">
+      <a href="select-locker" class="nav-back">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
           <path d="M19 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H19v-2z" />
         </svg>
@@ -437,7 +437,7 @@
       } else {
         // Safe Redirect: Store return URL in session
         sessionStorage.setItem("postLoginRedirect", window.location.href);
-        window.location.href = "login.html";
+        window.location.href = "login";
       }
     });
 
@@ -446,7 +446,7 @@
     const locker = JSON.parse(sessionStorage.getItem("selectedLocker"));
     if (!locker) {
       alert("Please select a locker first.");
-      window.location.href = "select-locker.html";
+      window.location.href = "select-locker";
     }
 
     document.getElementById("lockerId").textContent = "#" + locker.id;
@@ -637,7 +637,7 @@
 
         console.log("Redirecting to face1.html...");
         // ✅ REDIRECT AFTER USER CLICKS OK
-        window.location.href = "face1.html";
+        window.location.href = "face1";
 
       } catch (err) {
         console.error("Booking Error:", err);
@@ -649,7 +649,7 @@
 
     document.getElementById("logoutBtn").addEventListener("click", () => {
       sessionStorage.clear();
-      window.location.href = "login.html";
+      window.location.href = "login";
     });
   </script>
 
@@ -659,3 +659,4 @@
 </body>
 
 </html>
+

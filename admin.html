@@ -1155,9 +1155,9 @@
 
         // Security Check
         const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
-        if (!currentUser || !currentUser.isAdmin) { window.location.href = "login.html"; }
+        if (!currentUser || !currentUser.isAdmin) { window.location.href = "login"; }
 
-        document.getElementById("logoutBtn").onclick = () => { sessionStorage.clear(); window.location.href = "login.html"; };
+        document.getElementById("logoutBtn").onclick = () => { sessionStorage.clear(); window.location.href = "login"; };
 
         // NAVIGATION
         window.showSection = (id, el) => {
@@ -1949,4 +1949,5 @@
 </body>
 
 </html>
+
 

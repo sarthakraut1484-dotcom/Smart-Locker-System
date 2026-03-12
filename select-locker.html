@@ -295,7 +295,7 @@
 
   <nav>
     <div class="nav-left">
-      <a href="face1.html" class="nav-back">
+      <a href="face1" class="nav-back">
         ← Back
       </a>
       <span>LocknLeave</span>
@@ -347,7 +347,7 @@
 
     if (!currentUser) {
       alert("Please login to continue.");
-      window.location.href = "login.html";
+      window.location.href = "login";
     } else {
       document.getElementById("userDisplay").textContent =
         currentUser.email.split("@")[0];
@@ -355,7 +355,7 @@
 
     document.getElementById("logoutBtn").addEventListener("click", () => {
       sessionStorage.clear();
-      window.location.href = "login.html";
+      window.location.href = "login";
     });
 
     /* ================= LOCKER GRID ================= */
@@ -388,7 +388,7 @@
         if (!isBooked) {
           card.querySelector(".select-btn").addEventListener("click", () => {
             sessionStorage.setItem("selectedLocker", JSON.stringify(locker));
-            window.location.href = "booking.html";
+            window.location.href = "booking";
           });
         }
 
@@ -481,3 +481,4 @@
 </body>
 
 </html>
+

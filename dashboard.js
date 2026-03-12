@@ -29,7 +29,7 @@ const rtdb = getDatabase(app);
 
 const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
 if (!currentUser) {
-  window.location.href = "login.html";
+  window.location.href = "login";
 }
 
 /* ================= AUTO EXPIRE LOCKERS ================= */
@@ -203,7 +203,7 @@ onSnapshot(collection(db, "lockers"), (snapshot) => {
       };
 
       sessionStorage.setItem("selectedLocker", JSON.stringify(selectedLocker));
-      window.location.href = "unlock.html";
+      window.location.href = "unlock";
     });
   });
 
@@ -228,4 +228,5 @@ onSnapshot(collection(db, "lockers"), (snapshot) => {
     document.head.appendChild(style);
   }
 });
+
 
