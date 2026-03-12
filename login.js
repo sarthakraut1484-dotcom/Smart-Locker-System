@@ -85,7 +85,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     } else if (paramRedirect) {
       window.location.href = decodeURIComponent(paramRedirect);
     } else {
-      window.location.href = "face1";
+      window.location.href = "dashboard";
     }
 
   } catch (error) {
@@ -134,7 +134,7 @@ document.getElementById("googleLogin").addEventListener("click", async () => {
     } else if (paramRedirect) {
       window.location.href = decodeURIComponent(paramRedirect);
     } else {
-      window.location.href = "face1";
+      window.location.href = "dashboard";
     }
 
   } catch (error) {
@@ -143,6 +143,7 @@ document.getElementById("googleLogin").addEventListener("click", async () => {
     }
   }
 });
+
 
 
 

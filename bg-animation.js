@@ -113,3 +113,4 @@ document.addEventListener('DOMContentLoaded', () => {
     new FlickeringGrid(canvas);
 });
 
+
