@@ -563,6 +563,21 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" onclick="showSection('pricing', this)">
+                    <i class="bi bi-currency-rupee"></i> Pricing Manager
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('logs', this)">
+                    <i class="bi bi-journal-text"></i> Admin Logs
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" onclick="showSection('maintenance', this)">
+                    <i class="bi bi-tools"></i> Maintenance
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" onclick="showSection('settings', this)">
                     <i class="bi bi-gear"></i> Settings
                 </a>
@@ -761,28 +776,140 @@
                 <div class="row g-4">
                     <div class="col-md-6">
                         <label class="form-label text-muted small fw-bold">System Name</label>
-                        <input type="text" class="form-control bg-dark text-light border-secondary" value="Smart Locker Admin Panel">
+                        <input type="text" class="form-control bg-dark text-light border-secondary" value="LocknLeave Admin Panel">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label text-muted small fw-bold">Support Email</label>
-                        <input type="email" class="form-control bg-dark text-light border-secondary" value="admin@asep.com">
+                        <input type="email" class="form-control bg-dark text-light border-secondary" value="support@locknleave.com">
                     </div>
                     <div class="col-12">
                         <button class="btn btn-primary px-4">Save Changes</button>
                     </div>
                 </div>
                 
-                <h5 class="mt-5">Data Recovery Tools</h5>
-                <p class="text-muted small">Use these tools to fix missing data from older system versions.</p>
+                <h5 class="mt-5">Data Recovery & Export</h5>
+                <p class="text-muted small">Manage system data and export reports for research.</p>
                 <hr style="opacity: 0.1">
-                <div class="d-flex gap-3">
+                <div class="d-flex flex-wrap gap-3">
+                    <button class="btn btn-outline-success px-4" onclick="exportData('bookings')">
+                        <i class="bi bi-download me-2"></i> Download Booking Data (CSV)
+                    </button>
+                    <button class="btn btn-outline-info px-4" onclick="exportData('revenue')">
+                        <i class="bi bi-cash-stack me-2"></i> Download Revenue Report
+                    </button>
+                    <button class="btn btn-outline-primary px-4" onclick="exportData('usage')">
+                        <i class="bi bi-bar-chart me-2"></i> Download Usage Stats
+                    </button>
                     <button id="syncFixBtn" class="btn btn-outline-warning px-4" onclick="fixOldBookings()">
                         <i class="bi bi-person-check me-2"></i> Sync & Fix User Names
                     </button>
-                    <button class="btn btn-outline-secondary px-4" onclick="resetAllLockers()">
-                        <i class="bi bi-arrow-clockwise me-2"></i> Emergency Global Reset
-                    </button>
                 </div>
+            </div>
+        </section>
+
+        <!-- PRICING MANAGER -->
+        <section id="pricing" class="dash-section">
+            <div class="registry-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5>Dynamic Pricing Control</h5>
+                    <button class="btn btn-primary btn-sm" onclick="savePricing()">Save All Changes</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Duration</th>
+                                <th>Price (₹)</th>
+                                <th>Active</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pricingTableBody">
+                            <tr>
+                                <td>30 Minutes</td>
+                                <td><input type="number" class="form-control form-control-sm w-50 bg-dark text-light border-secondary pricing-input" data-key="30min" value="20"></td>
+                                <td><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div></td>
+                            </tr>
+                            <tr>
+                                <td>1 Hour</td>
+                                <td><input type="number" class="form-control form-control-sm w-50 bg-dark text-light border-secondary pricing-input" data-key="1hr" value="70"></td>
+                                <td><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div></td>
+                            </tr>
+                            <tr>
+                                <td>3 Hours</td>
+                                <td><input type="number" class="form-control form-control-sm w-50 bg-dark text-light border-secondary pricing-input" data-key="3hr" value="180"></td>
+                                <td><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div></td>
+                            </tr>
+                            <tr>
+                                <td>6 Hours</td>
+                                <td><input type="number" class="form-control form-control-sm w-50 bg-dark text-light border-secondary pricing-input" data-key="6hr" value="300"></td>
+                                <td><div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted small mt-3"><i class="bi bi-info-circle me-1"></i> Changes here will reflect immediately on the user booking page.</p>
+            </div>
+        </section>
+
+        <!-- ADMIN LOGS -->
+        <section id="logs" class="dash-section">
+            <div class="registry-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5>Admin Activity Logs</h5>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="clearLogs()">Clear History</button>
+                </div>
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Admin</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <!-- Logs will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- MAINTENANCE -->
+        <section id="maintenance" class="dash-section">
+            <div class="registry-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5>Maintenance Tracking</h5>
+                    <button class="btn btn-primary btn-sm" onclick="reportIssue()">Report New Issue</button>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Locker</th>
+                            <th>Issue</th>
+                            <th>Date Reported</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="maintenanceTableBody">
+                        <tr>
+                            <td>L4</td>
+                            <td>Lock Mechanism Jammed</td>
+                            <td>12 Mar, 8:10 AM</td>
+                            <td><span class="status-pill status-maintenance">PENDING</span></td>
+                            <td><button class="btn btn-sm btn-outline-success" onclick="resolveIssue('L4')">Fix</button></td>
+                        </tr>
+                        <tr>
+                            <td>L7</td>
+                            <td>Sensor Response Lag</td>
+                            <td>10 Mar, 2:45 PM</td>
+                            <td><span class="status-pill status-available">RESOLVED</span></td>
+                            <td><button class="btn btn-sm btn-outline-secondary" disabled>Fixed</button></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
     </main>
@@ -1033,7 +1160,7 @@
                     <td><div class="fw-bold" style="color: #ffffff">${data.userName || data.userContact || "Unknown"}</div></td>
                     <td><code>${data.currentPin}</code></td>
                     <td>${date}</td>
-                    <td><span class="badge bg-dark">${calculateRemaining(data.startTime, data.duration)}</span></td>
+                    <td><span class="badge bg-dark timer-${id}">${calculateRemaining(data.startTime, data.duration)}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary me-2" onclick="sendCommand('${id}', 'OPEN')">Open</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="endSession('${id}')">Term.</button>
@@ -1107,9 +1234,124 @@
             const end = start + dur;
             const left = end - Date.now();
             if (left <= 0) return "Expired";
-            const mins = Math.floor(left / 60000);
-            return `${mins}m left`;
+            
+            const totalSeconds = Math.floor(left / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const mins = Math.floor((totalSeconds % 3600) / 60);
+            const secs = totalSeconds % 60;
+            
+            if (hours > 0) return `${hours}h ${mins}m`;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
+
+        // Live Timer Refresh
+        setInterval(() => {
+            const sessionsBody = document.getElementById("sessionsBody");
+            if (sessionsBody) {
+                Object.keys(lockerData).forEach(id => {
+                    const data = lockerData[id];
+                    if (data.status === "ACTIVE") {
+                        const timerEl = document.querySelector(`.timer-${id}`);
+                        if (timerEl) {
+                            const timeStr = calculateRemaining(data.startTime, data.duration);
+                            timerEl.textContent = timeStr;
+                            if (timeStr === "Expired") timerEl.classList.add("text-danger");
+                        }
+                    }
+                });
+            }
+        }, 1000);
+
+        // EXTRA ADMIN UTILITIES
+        window.logAdminAction = async (action, target = "System") => {
+            const timestamp = Date.now();
+            const logEntry = {
+                timestamp,
+                action,
+                target,
+                admin: currentUser.email || "Admin"
+            };
+            
+            // Local display
+            const row = `<tr><td>${new Date(timestamp).toLocaleTimeString()}</td><td>${action}</td><td>${target}</td><td>${logEntry.admin}</td></tr>`;
+            document.getElementById("logsTableBody").insertAdjacentHTML('afterbegin', row);
+            
+            // Sync to Firestore
+            try {
+                const { addDoc, collection } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                await addDoc(collection(db, "admin_logs"), logEntry);
+            } catch (e) { console.error("Log sync failed", e); }
+        };
+
+        window.savePricing = async () => {
+            const prices = {};
+            document.querySelectorAll(".pricing-input").forEach(input => {
+                prices[input.dataset.key] = Number(input.value);
+            });
+            
+            try {
+                const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                await setDoc(doc(db, "settings", "pricing"), prices);
+                alert("Pricing plans updated successfully!");
+                logAdminAction("Changed Price Plan", "System");
+            } catch (e) { alert("Save failed: " + e.message); }
+        };
+
+        window.exportData = async (type) => {
+            let dataToExport = [];
+            let filename = `locknleave_export_${type}_${Date.now()}.csv`;
+            
+            if (type === 'bookings') {
+                const snap = await getDocs(collection(db, "bookings"));
+                dataToExport = snap.docs.map(d => d.data());
+            } else if (type === 'revenue') {
+                // Simplified revenue export
+                const snap = await getDocs(collection(db, "bookings"));
+                dataToExport = snap.docs.map(d => ({ Date: new Date(d.data().startTime).toLocaleDateString(), Amount: d.data().amount, User: d.data().userName }));
+            } else if (type === 'usage') {
+                dataToExport = Object.keys(lockerData).map(id => ({ Locker: id, UsageCount: lockerData[id].usageCount || 0, Status: lockerData[id].status }));
+            }
+
+            if (dataToExport.length === 0) { alert("No data to export"); return; }
+            
+            const headers = Object.keys(dataToExport[0]).join(",");
+            const rows = dataToExport.map(obj => Object.values(obj).join(",")).join("\n");
+            const csv = `${headers}\n${rows}`;
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', filename);
+            a.click();
+            logAdminAction(`Exported ${type} Data`, "Database");
+        };
+
+        window.reportIssue = async () => {
+            const lockerId = prompt("Enter Locker ID (1-20):");
+            const issue = prompt("Enter Issue Description:");
+            if (!lockerId || !issue) return;
+            
+            logAdminAction(`Reported issue for Locker #${lockerId}`, issue);
+            alert("Issue logged. Team notified.");
+        };
+
+        // Initialize admin logs on load
+        async function fetchLogs() {
+            try {
+                const { getDocs, query, collection, orderBy, limit } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                const q = query(collection(db, "admin_logs"), orderBy("timestamp", "desc"), limit(50));
+                const snap = await getDocs(q);
+                const table = document.getElementById("logsTableBody");
+                table.innerHTML = "";
+                snap.forEach(docSnap => {
+                    const l = docSnap.data();
+                    table.insertAdjacentHTML('beforeend', `<tr><td>${new Date(l.timestamp).toLocaleTimeString()}</td><td>${l.action}</td><td>${l.target}</td><td>${l.admin}</td></tr>`);
+                });
+            } catch (e) {}
+        }
+        fetchLogs();
+
 
         // CONTROL ACTIONS
         window.sendCommand = async (id, cmd) => {
@@ -1143,6 +1385,7 @@
                     sessionEnd: 0,
                     command: "OPEN" // Automatically open door for user to take bags
                 });
+                logAdminAction("Terminated Session", `Locker #${id}`);
             } catch (e) { alert("Failed to end session: " + e.message); }
         };
 
@@ -1151,6 +1394,7 @@
             const next = current === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
             try {
                 await updateDoc(doc(db, "lockers", `locker_${id}`), { status: next });
+                logAdminAction(next === "MAINTENANCE" ? "Set to Maintenance" : "Restored from Maintenance", `Locker #${id}`);
             } catch (e) { alert(e.message); }
         };
 

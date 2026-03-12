@@ -20,11 +20,11 @@
 #define LOCKER_ID     "4"   
 
 /* ================= HARDWARE ================= */
-#define LOCK_PIN 21
+#define LOCK_PIN 16
 #define UNLOCK_TIME 3000
 
 /* ================= TFT DISPLAY ================= */
-#define TFT_CS    5
+#define TFT_CS    15
 #define TFT_DC    2
 #define TFT_RST   4
 

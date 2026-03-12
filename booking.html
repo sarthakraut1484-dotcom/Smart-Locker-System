@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Complete Your Booking | Smart Locker</title>
+  <title>Complete Your Booking | LocknLeave</title>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -326,11 +326,7 @@
         Back
       </a>
       <span style="margin-left:12px; display:flex; align-items:center; gap:8px;">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path
-            d="M12 2C9.243 2 7 4.243 7 7v2H6c-1.103 0-2 .897-2 2v9c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-9c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zM9 7c0-1.654 1.346-3 3-3s3 1.346 3 3v2H9V7z" />
-        </svg>
-        Smart Locker
+        LocknLeave
       </span>
     </div>
 
@@ -355,12 +351,11 @@
 
     <div class="card">
       <h3>Select Duration</h3>
-      <div class="duration-buttons">
-        <button class="duration-btn" data-hours="1">1 Hour</button>
-        <button class="duration-btn" data-hours="2">2 Hours</button>
-        <button class="duration-btn active" data-hours="3">3 Hours</button>
-        <button class="duration-btn" data-hours="4">4 Hours</button>
-        <button class="duration-btn" data-hours="5">5 Hours</button>
+      <div class="duration-buttons" id="durationBtns">
+        <button class="duration-btn" data-hours="0.5" data-plan="30min">30 Min</button>
+        <button class="duration-btn active" data-hours="1" data-plan="1hr">1 Hour</button>
+        <button class="duration-btn" data-hours="3" data-plan="3hr">3 Hours</button>
+        <button class="duration-btn" data-hours="6" data-plan="6hr">6 Hours</button>
       </div>
 
       <div class="custom-duration">
@@ -498,6 +493,39 @@
     // Initial render
     updatePaymentSummaryUI();
 
+    // Fetch Dynamic Pricing
+    async function loadPricing() {
+      try {
+        const { getDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+        const pricingSnap = await getDoc(doc(db, "settings", "pricing"));
+        if (pricingSnap.exists()) {
+          const prices = pricingSnap.data();
+          window.dynamicPrices = prices;
+          
+          durationBtns.forEach(btn => {
+            const plan = btn.dataset.plan;
+            if (prices[plan]) {
+              btn.onclick = () => {
+                durationBtns.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                selectedHours = Number(btn.dataset.hours);
+                // Update pricing based on plan instead of rate * hours
+                const total = prices[plan];
+                document.getElementById("summaryDuration").textContent = btn.textContent;
+                document.getElementById("summaryRate").textContent = "Fixed Plan";
+                document.getElementById("summaryAmount").textContent = `₹${total.toFixed(2)}`;
+                document.getElementById("summaryTotal").textContent = `₹${total.toFixed(2)}`;
+                window.selectedAmount = total;
+              };
+            }
+          });
+          // Trigger first one
+          document.querySelector(".duration-btn[data-plan='1hr']").click();
+        }
+      } catch (e) { console.error("Pricing load failed", e); }
+    }
+    loadPricing();
+
     function generatePIN() {
       return Math.floor(1000 + Math.random() * 9000).toString();
     }
@@ -560,7 +588,7 @@
         console.log("Transaction Committed! Locker state updated.");
 
         // 2. Add to Bookings History
-        const amount = rate * selectedHours;
+        const amount = window.selectedAmount || (rate * selectedHours);
         const userContact = currentUser.email || currentUser.phoneNumber || currentUser.uid;
 
         const bookingData = {
