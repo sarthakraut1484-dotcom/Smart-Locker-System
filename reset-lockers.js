@@ -12,9 +12,9 @@ import { getDatabase, ref, update } from "https://www.gstatic.com/firebasejs/10.
 /* ================= FIREBASE INIT ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
-  authDomain: "asep-LocknLeave.firebaseapp.com",
-  databaseURL: "https://asep-LocknLeave-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "asep-LocknLeave",
+  authDomain: "asep-smart-locker.firebaseapp.com",
+  databaseURL: "https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "asep-smart-locker",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -65,6 +65,7 @@ async function resetLockers() {
 
 // Auto-run on load
 resetLockers();
+
 
 
 

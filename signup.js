@@ -5,8 +5,8 @@ import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/fireb
 // 🔥 Firebase config (same everywhere)
 const firebaseConfig = {
   apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
-  authDomain: "asep-LocknLeave.firebaseapp.com",
-  projectId: "asep-LocknLeave",
+  authDomain: "asep-smart-locker.firebaseapp.com",
+  projectId: "asep-smart-locker",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -129,6 +129,7 @@ document.getElementById("googleSignup").addEventListener("click", async () => {
     }
   }
 });
+
 
 
 
