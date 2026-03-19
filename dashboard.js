@@ -32,6 +32,13 @@ if (!currentUser) {
   window.location.href = "login";
 }
 
+// 🛡️ SESSION EXPIRY ENFORCEMENT — Auto-logout after 2 hours
+if (currentUser && currentUser.expiresAt && Date.now() > currentUser.expiresAt) {
+  sessionStorage.clear();
+  alert("Your session has expired. Please log in again.");
+  window.location.href = "login";
+}
+
 /* ================= AUTO EXPIRE LOCKERS ================= */
 
 async function autoExpireLockers() {

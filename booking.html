@@ -349,6 +349,11 @@
           id="lockerSize"></span></div>
     </div>
 
+    <!-- Surge Pricing Banner (shown automatically when peak pricing is active) -->
+    <div id="surgeBanner" style="display:none; background: linear-gradient(135deg,#f43f5e,#f97316); color:white; border-radius:12px; padding:14px 20px; margin-bottom:20px; font-weight:700; font-size:15px; text-align:center;">
+      🔥 <span id="surgeText">Peak Hours — Prices Surged</span>
+    </div>
+
     <div class="card">
       <h3>Select Duration</h3>
       <div class="duration-buttons" id="durationBtns">
@@ -391,12 +396,15 @@
       doc,
       runTransaction,
       collection,
-      addDoc
+      addDoc,
+      onSnapshot,
+      setDoc
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import {
       getDatabase,
       ref,
-      set
+      set,
+      remove
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     /* ================= FIREBASE INIT ================= */
@@ -418,14 +426,25 @@
     /* ================= URL PARAM CHECK (QR Code Support) ================= */
     const urlParams = new URLSearchParams(window.location.search);
     const lockerIdParam = urlParams.get('id') || urlParams.get('lockerId');
+    const qrTimestamp = parseInt(urlParams.get('t') || '0');
 
-    // Only set from URL if explicitly provided, otherwise rely on sessionStorage from previous page
-    if (lockerIdParam) {
-      const lockerObj = {
-        id: lockerIdParam,
-        size: "Standard",
-        price: 70
-      };
+    // 🔐 QR CODE EXPIRY CHECK — Reject QR links older than 10 minutes
+    if (lockerIdParam && qrTimestamp > 0) {
+      const QR_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+      if (Date.now() - qrTimestamp > QR_EXPIRY_MS) {
+        document.body.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#000;flex-direction:column;gap:16px;font-family:'Plus Jakarta Sans',sans-serif;">
+            <div style="font-size:64px;">⏰</div>
+            <h2 style="color:#f8fafc;">QR Code Expired</h2>
+            <p style="color:#94a3b8;">This QR code is older than 10 minutes. Please scan the locker again.</p>
+            <a href="select-locker" style="background:#6366f1;color:white;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:600;">Choose a Locker</a>
+          </div>`;
+        throw new Error("QR expired"); // Stop script execution
+      }
+      const lockerObj = { id: lockerIdParam, size: "Standard", price: 70 };
+      sessionStorage.setItem("selectedLocker", JSON.stringify(lockerObj));
+    } else if (lockerIdParam) {
+      const lockerObj = { id: lockerIdParam, size: "Standard", price: 70 };
       sessionStorage.setItem("selectedLocker", JSON.stringify(lockerObj));
     }
 
@@ -434,8 +453,13 @@
       if (user) {
         currentUser = user;
         document.getElementById("userDisplay").textContent = user.email.split("@")[0];
+        // 🛡️ Session expiry enforcement on booking page too
+        const sess = JSON.parse(sessionStorage.getItem("currentUser"));
+        if (sess && sess.expiresAt && Date.now() > sess.expiresAt) {
+          sessionStorage.clear();
+          window.location.href = "login";
+        }
       } else {
-        // Safe Redirect: Store return URL in session
         sessionStorage.setItem("postLoginRedirect", window.location.href);
         window.location.href = "login";
       }
@@ -493,44 +517,63 @@
     // Initial render
     updatePaymentSummaryUI();
 
-    // Fetch Dynamic Pricing
-    async function loadPricing() {
-      try {
-        const { getDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-        const pricingSnap = await getDoc(doc(db, "settings", "pricing"));
-        if (pricingSnap.exists()) {
-          const prices = pricingSnap.data();
-          window.dynamicPrices = prices;
-          
-          durationBtns.forEach(btn => {
-            const plan = btn.dataset.plan;
-            if (prices[plan]) {
-              btn.onclick = () => {
-                durationBtns.forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                selectedHours = Number(btn.dataset.hours);
-                // Update pricing based on plan instead of rate * hours
-                const total = prices[plan];
-                document.getElementById("summaryDuration").textContent = btn.textContent;
-                document.getElementById("summaryRate").textContent = "Fixed Plan";
-                document.getElementById("summaryAmount").textContent = `₹${total.toFixed(2)}`;
-                document.getElementById("summaryTotal").textContent = `₹${total.toFixed(2)}`;
-                window.selectedAmount = total;
-              };
-            }
-          });
-          // Trigger first one
-          document.querySelector(".duration-btn[data-plan='1hr']").click();
+    // Real-Time Pricing Listener — Syncs instantly when admin runs the pricing algorithm
+    function applyPricing(prices) {
+      if (!prices) return;
+      window.dynamicPrices = prices;
+
+      // Show/hide surge banner
+      const surgeBanner = document.getElementById("surgeBanner");
+      if (prices._surgeActive) {
+        const pct = Math.round((prices._multiplier - 1) * 100);
+        document.getElementById("surgeText").textContent = `🔥 Peak Hour Pricing — ${pct}% Surge Active! Book quickly.`;
+        surgeBanner.style.display = "block";
+      } else {
+        surgeBanner.style.display = "none";
+      }
+
+      durationBtns.forEach(btn => {
+        const plan = btn.dataset.plan;
+        if (prices[plan]) {
+          btn.onclick = () => {
+            durationBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            selectedHours = Number(btn.dataset.hours);
+            const total = prices[plan];
+            document.getElementById("summaryDuration").textContent = btn.textContent + (prices._surgeActive ? " 🔥" : "");
+            document.getElementById("summaryRate").textContent = prices._surgeActive ? `Surge Rate (${prices._multiplier}x)` : "Standard Rate";
+            document.getElementById("summaryAmount").textContent = `₹${total.toFixed(2)}`;
+            document.getElementById("summaryTotal").textContent = `₹${total.toFixed(2)}`;
+            window.selectedAmount = total;
+          };
         }
-      } catch (e) { console.error("Pricing load failed", e); }
+      });
+
+      // Auto-trigger the currently selected plan to refresh the summary
+      const activeBtn = document.querySelector(".duration-btn.active") || document.querySelector(".duration-btn[data-plan='1hr']");
+      if (activeBtn) activeBtn.click();
     }
-    loadPricing();
+
+    // Subscribe to live Firestore pricing — zero-delay sync with admin dashboard
+    onSnapshot(doc(db, "settings", "pricing"), (snap) => {
+      if (snap.exists()) applyPricing(snap.data());
+    });
 
     function generatePIN() {
       return Math.floor(1000 + Math.random() * 9000).toString();
     }
 
     document.getElementById("proceedBtn").addEventListener("click", async () => {
+      // 🛡️ BOOKING RATE LIMITER — Prevent bot-spam booking
+      const lastBookingTime = parseInt(localStorage.getItem("lastBookingAttempt") || "0");
+      const RATE_LIMIT_MS = 30 * 1000; // 30 seconds
+      if (Date.now() - lastBookingTime < RATE_LIMIT_MS) {
+        const remaining = Math.ceil((RATE_LIMIT_MS - (Date.now() - lastBookingTime)) / 1000);
+        alert(`⏳ Please wait ${remaining} seconds before making another booking.`);
+        return;
+      }
+      localStorage.setItem("lastBookingAttempt", Date.now().toString());
+
       console.log("Proceed Button Clicked");
       if (!currentUser) {
         console.error("No currentUser found!");
@@ -539,7 +582,16 @@
       }
       console.log("Authenticated User:", currentUser.uid);
 
+      async function cryptoHash(text) {
+        const msgUint8 = new TextEncoder().encode(text);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+      }
+
       const pin = generatePIN();
+      const hashedPin = await cryptoHash(pin);
       const durationMs = selectedHours * 60 * 60 * 1000;
       
       // Fetch user name from session for better display in admin
@@ -576,8 +628,8 @@
 
           transaction.set(lockerRef, {
             status: "ACTIVE",
-            currentPin: pin,
-            startTime: null,      // Timer hasn't started yet
+            currentPin: hashedPin, // Store hashed PIN for security
+            startTime: null,      // First unlock starts timer
             duration: durationMs, // Store planned duration
             lastUpdated: Date.now(),
             userId: currentUser.uid,
@@ -613,37 +665,89 @@
         try {
           await set(ref(rtdb, `lockers/${locker.id}`), {
             status: "ACTIVE",
-            pin: pin,
+            pin: hashedPin, // Hardware will compare entered PIN hash with this
             startTime: 0, // 0 indicates not started
             duration: durationMs,
             userName: userName
           });
           console.log("✅ RTDB Updated Successfully!");
+
+          // ⏰ AUTO-FREE: When duration expires, reset locker to AVAILABLE automatically
+          setTimeout(async () => {
+            try {
+              // Reset RTDB locker to completely free state
+              await set(ref(rtdb, `lockers/${locker.id}`), {
+                status: "AVAILABLE",
+                pin: "",
+                startTime: 0,
+                duration: 0,
+                userName: "",
+                unlockCount: 0
+              });
+              // Also update Firestore booking record to COMPLETED
+              const bookingLockerRef = doc(db, "lockers", `locker_${locker.id}`);
+              await setDoc(bookingLockerRef, {
+                status: "AVAILABLE",
+                currentPin: "",
+                startTime: null,
+                duration: 0,
+                lastUpdated: Date.now(),
+                userId: "",
+                userContact: "",
+                userName: ""
+              });
+              console.log("✅ Session expired — Locker auto-freed to AVAILABLE");
+            } catch(freeErr) {
+              console.warn("Auto-free failed:", freeErr);
+            }
+          }, durationMs);
+
         } catch (e) {
           console.warn("⚠️ RTDB Update Failed:", e);
         }
 
-        // ✅ SHOW CONFIRMATION
-        alert(
-          `Booking Confirmed!\n\nLocker: ${locker.id}\nPIN: ${pin}\nDuration: ${selectedHours} hours`
-        );
+        // ✅ SHOW SECURE PIN MODAL (replaces insecure alert)
+        showPinModal(pin, locker.id, selectedHours);
 
-        // Optional: store for dashboard confirmation
+        // Store for dashboard confirmation
         sessionStorage.setItem("bookingSuccess", JSON.stringify({
           lockerId: locker.id,
           pin: pin,
           hours: selectedHours
         }));
 
-        console.log("Redirecting to dashboard...");
-        // ✅ REDIRECT AFTER USER CLICKS OK
-        window.location.href = "dashboard";
-
       } catch (err) {
         console.error("Booking Error:", err);
         alert(err.message || "Booking failed. Please try again.");
       }
     });
+
+    /* ================= SECURE PIN MODAL ================= */
+    let pinCountdownTimer = null;
+
+    function showPinModal(pin, lockerId, hours) {
+      document.getElementById("modalPinDisplay").textContent = pin;
+      const modal = document.getElementById("pinModal");
+      modal.style.display = "flex";
+
+      // Auto-hide PIN after 30s
+      let remaining = 30;
+      document.getElementById("pinCountdown").textContent = remaining;
+      pinCountdownTimer = setInterval(() => {
+        remaining--;
+        document.getElementById("pinCountdown").textContent = remaining;
+        if (remaining <= 0) {
+          clearInterval(pinCountdownTimer);
+          document.getElementById("modalPinDisplay").textContent = "••••";
+        }
+      }, 1000);
+    }
+
+    function closePinModal() {
+      clearInterval(pinCountdownTimer);
+      document.getElementById("pinModal").style.display = "none";
+      window.location.href = "dashboard";
+    }
 
     /* ================= LOGOUT ================= */
 
@@ -656,6 +760,21 @@
 
 
   <script src="bg-animation.js"></script>
+
+  <!-- 🔐 Secure PIN Confirmation Modal -->
+  <div id="pinModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#0f172a; border:1px solid rgba(99,102,241,0.4); border-radius:20px; padding:40px 36px; max-width:400px; width:90%; text-align:center; box-shadow:0 24px 48px rgba(0,0,0,0.6);">
+      <div style="font-size:48px; margin-bottom:12px;">🔒</div>
+      <h3 style="color:#f8fafc; font-family:'Outfit',sans-serif; margin-bottom:8px;">Booking Confirmed!</h3>
+      <p style="color:#94a3b8; font-size:14px; margin-bottom:24px;">Your locker is reserved. Use the PIN below to unlock it.</p>
+      <div style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); border-radius:12px; padding:20px; margin-bottom:8px;">
+        <div style="color:#94a3b8; font-size:12px; font-weight:600; letter-spacing:2px; margin-bottom:8px;">YOUR SECURE PIN</div>
+        <div id="modalPinDisplay" style="font-size:48px; font-weight:800; color:#6366f1; letter-spacing:12px; font-family:'Outfit',sans-serif;">----</div>
+      </div>
+      <p style="color:#64748b; font-size:12px; margin-bottom:24px;">⏳ This PIN will be hidden in <span id="pinCountdown">30</span>s for security</p>
+      <button onclick="closePinModal()" style="background:#6366f1; color:white; border:none; padding:12px 32px; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer;">Got it — Go to Dashboard</button>
+    </div>
+  </div>
 </body>
 
 </html>

@@ -981,9 +981,56 @@
 
         <!-- PRICING MANAGER -->
         <section id="pricing" class="dash-section">
+            <!-- Auto-Dynamic Pricing Algorithm Panel -->
+            <div class="registry-card mb-4" id="dynamicPricingPanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="mb-1">⚡ Auto-Dynamic Pricing Engine</h5>
+                        <p class="text-muted small mb-0">Automatically surges prices when occupancy is high</p>
+                    </div>
+                    <button class="btn btn-warning text-dark fw-bold" onclick="runDynamicPricingAlgorithm()">
+                        <i class="bi bi-lightning-charge-fill me-1"></i> Run Algorithm
+                    </button>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.03)">
+                            <div class="text-muted small fw-bold mb-1">CURRENT OCCUPANCY</div>
+                            <div class="fs-4 fw-bold" id="pricingOccupancyPct">—</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.03)">
+                            <div class="text-muted small fw-bold mb-1">SURGE STATUS</div>
+                            <div class="fs-5 fw-bold" id="pricingSurgeStatus">—</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.03)">
+                            <div class="text-muted small fw-bold mb-1">SURGE THRESHOLD</div>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="number" id="surgeThreshold" class="form-control bg-dark text-light border-secondary" value="90" min="50" max="100" style="width:80px">
+                                <span class="text-muted">%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 border border-secondary rounded-3" style="background: rgba(255,255,255,0.03)">
+                            <div class="text-muted small fw-bold mb-1">SURGE MULTIPLIER</div>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="number" id="surgeMultiplier" class="form-control bg-dark text-light border-secondary" value="1.2" min="1.0" max="3.0" step="0.1" style="width:90px">
+                                <span class="text-muted">x</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="dynamicPricingResult" class="d-none alert mb-0"></div>
+            </div>
+
             <div class="registry-card">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5>Dynamic Pricing Control</h5>
+                    <h5>Base Price Configuration</h5>
                     <button class="btn btn-primary btn-sm" onclick="savePricing()">Save All Changes</button>
                 </div>
                 <div class="table-responsive">
@@ -991,7 +1038,7 @@
                         <thead>
                             <tr>
                                 <th>Duration</th>
-                                <th>Price (₹)</th>
+                                <th>Base Price (₹)</th>
                                 <th>Active</th>
                             </tr>
                         </thead>
@@ -1019,17 +1066,23 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="text-muted small mt-3"><i class="bi bi-info-circle me-1"></i> Changes here will reflect immediately on the user booking page.</p>
+                <p class="text-muted small mt-3"><i class="bi bi-info-circle me-1"></i> Base prices. Algorithm will surge these automatically during peak occupancy.</p>
             </div>
         </section>
 
-        <!-- ADMIN LOGS -->
+        <!-- ADMIN LOGS & BLOCKCHAIN VERIFICATION -->
         <section id="logs" class="dash-section">
             <div class="registry-card">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5>Admin Activity Logs</h5>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="clearLogs()">Clear History</button>
+                    <h5 class="mb-0">System Audit Logs & Blockchain <span class="badge bg-secondary ms-2" style="font-size: 0.7em;">Beta</span></h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-warning text-dark fw-bold btn-sm shadow-sm" onclick="verifyBlockchain()">
+                            <i class="bi bi-link-45deg"></i> Verify Blockchain Integrity
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearLogs()">Clear History</button>
+                    </div>
                 </div>
+                <div id="blockchainAuditResult" class="d-none alert mb-4 p-3 border rounded shadow-sm" style="font-size: 14px;"></div>
                 <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
                     <table class="table">
                         <thead>
@@ -1113,6 +1166,12 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const rtdb = getDatabase(app);
+
+        // Expose Firestore helpers for the auto-pricing algorithm outside this module scope
+        const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+        window._firestoreDb = db;
+        window._firestoreDoc = doc;
+        window._firestoreSetDoc = setDoc;
 
         /* ================= COMPREHENSIVE DATA SYNC ================= */
         window.syncAllData = async () => {
@@ -1807,6 +1866,7 @@
              snapshot.forEach(async (d) => {
                  await updateDoc(doc(db, "lockers", d.id), { status: "AVAILABLE", userId: null, currentPin: null });
              });
+             await logAdminAction("Global Reset All Lockers", "All 20 Units");
              alert("Global Reset triggered. Synching...");
         };
 
@@ -2000,6 +2060,147 @@
                 }
             });
         }
+
+        // ========================================================
+        // 🔒 IOT BLOCKCHAIN CRYPTOGRAPHIC VERIFIER
+        // ========================================================
+        async function verifyBlockchain() {
+            const resultBox = document.getElementById("blockchainAuditResult");
+            resultBox.classList.remove("d-none", "alert-success", "alert-danger", "alert-info", "alert-warning");
+            resultBox.classList.add("alert-info");
+            resultBox.innerHTML = `<i class="bi bi-hourglass-split me-2"></i> Querying IoT Blockchain Nodes...`;
+
+            try {
+                const response = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/blockchain_ledger.json`);
+                const ledger = await response.json();
+
+                if (!ledger) {
+                    resultBox.classList.replace("alert-info", "alert-warning");
+                    resultBox.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i> No blocks found in the ledger yet. Wait for a locker to open.`;
+                    return;
+                }
+
+                const blocks = Object.values(ledger).sort((a,b) => a.payload.timestamp - b.payload.timestamp);
+                let isValid = true;
+                let compromisedIndex = -1;
+
+                // Base Genesis block hash starting point
+                let currentExpectedPrevious = "0000000000000000000000000000000000000000000000000000000000000000";
+
+                for (let i = 0; i < blocks.length; i++) {
+                    const block = blocks[i];
+                    
+                    // 1. Verify the chain linkage (Does the block point properly to the previous one?)
+                    if (block.previousHash !== currentExpectedPrevious && i > 0) {
+                        isValid = false;
+                        compromisedIndex = i + 1;
+                        break;
+                    }
+
+                    // 2. Validate Cryptographic Hash calculation natively using Web Crypto API
+                    // Reconstruct the exact string format pushed by the ESP32 C++ Memory
+                    const payloadStr = `{"locker_id":"${block.payload.locker_id}","timestamp":${block.payload.timestamp},"action":"${block.payload.action}"}`;
+                    const toHash = block.previousHash + payloadStr;
+
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(toHash);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    const calculatedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                    // If our manually churned hash doesn't equal what the hardware recorded, data was tampered!
+                    if (calculatedHash !== block.hash) {
+                        isValid = false;
+                        compromisedIndex = i + 1;
+                        break;
+                    }
+
+                    currentExpectedPrevious = block.hash;
+                }
+
+                resultBox.classList.remove("alert-info");
+                if (isValid) {
+                    resultBox.classList.add("alert-success");
+                    resultBox.innerHTML = `<h5 class="mb-1 fw-bold text-success"><i class="bi bi-shield-check me-2"></i> Blockchain Integrity Verified ✅</h5>
+                    <p class="mb-0 text-dark" style="font-size: 13px;">Successfully cryptographically validated <strong>${blocks.length} IoT blocks</strong>. The historic ledger is 100% untampered and mathematically proven via physical ESP32 nodes.</p>`;
+                } else {
+                    resultBox.classList.add("alert-danger");
+                    resultBox.innerHTML = `<h5 class="mb-1 fw-bold text-danger"><i class="bi bi-shield-x me-2"></i> Compromised ❌</h5>
+                    <p class="mb-0 text-dark" style="opacity: 0.9;">Cryptographic mismatch detected at <strong>Block Link #${compromisedIndex}</strong>! <br>A payload event or hash sequence was maliciously manipulated on the server without IoT Node authorization.</p>`;
+                }
+            } catch(e) {
+                resultBox.classList.replace("alert-info", "alert-danger");
+                resultBox.innerHTML = `<i class="bi bi-x-circle me-2"></i> Blockchain Sync Error: ${e.message}`;
+            }
+        }
+
+        // =====================================================
+        // ⚡ AUTO-DYNAMIC PRICING ALGORITHM ENGINE
+        // =====================================================
+        async function runDynamicPricingAlgorithm() {
+            const resultBox = document.getElementById("dynamicPricingResult");
+            const occupancyEl = document.getElementById("pricingOccupancyPct");
+            const surgeEl = document.getElementById("pricingSurgeStatus");
+
+            resultBox.className = "alert alert-info";
+            resultBox.textContent = "⏳ Scanning live locker occupancy...";
+
+            try {
+                // 1. Fetch all locker states from RTDB
+                const res = await fetch("https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers.json");
+                const lockers = await res.json() || {};
+
+                const totalLockers = 20; // System total
+                const occupied = Object.values(lockers).filter(l => l && l.status === "ACTIVE").length;
+                const occupancyPct = Math.round((occupied / totalLockers) * 100);
+                occupancyEl.textContent = `${occupancyPct}% (${occupied}/${totalLockers})`;
+                occupancyEl.style.color = occupancyPct >= 90 ? "#f43f5e" : occupancyPct >= 60 ? "#f59e0b" : "#10b981";
+
+                const threshold = parseFloat(document.getElementById("surgeThreshold").value) || 90;
+                const multiplier = parseFloat(document.getElementById("surgeMultiplier").value) || 1.2;
+                const isSurge = occupancyPct >= threshold;
+
+                surgeEl.textContent = isSurge ? `🔥 PEAK HOUR SURGE (${multiplier}x)` : "✅ Normal Pricing";
+                surgeEl.style.color = isSurge ? "#f43f5e" : "#10b981";
+
+                // 2. Read base prices from the input fields
+                const basePrices = {};
+                document.querySelectorAll(".pricing-input").forEach(inp => {
+                    basePrices[inp.dataset.key] = parseFloat(inp.value) || 0;
+                });
+
+                // 3. Calculate final prices (surge or base)
+                const finalPrices = {};
+                for (const [key, val] of Object.entries(basePrices)) {
+                    finalPrices[key] = isSurge ? Math.round(val * multiplier) : val;
+                }
+                finalPrices._surgeActive = isSurge;
+                finalPrices._occupancyPct = occupancyPct;
+                finalPrices._multiplier = multiplier;
+                finalPrices._lastUpdated = Date.now();
+
+                // 4. Save computed prices to Firestore (booking page reads this in real-time)
+                await window._firestoreSetDoc(
+                    window._firestoreDoc(window._firestoreDb, "settings", "pricing"),
+                    finalPrices
+                );
+
+                resultBox.className = "alert alert-success";
+                if (isSurge) {
+                    resultBox.innerHTML = `<strong>🔥 Peak Surge Activated!</strong> Occupancy is <strong>${occupancyPct}%</strong> — prices surged by <strong>${((multiplier - 1) * 100).toFixed(0)}%</strong>. New prices: 30min=₹${finalPrices["30min"]}, 1hr=₹${finalPrices["1hr"]}, 3hr=₹${finalPrices["3hr"]}, 6hr=₹${finalPrices["6hr"]}. All booking pages updated instantly.`;
+                } else {
+                    resultBox.innerHTML = `<strong>✅ Normal Pricing Active.</strong> Occupancy is <strong>${occupancyPct}%</strong> — below threshold (${threshold}%). Base prices are in effect. System will surge automatically when occupancy reaches ${threshold}%.`;
+                }
+            } catch(e) {
+                resultBox.className = "alert alert-danger";
+                resultBox.textContent = "❌ Algorithm Error: " + e.message;
+            }
+        }
+
+        // Expose Firestore helpers for the pricing algorithm (set in initRealtime scope)
+        window._firestoreDb = null;
+        window._firestoreDoc = null;
+        window._firestoreSetDoc = null;
 
         initRealtime();
     </script>
