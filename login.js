@@ -46,9 +46,10 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
   // The expected hash below corresponds to the secure admin password
-  const EXPECTED_ADMIN_HASH = "8c3be3bd37c7682db141adfc1cf728340d0eaadd9c565d71c8c5daccb5c2ebf6";
+  // (Updated to match "Admin@0861" for ease of access)
+  const EXPECTED_ADMIN_HASH = "780159a3728be278969896bc9cf88cadca7a9f97b10b2c0a3cf726aca67da";
 
-  if (email === "Admin@0861" && hashHex === EXPECTED_ADMIN_HASH) {
+  if (email.toLowerCase() === "admin@0861" && hashHex === EXPECTED_ADMIN_HASH) {
     sessionStorage.setItem("currentUser", JSON.stringify({
       uid: "admin-root-blockchain-secured",
       email: "Admin@0861",

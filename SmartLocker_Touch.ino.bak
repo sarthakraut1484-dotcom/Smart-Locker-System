@@ -518,6 +518,20 @@ void pollLockerStatus() {
     const char* st = doc["status"];
     unsigned long long endTs = doc["sessionEnd"].as<unsigned long long>();
     
+    // Check for Remote Commands
+    const char* cmd = doc["command"];
+    if (cmd && String(cmd) == "OPEN") {
+      Serial.println("*** REMOTE OPEN COMMAND RECEIVED ***");
+      unlockLocker();
+      
+      // Clear command in Firebase so it doesn't repeat
+      HTTPClient httpCmd;
+      String urlCmd = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + "/command.json?auth=" + String(FIREBASE_SECRET);
+      httpCmd.begin(urlCmd);
+      httpCmd.sendRequest("DELETE", "");
+      httpCmd.end();
+    }
+    
     if (endTs == 0) {
        long long start = doc["startTime"];
        long duration = doc["duration"]; 
