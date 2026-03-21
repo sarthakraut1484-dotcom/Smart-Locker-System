@@ -47,7 +47,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   
   // The expected hash below corresponds to the secure admin password
   // (Updated to match "Admin@0861" for ease of access)
-  const EXPECTED_ADMIN_HASH = "780159a3728be278969896bc9cf88cadca7a9f97b10b2c0a3cf726aca67da";
+  const EXPECTED_ADMIN_HASH = "780159a3728be278969896bc9cf88cdceba9f97b10b2c0a3cf726aca67dadca7";
 
   if (email.toLowerCase() === "admin@0861" && hashHex === EXPECTED_ADMIN_HASH) {
     sessionStorage.setItem("currentUser", JSON.stringify({
