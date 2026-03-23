@@ -350,7 +350,7 @@
       window.location.href = "login";
     } else {
       document.getElementById("userDisplay").textContent =
-        currentUser.email.split("@")[0];
+        currentUser.name || currentUser.email.split("@")[0];
     }
 
     document.getElementById("logoutBtn").addEventListener("click", () => {
