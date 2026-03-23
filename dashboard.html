@@ -355,6 +355,11 @@
         text-align: center;
       }
     }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
   </style>
 </head>
 
@@ -519,10 +524,14 @@
 
     function showSuccessToast(msg) {
         const toast = document.createElement("div");
-        toast.style = "position:fixed; top:20px; right:20px; background:#10b981; color:white; padding:16px 24px; border-radius:12px; shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:9999; animation: slideIn 0.5s ease-out;";
-        toast.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i> ${msg}`;
+        toast.style = "position:fixed; top:20px; right:20px; background:#10b981; color:white; padding:16px 24px; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.5); z-index:9999; animation: slideIn 0.5s ease-out; font-weight:600; display:flex; align-items:center; gap:12px;";
+        toast.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+        setTimeout(() => {
+          toast.style.transform = "translateX(150%)";
+          toast.style.transition = "transform 0.5s ease-in";
+          setTimeout(() => toast.remove(), 500);
+        }, 4000);
     }
 
     function initializeDashboard(user, username) {
