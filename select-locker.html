@@ -429,8 +429,11 @@
         snapshot.forEach(async (docSnap) => {
           const data = docSnap.data();
 
-          // If locker is ACTIVE but session has expired, clean it up
-          if (data.status === "ACTIVE" && data.sessionEnd && data.sessionEnd <= now) {
+          // If locker is ACTIVE but session has expired OR it was an abandoned booking (never started scan after 10 mins)
+          const isExpired = data.sessionEnd && data.sessionEnd <= now;
+          const isAbandoned = data.status === "ACTIVE" && data.startTime === null && data.lastUpdated && (now - data.lastUpdated > 10 * 60 * 1000);
+
+          if (data.status === "ACTIVE" && (isExpired || isAbandoned)) {
             await cleanupExpiredLocker(docSnap.id);
           }
         });
@@ -463,8 +466,11 @@
             sessionEnd = data.startTime + data.duration;
           }
 
-          // If session has ended, clean it up
-          if (sessionEnd && sessionEnd <= now) {
+          const isExpired = sessionEnd && sessionEnd <= now;
+          const isAbandoned = data.startTime === null && data.lastUpdated && (now - data.lastUpdated > 10 * 60 * 1000);
+
+          // If session has ended or is abandoned, clean it up
+          if (isExpired || isAbandoned) {
             cleanupExpiredLocker(docSnap.id);
           } else {
             // Otherwise, it is occupied (either waiting to start or currently running)

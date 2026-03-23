@@ -482,8 +482,6 @@
     /* ================= BOOKING LOGIC ================= */
 
     let rate = typeof locker.price === 'number' ? locker.price : parseInt(locker.price.toString().replace("₹", "").replace("/hr", ""));
-    let selectedHours = 3;
-
     /* ===== DURATION SELECTION FIX ===== */
 
     const durationBtns = document.querySelectorAll(".duration-btn");
@@ -516,7 +514,8 @@
       updatePaymentSummaryUI();
     });
 
-    // Initial render
+    // Fix initial state: match the 'active' 1hr button in the UI
+    selectedHours = 1;
     updatePaymentSummaryUI();
 
     // Real-Time Pricing Listener — Syncs instantly when admin runs the pricing algorithm
@@ -613,16 +612,19 @@
           const lockerSnap = await transaction.get(lockerRef);
           const data = lockerSnap.exists() ? lockerSnap.data() : null;
 
-          // Check if active and NOT expired.
-          // New Logic: Check if status is ACTIVE. Expiry check depends on if started.
           if (data && data.status === "ACTIVE") {
-            // If started, check expiry
-            if (data.startTime && (data.startTime + data.duration > Date.now())) {
-              throw new Error("This locker is already booked.");
+            const nowTime = Date.now();
+            // If already started and not expired, it's definitely booked.
+            if (data.startTime && (data.startTime + data.duration > nowTime)) {
+              throw new Error("This locker is already currently in use.");
             }
-            // If not started (startTime is null), it's still booked (waiting for user).
-            if (data.startTime === null) {
-              throw new Error("This locker is booked and waiting for the user.");
+            // If booked but not started, check if booking is "abandoned" (more than 10 mins old)
+            // If it's fresh (<10 mins), it's still reserved for the initial user.
+            if (data.startTime === null && data.lastUpdated && (nowTime - data.lastUpdated < 10 * 60 * 1000)) {
+               // Only block if it is NOT the same user attempting to re-book/resume
+               if (data.userId !== currentUser.uid) {
+                  throw new Error("This locker is temporarily reserved. Please choose another or wait 10 mins.");
+               }
             }
           }
 
@@ -633,6 +635,7 @@
             currentPin: hashedPin, // Store hashed PIN for security
             startTime: null,      // First unlock starts timer
             duration: durationMs, // Store planned duration
+            sessionEnd: Date.now() + durationMs, // Estimated end for early cleanup sync
             lastUpdated: Date.now(),
             userId: currentUser.uid,
             userContact: userContact,
@@ -745,11 +748,14 @@
       }, 1000);
     }
 
-    function closePinModal() {
+    // Attach to window so it's accessible from global onclick handlers
+    window.closePinModal = function() {
       clearInterval(pinCountdownTimer);
       document.getElementById("pinModal").style.display = "none";
       window.location.href = "dashboard";
     }
+
+    /* ================= LOGOUT ================= */
 
     /* ================= LOGOUT ================= */
 
