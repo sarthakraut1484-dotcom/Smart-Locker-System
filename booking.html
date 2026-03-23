@@ -515,7 +515,11 @@
       updatePaymentSummaryUI();
     });
 
-    // Initial render
+    // Initial render: Check if custom hours is already filled (browser autofill)
+    if (customInput.value) {
+        selectedHours = Number(customInput.value) || 1;
+        durationBtns.forEach(b => b.classList.remove("active"));
+    }
     updatePaymentSummaryUI();
 
     // Real-Time Pricing Listener — Syncs instantly when admin runs the pricing algorithm
