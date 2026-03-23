@@ -312,9 +312,99 @@
       pointer-events: none;
     }
 
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+    /* ================= SUCCESS SCREEN STYLES ================= */
+    .success-overlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 10000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .success-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 32px;
+      padding: 48px;
+      max-width: 500px;
+      width: 100%;
+      backdrop-filter: blur(24px);
+      animation: zoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .check-icon {
+      width: 80px;
+      height: 80px;
+      background: var(--success);
+      color: white;
+      border-radius: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin: 0 auto 24px;
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.4);
+    }
+
+    .success-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 12px;
+    }
+
+    .success-p {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+
+    .pin-display-container {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px dashed var(--primary);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .success-pin {
+      font-family: 'Outfit', sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 12px;
+      margin-bottom: 8px;
+    }
+
+    .dash-btn {
+      background: var(--primary);
+      color: white;
+      text-decoration: none;
+      padding: 16px 32px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 16px;
+      display: inline-block;
+      transition: 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .dash-btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
     }
   </style>
 </head>
@@ -731,9 +821,8 @@
           console.warn("⚠️ RTDB Update Failed:", e);
         }
 
-        // ✅ SHOW SECURE PIN MODAL (replaces insecure alert)
-        showSuccessToast("Locker Booked Successfully!");
-        showPinModal(pin, locker.id, selectedHours);
+        // ✅ SHOW FULL-PAGE SUCCESS CONFIRMATION
+        showSuccessScreen(locker.id, pin, selectedHours);
 
         // Store for dashboard confirmation
         sessionStorage.setItem("bookingSuccess", JSON.stringify({
@@ -747,6 +836,33 @@
         alert(err.message || "Booking failed. Please try again.");
       }
     });
+
+    function showSuccessScreen(lockerId, pin, hours) {
+      const container = document.querySelector('.container');
+      if(container) container.style.display = 'none';
+      
+      const overlay = document.createElement("div");
+      overlay.className = "success-overlay";
+      overlay.style.display = "flex";
+      overlay.innerHTML = `
+        <div class="success-card">
+          <div class="check-icon"><i class="bi bi-check-lg"></i></div>
+          <h2 class="success-title">Locker Booked!</h2>
+          <p class="success-p">Your reservation for Locker #${lockerId} is confirmed for ${hours} hour(s).</p>
+          
+          <div class="pin-display-container">
+             <div style="font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">Your Secure Access PIN</div>
+             <div class="success-pin">${pin}</div>
+             <div style="font-size:13px; color:var(--primary); font-weight:500;">Please remember this PIN to unlock your locker.</div>
+          </div>
+
+          <button onclick="window.location.href='dashboard'" class="dash-btn">
+             Go to Dashboard <i class="bi bi-arrow-right ms-2"></i>
+          </button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
 
     /* ================= SECURE PIN MODAL ================= */
     let pinCountdownTimer = null;
