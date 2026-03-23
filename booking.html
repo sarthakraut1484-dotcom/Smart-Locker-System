@@ -12,6 +12,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
 
 
   <style>
@@ -712,6 +713,12 @@
         if (sessionUser && sessionUser.name) userName = sessionUser.name;
       } catch(e) {}
 
+      const proceedBtn = document.getElementById("proceedBtn");
+      const originalText = proceedBtn.innerHTML;
+      proceedBtn.disabled = true;
+      proceedBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Processing Payment...`;
+      showSuccessToast("Initiating transaction...");
+
       const lockerRef = doc(db, "lockers", `locker_${locker.id}`);
       console.log("Target Locker Ref:", lockerRef.path);
 
@@ -776,64 +783,30 @@
         const docRef = await addDoc(collection(db, "bookings"), bookingData);
         console.log("Booking Doc Added! ID:", docRef.id);
 
-        // 3. Update Realtime Database
+        // 4. Update Realtime Database (Fire-and-forget/Background)
+        // Show success screen ASAP so user sees confirmation, RTDB can finish in bg
+        showSuccessScreen(locker.id, pin, selectedHours);
+
         try {
           await set(ref(rtdb, `lockers/${locker.id}`), {
             status: "ACTIVE",
-            pin: hashedPin, // Hardware will compare entered PIN hash with this
-            startTime: 0, // 0 indicates not started
+            pin: hashedPin, // Hardware uses this for verification
+            startTime: 0, 
             duration: durationMs,
             userName: userName
           });
           console.log("✅ RTDB Updated Successfully!");
-
-          // ⏰ AUTO-FREE: When duration expires, reset locker to AVAILABLE automatically
-          setTimeout(async () => {
-            try {
-              // Reset RTDB locker to completely free state
-              await set(ref(rtdb, `lockers/${locker.id}`), {
-                status: "AVAILABLE",
-                pin: "",
-                startTime: 0,
-                duration: 0,
-                userName: "",
-                unlockCount: 0
-              });
-              // Also update Firestore booking record to COMPLETED
-              const bookingLockerRef = doc(db, "lockers", `locker_${locker.id}`);
-              await setDoc(bookingLockerRef, {
-                status: "AVAILABLE",
-                currentPin: "",
-                startTime: null,
-                duration: 0,
-                lastUpdated: Date.now(),
-                userId: "",
-                userContact: "",
-                userName: ""
-              });
-              console.log("✅ Session expired — Locker auto-freed to AVAILABLE");
-            } catch(freeErr) {
-              console.warn("Auto-free failed:", freeErr);
-            }
-          }, durationMs);
-
         } catch (e) {
-          console.warn("⚠️ RTDB Update Failed:", e);
+          console.warn("⚠️ RTDB Update Failed (but Firestore succeeded):", e);
         }
-
-        // ✅ SHOW FULL-PAGE SUCCESS CONFIRMATION
-        showSuccessScreen(locker.id, pin, selectedHours);
-
-        // Store for dashboard confirmation
-        sessionStorage.setItem("bookingSuccess", JSON.stringify({
-          lockerId: locker.id,
-          pin: pin,
-          hours: selectedHours
-        }));
-
       } catch (err) {
         console.error("Booking Error:", err);
-        alert(err.message || "Booking failed. Please try again.");
+        const proceedBtn = document.getElementById("proceedBtn");
+        if(proceedBtn) {
+           proceedBtn.disabled = false;
+           proceedBtn.innerHTML = "Proceed to Payment";
+        }
+        alert(err.message || "Booking failed. Please check your connection and try again.");
       }
     });
 
