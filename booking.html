@@ -482,6 +482,7 @@
     /* ================= BOOKING LOGIC ================= */
 
     let rate = typeof locker.price === 'number' ? locker.price : parseInt(locker.price.toString().replace("₹", "").replace("/hr", ""));
+    let selectedHours = 1; // Correctly declared with let
     /* ===== DURATION SELECTION FIX ===== */
 
     const durationBtns = document.querySelectorAll(".duration-btn");
@@ -514,8 +515,7 @@
       updatePaymentSummaryUI();
     });
 
-    // Fix initial state: match the 'active' 1hr button in the UI
-    selectedHours = 1;
+    // Initial render
     updatePaymentSummaryUI();
 
     // Real-Time Pricing Listener — Syncs instantly when admin runs the pricing algorithm
