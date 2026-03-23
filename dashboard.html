@@ -489,14 +489,10 @@
           }
         } catch (error) {
           console.warn("Could not fetch user profile:", error);
-          // Try to get from session storage as backup
           const sessionUser = JSON.parse(sessionStorage.getItem("currentUser"));
-          if (sessionUser && sessionUser.name) {
-            userName = sessionUser.name;
-          }
+          if (sessionUser && sessionUser.name) userName = sessionUser.name;
         }
 
-        // User is signed in, update session storage with name
         const sessionUser = {
           uid: user.uid,
           email: user.email,
@@ -506,11 +502,26 @@
         sessionStorage.setItem("currentUser", JSON.stringify(sessionUser));
 
         initializeDashboard(user, userName);
+
+        // ✅ Check if redirected after a successful booking to show a Toast
+        const successData = sessionStorage.getItem("bookingSuccess");
+        if (successData) {
+          const booking = JSON.parse(successData);
+          showSuccessToast(`Booking Confirmed! Locker #${booking.lockerId} is ready.`);
+          sessionStorage.removeItem("bookingSuccess"); // Show only once
+        }
       } else {
-        // No user is signed in, redirect to login
         window.location.href = "login";
       }
     });
+
+    function showSuccessToast(msg) {
+        const toast = document.createElement("div");
+        toast.style = "position:fixed; top:20px; right:20px; background:#10b981; color:white; padding:16px 24px; border-radius:12px; shadow:0 10px 15px -3px rgba(0,0,0,0.1); z-index:9999; animation: slideIn 0.5s ease-out;";
+        toast.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i> ${msg}`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    }
 
     function initializeDashboard(user, username) {
       /* ================= USER NAME DISPLAY ================= */
@@ -619,7 +630,24 @@
               startTime: data.startTime,
               duration: data.duration
             };
-            renderActiveBooking(activeBoxContainer, renderData);
+            const box = renderActiveBooking(activeBoxContainer, renderData);
+
+            // 🛡️ SECURITY FIX: Fetch plaintext PIN from Bookings History
+            const bQuery = query(
+              collection(db, "bookings"),
+              where("userId", "==", uid),
+              where("lockerId", "==", Number(lockerId)),
+              orderBy("createdAt", "desc"),
+              limit(1)
+            );
+            getDocs(bQuery).then(bSnap => {
+              if(!bSnap.empty) {
+                 const p = bSnap.docs[0].data().pin;
+                 const pinStrong = box.querySelector(".pin-val");
+                 if(pinStrong) pinStrong.innerHTML = p;
+                 box.dataset.realPin = p;
+              }
+            });
           }
         });
 
@@ -698,23 +726,25 @@
         <div class="box-left">
           <div class="active-box-title">Locker #${data.lockerId}</div>
           <div class="active-box-details">
-            Pin: <strong>${data.pin}</strong><br>
+            Pin: <strong class="pin-val">${data.pin.substring(0, 4)}...</strong><br>
             ${statusText}
           </div>
         </div>
         <div class="box-right">View/Unlock</div>
       `;
       box.onclick = () => {
+        const currentPinVal = box.dataset.realPin || data.pin;
         // Pass essential data for unlock page
         sessionStorage.setItem("selectedLocker", JSON.stringify({
           id: data.lockerId,
-          pin: data.pin,
-          startTime: data.startTime, // Pass startTime
-          duration: data.duration    // Pass duration
+          pin: currentPinVal,
+          startTime: data.startTime,
+          duration: data.duration
         }));
         window.location.href = "unlock";
       };
       container.appendChild(box);
+      return box;
     }
 
     /* ================= LOGOUT ================= */

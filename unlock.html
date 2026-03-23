@@ -847,16 +847,21 @@
       if (!docSnap.exists()) return;
 
       const data = docSnap.data();
-      const pin = data.currentPin || "####";
+      // Display PIN logic: Check if currentPin is a hash. If so, try to use the PIN from session storage
+      // which we've painstakingly retrieved on the dashboard.
+      let displayPin = data.currentPin || "####";
+      
+      // If data.currentPin is a long hash (> 10 chars), try fallback
+      if (displayPin.length > 10 && selected && selected.pin) {
+          displayPin = selected.pin;
+      }
+
       const duration = data.duration || 0;
       currentDuration = duration;
-
-      // START TIME PRIORITY: Firestore > Local RTDB Cache > 0
       const startTime = data.startTime || localStartTime || 0;
 
-      // Display PIN
       const pinBoxes = document.querySelectorAll(".pin-inputs input");
-      const pinStr = String(pin).padStart(4, "0");
+      const pinStr = String(displayPin).padStart(4, "0");
       pinBoxes.forEach((box, i) => { box.value = pinStr[i] || "-"; });
 
       const statusEl = document.getElementById("lockerStatus");
