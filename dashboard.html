@@ -502,18 +502,20 @@
         sessionStorage.setItem("currentUser", JSON.stringify(sessionUser));
 
         initializeDashboard(user, userName);
-
-        // ✅ Check if redirected after a successful booking to show a Toast
-        const successData = sessionStorage.getItem("bookingSuccess");
-        if (successData) {
-          const booking = JSON.parse(successData);
-          showSuccessToast(`Booking Confirmed! Locker #${booking.lockerId} is ready.`);
-          sessionStorage.removeItem("bookingSuccess"); // Show only once
-        }
       } else {
         window.location.href = "login";
       }
     });
+
+    // Check for "Booking Success" immediately on every page visit to dashboard
+    (function checkBookingSuccess() {
+        const successData = sessionStorage.getItem("bookingSuccess");
+        if (successData) {
+          const booking = JSON.parse(successData);
+          showSuccessToast(`Booking Confirmed! Locker #${booking.lockerId} is ready.`);
+          sessionStorage.removeItem("bookingSuccess");
+        }
+    })();
 
     function showSuccessToast(msg) {
         const toast = document.createElement("div");
@@ -633,21 +635,22 @@
             const box = renderActiveBooking(activeBoxContainer, renderData);
 
             // 🛡️ SECURITY FIX: Fetch plaintext PIN from Bookings History
+            // Index-free version: fetch all and sort manually in JS to avoid index requirement
             const bQuery = query(
               collection(db, "bookings"),
               where("userId", "==", uid),
-              where("lockerId", "==", Number(lockerId)),
-              orderBy("createdAt", "desc"),
-              limit(1)
+              where("lockerId", "==", Number(lockerId))
             );
             getDocs(bQuery).then(bSnap => {
               if(!bSnap.empty) {
-                 const p = bSnap.docs[0].data().pin;
+                 // Sort by createdAt descending
+                 const latest = bSnap.docs.sort((a,b) => (b.data().createdAt || 0) - (a.data().createdAt || 0))[0];
+                 const p = latest.data().pin;
                  const pinStrong = box.querySelector(".pin-val");
-                 if(pinStrong) pinStrong.innerHTML = p;
+                 if(pinStrong) pinStrong.textContent = p; 
                  box.dataset.realPin = p;
               }
-            });
+            }).catch(e => console.error("Error fetching PIN:", e));
           }
         });
 
@@ -726,7 +729,7 @@
         <div class="box-left">
           <div class="active-box-title">Locker #${data.lockerId}</div>
           <div class="active-box-details">
-            Pin: <strong class="pin-val">${data.pin.substring(0, 4)}...</strong><br>
+            Pin: <strong class="pin-val">${data.pin.length > 5 ? 'Fetching...' : data.pin}</strong><br>
             ${statusText}
           </div>
         </div>
