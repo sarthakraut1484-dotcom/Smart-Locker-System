@@ -156,13 +156,23 @@ document.getElementById("googleLogin").addEventListener("click", async () => {
       window.location.href = "dashboard";
     }
 
-  } catch (error) {
-    if (error.code !== "auth/cancelled-popup-request") {
-      // 🛡️ Generic error message — don't leak internal Firebase error codes
-      console.error("Google login error:", error.code);
-      alert("Google sign-in failed. Please try again.");
+    } catch (error) {
+    if (error.code !== "auth/cancelled-popup-request" && error.code !== "auth/popup-closed-by-user") {
+        console.error("Google login error:", error.code, error.message);
+        
+        let errorMsg = "Google sign-in failed.\n\n";
+        
+        if (error.code === "auth/unauthorized-domain") {
+            errorMsg += "Error: This domain (" + window.location.hostname + ") is not authorized for Google Login. Please add it in your Firebase Console under Auth > Settings > Authorized Domains.";
+        } else if (error.code === "auth/popup-blocked") {
+            errorMsg += "Error: The login popup was blocked by your browser. Please allow popups for this site.";
+        } else {
+            errorMsg += "Error [" + error.code + "]: " + error.message;
+        }
+        
+        alert(errorMsg);
     }
-  }
+    }
 });
 
 
