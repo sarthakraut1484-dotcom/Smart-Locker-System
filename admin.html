@@ -1406,6 +1406,13 @@
             document.getElementById("statOccupied").textContent = occ;
             document.getElementById("statMaintenance").textContent = maint;
             
+            // 🛡️ SECURITY FIX: Fetch and replace hashed PINs for ACTIVE lockers
+            Object.keys(lockerData).forEach(id => {
+                if (lockerData[id].status === "ACTIVE") {
+                    updateAdminPin(id);
+                }
+            });
+            
             if (alertCount > 0) {
                 document.getElementById("alertBadge").classList.remove("d-none");
                 document.getElementById("alertBadge").textContent = alertCount;
@@ -1440,7 +1447,7 @@
                         <div class="detail-row"><span class="detail-label">Door Status:</span> <span class="detail-value" style="color: ${doorStatus==='OPEN' ? 'var(--danger)' : 'var(--success)'}">${doorStatus}</span></div>
                         <div class="detail-row"><span class="detail-label">Occupancy:</span> <span class="detail-value">${occupancy}</span></div>
                         <div class="detail-row"><span class="detail-label">Remaining:</span> <span class="detail-value">${timeLeft}</span></div>
-                        <div class="detail-row"><span class="detail-label">PIN:</span> <span class="detail-value">${data.currentPin || "---"}</span></div>
+                        <div class="detail-row"><span class="detail-label">PIN:</span> <span class="detail-value pin-display admin-pin-${id}" style="color: var(--primary)" data-locker-id="${id}">${data.currentPin && data.currentPin.length > 8 ? "Fetching..." : (data.currentPin || "---")}</span></div>
                     </div>
                     <div class="locker-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                         <button class="action-btn" onclick="sendCommand('${id}', 'OPEN', event)" style="grid-column: span 2; background: var(--primary); color: white;">
@@ -1463,7 +1470,7 @@
                 <tr>
                     <td><span class="fw-bold">#${id}</span></td>
                     <td><div class="fw-bold" style="color: #ffffff">${data.userName || data.userContact || "Unknown"}</div></td>
-                    <td><code>${data.currentPin}</code></td>
+                    <td><code class="admin-pin-${id}">${data.currentPin && data.currentPin.length > 8 ? "Fetching..." : (data.currentPin || "---")}</code></td>
                     <td>${date}</td>
                     <td><span class="badge bg-dark timer-${id}">${calculateRemaining(data.startTime, data.duration)}</span></td>
                     <td>
@@ -1474,6 +1481,30 @@
         }
 
         const userCache = {};
+        
+        async function updateAdminPin(lockerId) {
+            const elements = document.querySelectorAll(`.admin-pin-${lockerId}`);
+            if(!elements.length) return;
+
+            // Fetch plaintext PIN from Bookings History (index-free approach)
+            const bQuery = query(
+              collection(db, "bookings"),
+              where("lockerId", "==", Number(lockerId))
+            );
+            
+            getDocs(bQuery).then(bSnap => {
+              if(!bSnap.empty) {
+                 // Sort by createdAt descending in JS
+                 const latest = bSnap.docs.sort((a,b) => (b.data().createdAt || 0) - (a.data().createdAt || 0))[0];
+                 const realPin = latest.data().pin;
+                 elements.forEach(el => {
+                     el.textContent = realPin;
+                     el.style.color = "#10b981"; // Success green for real PIN
+                 });
+              }
+            }).catch(e => console.warn("Pin fetch error:", e));
+        }
+
         async function fetchUserData(uid, elementId) {
             if (!uid) return;
             if (userCache[uid]) {
