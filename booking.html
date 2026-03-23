@@ -317,7 +317,7 @@
     .success-overlay {
       position: fixed;
       inset: 0;
-      background: #000;
+      background: radial-gradient(circle at top right, #1e1b4b, #000000);
       z-index: 10000;
       display: none;
       flex-direction: column;
@@ -329,83 +329,115 @@
     }
 
     .success-card {
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(15, 23, 42, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 32px;
-      padding: 48px;
-      max-width: 500px;
-      width: 100%;
-      backdrop-filter: blur(24px);
-      animation: zoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes zoomIn {
-      from { transform: scale(0.9); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-
-    .check-icon {
-      width: 80px;
-      height: 80px;
-      background: var(--success);
-      color: white;
       border-radius: 40px;
+      padding: 60px 40px;
+      max-width: 520px;
+      width: 100%;
+      backdrop-filter: blur(40px);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      animation: successPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes successPop {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .check-icon-wrapper {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 40px;
-      margin: 0 auto 24px;
-      box-shadow: 0 0 40px rgba(16, 185, 129, 0.4);
+      font-size: 50px;
+      margin: 0 auto 32px;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+      animation: checkBounce 1s ease 0.5s both;
+    }
+
+    @keyframes checkBounce {
+       0% { transform: scale(0); }
+       50% { transform: scale(1.2); }
+       100% { transform: scale(1); }
     }
 
     .success-title {
       font-family: 'Outfit', sans-serif;
-      font-size: 32px;
-      font-weight: 700;
+      font-size: 38px;
+      font-weight: 800;
       color: white;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
     }
 
     .success-p {
-      color: var(--text-muted);
-      font-size: 16px;
-      margin-bottom: 32px;
+      color: #94a3b8;
+      font-size: 17px;
+      line-height: 1.6;
+      margin-bottom: 40px;
     }
 
-    .pin-display-container {
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px dashed var(--primary);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 32px;
+    .pin-box {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 24px;
+      padding: 40px 20px;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .pin-box::after {
+       content: '';
+       position: absolute;
+       top: -50%; left: -50%;
+       width: 200%; height: 200%;
+       background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
+       transform: rotate(45deg);
+       animation: PINShine 3s infinite;
+    }
+
+    @keyframes PINShine {
+       0% { transform: translateX(-100%) rotate(45deg); }
+       100% { transform: translateX(100%) rotate(45deg); }
     }
 
     .success-pin {
       font-family: 'Outfit', sans-serif;
-      font-size: 56px;
+      font-size: 72px;
       font-weight: 800;
-      color: var(--primary);
-      letter-spacing: 12px;
-      margin-bottom: 8px;
+      color: #818cf8;
+      letter-spacing: 16px;
+      text-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+      margin-bottom: 12px;
     }
 
     .dash-btn {
-      background: var(--primary);
+      background: #6366f1;
       color: white;
       text-decoration: none;
-      padding: 16px 32px;
-      border-radius: 16px;
+      padding: 20px 48px;
+      border-radius: 20px;
       font-weight: 700;
-      font-size: 16px;
-      display: inline-block;
-      transition: 0.3s;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       border: none;
       cursor: pointer;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
     }
 
     .dash-btn:hover {
-      background: var(--primary-dark);
-      transform: translateY(-2px);
+      background: #4f46e5;
+      transform: translateY(-4px);
+      box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4);
     }
   </style>
 </head>
@@ -813,24 +845,25 @@
     function showSuccessScreen(lockerId, pin, hours) {
       const container = document.querySelector('.container');
       if(container) container.style.display = 'none';
+      if(document.querySelector('nav')) document.querySelector('nav').style.display = 'none';
       
       const overlay = document.createElement("div");
       overlay.className = "success-overlay";
       overlay.style.display = "flex";
       overlay.innerHTML = `
         <div class="success-card">
-          <div class="check-icon"><i class="bi bi-check-lg"></i></div>
+          <div class="check-icon-wrapper"><i class="bi bi-check-lg"></i></div>
           <h2 class="success-title">Locker Booked!</h2>
-          <p class="success-p">Your reservation for Locker #${lockerId} is confirmed for ${hours} hour(s).</p>
+          <p class="success-p">Reservation for <b>Locker #${lockerId}</b> is confirmed for <b>${hours} hour(s)</b>.</p>
           
-          <div class="pin-display-container">
-             <div style="font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">Your Secure Access PIN</div>
+          <div class="pin-box">
+             <div style="font-size:11px; color:#6366f1; font-weight:700; text-transform:uppercase; letter-spacing:3px; margin-bottom:12px; opacity:0.8;">Your Secure Access PIN</div>
              <div class="success-pin">${pin}</div>
-             <div style="font-size:13px; color:var(--primary); font-weight:500;">Please remember this PIN to unlock your locker.</div>
+             <div style="font-size:14px; color:#94a3b8; font-weight:500;">Please remember this PIN to unlock your locker.</div>
           </div>
 
           <button onclick="window.location.href='dashboard'" class="dash-btn">
-             Go to Dashboard <i class="bi bi-arrow-right ms-2"></i>
+             Go to Dashboard <i class="bi bi-arrow-right"></i>
           </button>
         </div>
       `;
