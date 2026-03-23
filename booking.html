@@ -816,21 +816,25 @@
         console.log("Booking Doc Added! ID:", docRef.id);
 
         // 4. Update Realtime Database (Fire-and-forget/Background)
-        // Show success screen ASAP so user sees confirmation, RTDB can finish in bg
-        showSuccessScreen(locker.id, pin, selectedHours);
-
         try {
+          // Clear any pending remote commands and set active state
           await set(ref(rtdb, `lockers/${locker.id}`), {
             status: "ACTIVE",
             pin: hashedPin, // Hardware uses this for verification
             startTime: 0, 
             duration: durationMs,
-            userName: userName
+            sessionEnd: Date.now() + durationMs, // 🛡️ CRITICAL: Tells hardware the deadline
+            lastUpdated: Date.now(),             // 🛡️ CRITICAL: Hardware heart-beat/sync
+            userName: userName,
+            command: null                        // Clear any old "Open" signals
           });
           console.log("✅ RTDB Updated Successfully!");
         } catch (e) {
           console.warn("⚠️ RTDB Update Failed (but Firestore succeeded):", e);
         }
+
+        // ✅ SHOW FULL-PAGE SUCCESS CONFIRMATION
+        showSuccessScreen(locker.id, pin, selectedHours);
       } catch (err) {
         console.error("Booking Error:", err);
         const proceedBtn = document.getElementById("proceedBtn");
