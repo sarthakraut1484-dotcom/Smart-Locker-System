@@ -581,7 +581,11 @@
           }
 
           // Condition 2: Early Termination by Hardware (ESP32 cleared it to AVAILABLE in RTDB)
-          if (data.status === "ACTIVE" && hwData.status === "AVAILABLE") {
+          // ✅ FIX: Added a 20-second grace period. 
+          // If a locker was JUST booked, Firestore updates instantly but RTDB might take a few seconds.
+          // This prevents the background sync from accidentally thinking it was HW terminated.
+          const isNewlyBooked = (now - (data.lastUpdated || 0)) < 20000;
+          if (data.status === "ACTIVE" && hwData.status === "AVAILABLE" && !isNewlyBooked) {
              shouldReset = true;
           }
 
