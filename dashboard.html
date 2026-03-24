@@ -605,8 +605,9 @@
 
             // 2. Update RTDB (Ensure it's fully clean in case only Firestore was dirty)
             try {
-              const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-              await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerIdNumeric}.json?auth=${idToken}`, {
+              const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
+              const authParam = idToken ? `?auth=${idToken}` : "";
+              const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerIdNumeric}.json${authParam}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                   status: "AVAILABLE",
@@ -619,6 +620,7 @@
                   userName: ""
                 })
               });
+              if (!res.ok) throw new Error("REST RTDB update failed: " + await res.text());
             } catch(e) { console.error("REST RTDB update failed", e); }
           }
         });

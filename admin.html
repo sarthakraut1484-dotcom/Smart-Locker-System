@@ -1372,6 +1372,10 @@
                 });
                 document.getElementById("statRevenue").textContent = `₹${rev.toFixed(2)}`;
                 updateCharts(historyData);
+                
+                // Cache bookings for Instant PIN lookups and re-trigger UI securely
+                window._recentBookingsCache = historyData;
+                renderUI();
             });
 
             // 4. Listen to Maintenance Issues
@@ -1512,24 +1516,28 @@
             const elements = document.querySelectorAll(`.admin-pin-${lockerId}`);
             if(!elements.length) return;
 
-            // Fetch plaintext PIN from Bookings History (index-free approach)
-            // Support both Number (legacy) and String (current) data types
-            const bQuery = query(
-              collection(db, "bookings"),
-              where("lockerId", "in", [String(lockerId), Number(lockerId)])
-            );
-            
-            getDocs(bQuery).then(bSnap => {
-              if(!bSnap.empty) {
-                 // Sort by createdAt descending in JS
-                 const latest = bSnap.docs.sort((a,b) => (b.data().createdAt || 0) - (a.data().createdAt || 0))[0];
-                 const realPin = latest.data().pin;
-                 elements.forEach(el => {
-                     el.textContent = realPin;
-                     el.style.color = "#10b981"; // Success green for real PIN
-                 });
-              }
-            }).catch(e => console.warn("Pin fetch error:", e));
+            // Fetch plaintext PIN from cached Bookings History (zero network overhead, instant load)
+            if (window._recentBookingsCache) {
+                // Match "9" or 9 flawlessly against all historical database entries in JavaScript directly
+                const relevant = window._recentBookingsCache.filter(b => String(b.lockerId) === String(lockerId));
+                
+                if (relevant.length > 0) {
+                    // Sort descending by createdAt timestamp
+                    relevant.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    const realPin = relevant[0].pin;
+                    elements.forEach(el => {
+                        el.textContent = realPin;
+                        el.style.color = "#10b981"; // Success green for real PIN
+                    });
+                } else {
+                    elements.forEach(el => {
+                        el.textContent = "N/A";
+                        el.style.color = "var(--danger)";
+                    });
+                }
+            } else {
+                elements.forEach(el => el.textContent = "Fetching...");
+            }
         }
 
         async function fetchUserData(uid, elementId) {
@@ -1794,8 +1802,10 @@
                 });
                 
                 await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { status: "MAINTENANCE" });
-                const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-                await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerId}.json?auth=${idToken}`, { method: 'PATCH', body: JSON.stringify({ status: "MAINTENANCE" }) });
+                const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
+                const authParam = idToken ? `?auth=${idToken}` : "";
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerId}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "MAINTENANCE" }) });
+                if (!res.ok) throw new Error("RTDB Update Failed");
                 
                 logAdminAction(`Reported issue for Locker #${lockerId}`, issue);
                 closeModal();
@@ -1820,8 +1830,10 @@
                     try {
                         const { ref, update } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
                         await updateDoc(doc(db, "lockers", `locker_${id}`), { status: "AVAILABLE" });
-                        const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-                        await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json?auth=${idToken}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
+                        const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
+                        const authParam = idToken ? `?auth=${idToken}` : "";
+                        const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
+                        if (!res.ok) throw new Error("RTDB Update Failed");
                         logAdminAction("Restored from Maintenance", `Locker #${id}`);
                     } catch (e) { alert(e.message); }
                 }
@@ -1836,8 +1848,10 @@
                 const { ref, update } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
                 await updateDoc(doc(db, "maintenance_logs", issueId), { status: "RESOLVED" });
                 await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { status: "AVAILABLE" });
-                const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-                await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerId}.json?auth=${idToken}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
+                const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
+                const authParam = idToken ? `?auth=${idToken}` : "";
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerId}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
+                if (!res.ok) throw new Error("RTDB Update Failed");
                 
                 logAdminAction("Resolved Maintenance Issue", `Locker #${lockerId}`);
             } catch (e) { console.error("Resolution failed: ", e); }
@@ -1860,8 +1874,9 @@
                 });
                 
                 // Update RTDB
-                const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-                await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json?auth=${idToken}`, {
+                const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
+                const authParam = idToken ? `?auth=${idToken}` : "";
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json${authParam}`, {
                     method: 'PATCH',
                     body: JSON.stringify({
                         status: "AVAILABLE",
@@ -1874,6 +1889,7 @@
                         userName: ""
                     })
                 });
+                if (!res.ok) throw new Error("RTDB Update Failed");
                 
                 logAdminAction("Locker Reset (End Session)", `Locker #${id}`);
             } catch (e) { alert("Failed to reset locker: " + e.message); }
@@ -1884,14 +1900,16 @@
             const btn = event ? event.target.closest('button') : null;
             
             try {
-                const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-                await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json?auth=${idToken}`, {
+                const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
+                const authParam = idToken ? `?auth=${idToken}` : "";
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json${authParam}`, {
                     method: 'PATCH',
                     body: JSON.stringify({
                         command: cmd,
                         commandTimestamp: Date.now()
                     })
                 });
+                if (!res.ok) throw new Error("RTDB Update Failed");
                 logAdminAction(`Remote ${cmd} Command Sent`, `Locker #${id}`);
                 
                 if (btn) {
@@ -1946,8 +1964,9 @@
              snapshot.forEach(async (d) => {
                  await updateDoc(doc(db, "lockers", d.id), { status: "AVAILABLE", userId: null, currentPin: null });
                  const numericId = d.id.replace("locker_", "");
-                 const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
-                 await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${numericId}.json?auth=${idToken}`, {
+                 const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
+                 const authParam = idToken ? `?auth=${idToken}` : "";
+                 const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${numericId}.json${authParam}`, {
                      method: 'PATCH',
                      body: JSON.stringify({
                          status: "AVAILABLE",
@@ -1960,6 +1979,7 @@
                          userName: ""
                      })
                  });
+                 if (!res.ok) throw new Error("RTDB Update Failed");
              });
              await logAdminAction("Global Reset All Lockers", "All 20 Units");
              alert("Global Reset triggered. Synching...");
