@@ -465,7 +465,7 @@
       getDocs,
       getDoc
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { getDatabase, ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     /* ================= FIREBASE INIT ================= */
     const firebaseConfig = {
@@ -552,21 +552,41 @@
       setupBookingsListener(user.uid);
       setupLockersListener();
 
-      // periodic cleanup
-      setInterval(checkAndExpireLockers, 15000);
+      // periodic cleanup (every 2 seconds)
+      setInterval(checkAndExpireLockers, 2000);
       checkAndExpireLockers();
     }
 
     async function checkAndExpireLockers() {
       try {
-        const snapshot = await getDocs(collection(db, "lockers"));
-        const now = Date.now();
+        // Fetch BOTH databases to compare
+        const [firestoreSnap, rtdbSnap] = await Promise.all([
+           getDocs(collection(db, "lockers")),
+           get(ref(rtdb, "lockers"))
+        ]);
 
-        snapshot.forEach(async (docSnap) => {
+        const now = Date.now();
+        const rtdbData = rtdbSnap.exists() ? rtdbSnap.val() : {};
+
+        firestoreSnap.forEach(async (docSnap) => {
           const data = docSnap.data();
-          // Condition 1: Active AND Started AND Expired
+          const lockerIdNumeric = docSnap.id.replace("locker_", "");
+          const hwData = rtdbData[lockerIdNumeric] || {};
+
+          let shouldReset = false;
+
+          // Condition 1: Time Expired (Active AND Started AND Time is up)
           if (data.status === "ACTIVE" && data.startTime && (data.startTime + data.duration <= now)) {
-            console.log(`Expiring locker ${docSnap.id}...`);
+             shouldReset = true;
+          }
+
+          // Condition 2: Early Termination by Hardware (ESP32 cleared it to AVAILABLE in RTDB)
+          if (data.status === "ACTIVE" && hwData.status === "AVAILABLE") {
+             shouldReset = true;
+          }
+
+          if (shouldReset) {
+            console.log(`Auto-sync/Expiring locker ${docSnap.id}...`);
 
             // 1. Update Firestore
             await updateDoc(doc(db, "lockers", docSnap.id), {
@@ -575,11 +595,11 @@
               startTime: null,
               duration: 0,
               currentPin: null,
-              sessionEnd: null // Legacy cleanup
+              sessionEnd: null,
+              userName: null
             });
 
-            // 2. Update RTDB
-            const lockerIdNumeric = docSnap.id.replace("locker_", "");
+            // 2. Update RTDB (Ensure it's fully clean in case only Firestore was dirty)
             await update(ref(rtdb, `lockers/${lockerIdNumeric}`), {
               status: "AVAILABLE",
               pin: null,
