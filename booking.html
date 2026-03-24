@@ -531,7 +531,8 @@
       getDatabase,
       ref,
       set,
-      remove
+      remove,
+      update
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     /* ================= FIREBASE INIT ================= */
@@ -799,14 +800,8 @@
             userName: userName
           });
         }), 15000, "Transaction timed out due to network instability. Please try again.");
-        // ✅ STEP 2: SHOW SUCCESS IMMEDIATELY
-        // Because RTDB WebSockets might take 5-10+ seconds to initialize on poor networks,
-        // we DO NOT wait for the sync to finish before showing the user their confirmation.
-        showSuccessScreen(locker.id, pin, selectedHours);
-
-        // ✅ STEP 3: BACKGROUND SYNC (Fire-and-forget)
-        console.log("Synchronizing with Realtime Database (Hardware) & History in background...");
-
+        // ✅ STEP 2: SYNCHRONIZATION
+        // Await the sync to ensure RTDB receives the target unlock data BEFORE we let the user proceed.
         const amount = window.selectedAmount || (70 * selectedHours); 
         const bookingData = {
           userId: currentUser.uid,
@@ -822,23 +817,30 @@
           status: "CONFIRMED"
         };
 
-        // Execute both updates in the background. No await.
-        Promise.all([
-          // A. Add to Bookings History
-          addDoc(collection(db, "bookings"), bookingData).then(() => console.log("✅ History record added.")),
-          
-          // B. Update Realtime Database (Hardware Sync)
-          set(ref(rtdb, `lockers/${locker.id}`), {
-            status: "ACTIVE",
-            pin: hashedPin,
-            startTime: 0, 
-            duration: durationMs,
-            sessionEnd: Date.now() + durationMs,
-            lastUpdated: Date.now(),
-            userName: userName,
-            command: null
-          }).then(() => console.log(`✅ Hardware sync at /lockers/${locker.id} completed.`))
-        ]).catch(err => console.warn("Background sync warning:", err));
+        try {
+          await Promise.all([
+            // A. Add to Bookings History
+            addDoc(collection(db, "bookings"), bookingData),
+            
+            // B. Update Realtime Database (Hardware Sync)
+            update(ref(rtdb, `lockers/${locker.id}`), {
+              status: "ACTIVE",
+              pin: hashedPin,
+              startTime: 0, 
+              duration: durationMs,
+              sessionEnd: Date.now() + durationMs,
+              lastUpdated: Date.now(),
+              userName: userName,
+              command: null
+            })
+          ]);
+          console.log(`✅ Synchronization completed.`);
+        } catch (syncErr) {
+          console.error("Sync Error: ", syncErr);
+        }
+
+        // ✅ STEP 3: SHOW SUCCESS IMMEDIATELY 
+        showSuccessScreen(locker.id, pin, selectedHours);
 
       } catch (err) {
         console.error("Booking Error:", err);
