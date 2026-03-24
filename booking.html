@@ -791,51 +791,45 @@
             userName: userName
           });
         });
-        // ✅ STEP 1: FIRESTORE TRANSACTION SUCCESSFUL
-        // We show the success screen IMMEDIATELY so the user isn't stuck waiting for background syncs.
+        // ✅ STEP 2: CRITICAL SYNC TASKS (Moved from background to main flow for reliability)
+        console.log("Synchronizing with Realtime Database (Hardware) & History...");
+
+        const amount = window.selectedAmount || (70 * selectedHours); 
+        const bookingData = {
+          userId: currentUser.uid,
+          userContact: currentUser.email || currentUser.uid,
+          userName: userName,
+          lockerId: locker.id,
+          hours: selectedHours,
+          amount: amount,
+          pin: pin,
+          createdAt: Date.now(),
+          startTime: null,
+          duration: durationMs,
+          status: "CONFIRMED"
+        };
+
+        // Execute both updates and await them before showing success
+        await Promise.all([
+          // A. Add to Bookings History
+          addDoc(collection(db, "bookings"), bookingData).then(() => console.log("✅ History record added.")),
+          
+          // B. Update Realtime Database (Hardware Sync)
+          set(ref(rtdb, `lockers/${locker.id}`), {
+            status: "ACTIVE",
+            pin: hashedPin,
+            startTime: 0, 
+            duration: durationMs,
+            sessionEnd: Date.now() + durationMs,
+            lastUpdated: Date.now(),
+            userName: userName,
+            command: null
+          }).then(() => console.log(`✅ Hardware sync at /lockers/${locker.id} completed.`))
+        ]);
+
+        // ✅ STEP 3: TRANSACTION COMPLETE & SYNCED
+        // Now show the success screen
         showSuccessScreen(locker.id, pin, selectedHours);
-
-        // ✅ STEP 2: BACKGROUND TASKS (Fire-and-forget)
-        // These happen in the background without blocking the UI.
-        
-        // A. Add to Bookings History
-        (async () => {
-          try {
-            const amount = window.selectedAmount || (70 * selectedHours); // Default to 70 if not selected
-            const bookingData = {
-              userId: currentUser.uid,
-              userContact: currentUser.email || currentUser.uid,
-              userName: userName,
-              lockerId: locker.id,
-              hours: selectedHours,
-              amount: amount,
-              pin: pin,
-              createdAt: Date.now(),
-              startTime: null,
-              duration: durationMs,
-              status: "CONFIRMED"
-            };
-            await addDoc(collection(db, "bookings"), bookingData);
-            console.log("✅ History record added in background.");
-          } catch(e) { console.warn("Booking History Fail:", e); }
-        })();
-
-        // B. Update Realtime Database (Hardware Sync)
-        (async () => {
-          try {
-            await set(ref(rtdb, `lockers/${locker.id}`), {
-              status: "ACTIVE",
-              pin: hashedPin,
-              startTime: 0, 
-              duration: durationMs,
-              sessionEnd: Date.now() + durationMs,
-              lastUpdated: Date.now(),
-              userName: userName,
-              command: null
-            });
-            console.log("✅ Hardware sync completed in background.");
-          } catch(e) { console.warn("Hardware Sync Fail:", e); }
-        })();
       } catch (err) {
         console.error("Booking Error:", err);
         const proceedBtn = document.getElementById("proceedBtn");
