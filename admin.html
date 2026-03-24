@@ -1781,6 +1781,7 @@
 
             try {
                 const { addDoc, collection, updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                const { ref, update } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
                 
                 await addDoc(collection(db, "maintenance_logs"), {
                     lockerId,
@@ -1790,6 +1791,7 @@
                 });
                 
                 await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { status: "MAINTENANCE" });
+                await update(ref(rtdb, `lockers/${lockerId}`), { status: "MAINTENANCE" });
                 
                 logAdminAction(`Reported issue for Locker #${lockerId}`, issue);
                 closeModal();
@@ -1812,7 +1814,9 @@
             } else {
                 if (confirm(`Restore Locker #${id} to Available status?`)) {
                     try {
+                        const { ref, update } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
                         await updateDoc(doc(db, "lockers", `locker_${id}`), { status: "AVAILABLE" });
+                        await update(ref(rtdb, `lockers/${id}`), { status: "AVAILABLE" });
                         logAdminAction("Restored from Maintenance", `Locker #${id}`);
                     } catch (e) { alert(e.message); }
                 }
@@ -1824,8 +1828,10 @@
             
             try {
                 const { updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                const { ref, update } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
                 await updateDoc(doc(db, "maintenance_logs", issueId), { status: "RESOLVED" });
                 await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { status: "AVAILABLE" });
+                await update(ref(rtdb, `lockers/${lockerId}`), { status: "AVAILABLE" });
                 
                 logAdminAction("Resolved Maintenance Issue", `Locker #${lockerId}`);
             } catch (e) { console.error("Resolution failed: ", e); }
@@ -1850,8 +1856,12 @@
                 // Update RTDB
                 await update(ref(rtdb, `lockers/${id}`), {
                     status: "AVAILABLE",
-                    pin: null,
-                    sessionEnd: Date.now()
+                    pin: "",
+                    startTime: 0,
+                    sessionEnd: 0,
+                    duration: 0,
+                    unlockCount: 0,
+                    command: null
                 });
                 
                 logAdminAction("Locker Reset (End Session)", `Locker #${id}`);
@@ -1917,9 +1927,20 @@
         window.resetAllLockers = async () => {
              if (!confirm("This will RESET ALL LOCKERS to AVAILABLE status. Correct?")) return;
              // Logic to batch update all 20 lockers
+             const { ref, update } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
              const snapshot = await getDocs(collection(db, "lockers"));
              snapshot.forEach(async (d) => {
                  await updateDoc(doc(db, "lockers", d.id), { status: "AVAILABLE", userId: null, currentPin: null });
+                 const numericId = d.id.replace("locker_", "");
+                 await update(ref(rtdb, `lockers/${numericId}`), {
+                     status: "AVAILABLE",
+                     pin: "",
+                     startTime: 0,
+                     sessionEnd: 0,
+                     duration: 0,
+                     unlockCount: 0,
+                     command: null
+                 });
              });
              await logAdminAction("Global Reset All Lockers", "All 20 Units");
              alert("Global Reset triggered. Synching...");
