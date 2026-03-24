@@ -707,6 +707,13 @@
       return Math.floor(1000 + Math.random() * 9000).toString();
     }
 
+    async function cryptoHash(text) {
+      const msgUint8 = new TextEncoder().encode(text);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     document.getElementById("proceedBtn").addEventListener("click", async () => {
       // 🛡️ BOOKING RATE LIMITER — Prevent bot-spam booking
       const lastBookingTime = parseInt(localStorage.getItem("lastBookingAttempt") || "0");
@@ -719,42 +726,32 @@
       localStorage.setItem("lastBookingAttempt", Date.now().toString());
 
       console.log("Proceed Button Clicked");
-      if (!currentUser) {
-        console.error("No currentUser found!");
-        alert("User not authenticated. Please wait or login again.");
-        return;
-      }
-      console.log("Authenticated User:", currentUser.uid);
-
-      async function cryptoHash(text) {
-        const msgUint8 = new TextEncoder().encode(text);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        return hashHex;
-      }
-
-      const pin = generatePIN();
-      const hashedPin = await cryptoHash(pin);
-      const durationMs = selectedHours * 60 * 60 * 1000;
-      
-      // Fetch user name from session for better display in admin
-      let userName = "User";
-      try {
-        const sessionUser = JSON.parse(sessionStorage.getItem("currentUser"));
-        if (sessionUser && sessionUser.name) userName = sessionUser.name;
-      } catch(e) {}
-
+      // Update UI state immediately
       const proceedBtn = document.getElementById("proceedBtn");
       const originalText = proceedBtn.innerHTML;
       proceedBtn.disabled = true;
-      proceedBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Processing Payment...`;
-      showSuccessToast("Initiating transaction...");
-
-      const lockerRef = doc(db, "lockers", `locker_${locker.id}`);
-      console.log("Target Locker Ref:", lockerRef.path);
-
+      proceedBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Processing Payment...`;
+      
       try {
+        if (!currentUser) {
+          throw new Error("User session not found. Please login again.");
+        }
+
+        const pin = generatePIN();
+        const hashedPin = await cryptoHash(pin);
+        const durationMs = selectedHours * 60 * 60 * 1000;
+        
+        // Fetch user name from session for better display in admin
+        let userName = "User";
+        try {
+          const sessionUser = JSON.parse(sessionStorage.getItem("currentUser"));
+          if (sessionUser && sessionUser.name) userName = sessionUser.name;
+        } catch(e) {}
+
+        showSuccessToast("Initiating secure transaction...");
+
+        const lockerRef = doc(db, "lockers", `locker_${locker.id}`);
+        console.log("Target Locker Ref:", lockerRef.path);
         // 1. Transaction to prevent double booking
         console.log("Starting Transaction...");
         await runTransaction(db, async (transaction) => {
@@ -764,12 +761,15 @@
           if (data && data.status === "ACTIVE") {
             const nowTime = Date.now();
             // If already started and not expired, it's definitely booked.
-            if (data.startTime && (data.startTime + data.duration > nowTime)) {
+            // Check for both null AND 0 as non-started indicators
+            const hasStarted = data.startTime !== null && data.startTime > 0;
+            
+            if (hasStarted && (data.startTime + data.duration > nowTime)) {
               throw new Error("This locker is already currently in use.");
             }
-            // If booked but not started, check if booking is "abandoned" (more than 10 mins old)
-            // If it's fresh (<10 mins), it's still reserved for the initial user.
-            if (data.startTime === null && data.lastUpdated && (nowTime - data.lastUpdated < 10 * 60 * 1000)) {
+            
+            // If booked but not started (startTime is null or 0), check if booking is "abandoned" (more than 10 mins old)
+            if (!hasStarted && data.lastUpdated && (nowTime - data.lastUpdated < 10 * 60 * 1000)) {
                // Only block if it is NOT the same user attempting to re-book/resume
                if (data.userId !== currentUser.uid) {
                   throw new Error("This locker is temporarily reserved. Please choose another or wait 10 mins.");
@@ -791,50 +791,51 @@
             userName: userName
           });
         });
-        console.log("Transaction Committed! Locker state updated.");
-
-        // 2. Add to Bookings History
-        const amount = window.selectedAmount || (rate * selectedHours);
-        const userContact = currentUser.email || currentUser.phoneNumber || currentUser.uid;
-
-        const bookingData = {
-          userId: currentUser.uid,
-          userContact: userContact,
-          userName: userName,
-          lockerId: locker.id,
-          hours: selectedHours,
-          amount: amount,
-          pin: pin,
-          createdAt: Date.now(),
-          startTime: null,
-          duration: durationMs,
-          status: "CONFIRMED"
-        };
-        console.log("Attempting adding booking doc:", bookingData);
-
-        const docRef = await addDoc(collection(db, "bookings"), bookingData);
-        console.log("Booking Doc Added! ID:", docRef.id);
-
-        // 4. Update Realtime Database (Fire-and-forget/Background)
-        try {
-          // Clear any pending remote commands and set active state
-          await set(ref(rtdb, `lockers/${locker.id}`), {
-            status: "ACTIVE",
-            pin: hashedPin, // Hardware uses this for verification
-            startTime: 0, 
-            duration: durationMs,
-            sessionEnd: Date.now() + durationMs, // 🛡️ CRITICAL: Tells hardware the deadline
-            lastUpdated: Date.now(),             // 🛡️ CRITICAL: Hardware heart-beat/sync
-            userName: userName,
-            command: null                        // Clear any old "Open" signals
-          });
-          console.log("✅ RTDB Updated Successfully!");
-        } catch (e) {
-          console.warn("⚠️ RTDB Update Failed (but Firestore succeeded):", e);
-        }
-
-        // ✅ SHOW FULL-PAGE SUCCESS CONFIRMATION
+        // ✅ STEP 1: FIRESTORE TRANSACTION SUCCESSFUL
+        // We show the success screen IMMEDIATELY so the user isn't stuck waiting for background syncs.
         showSuccessScreen(locker.id, pin, selectedHours);
+
+        // ✅ STEP 2: BACKGROUND TASKS (Fire-and-forget)
+        // These happen in the background without blocking the UI.
+        
+        // A. Add to Bookings History
+        (async () => {
+          try {
+            const amount = window.selectedAmount || (70 * selectedHours); // Default to 70 if not selected
+            const bookingData = {
+              userId: currentUser.uid,
+              userContact: currentUser.email || currentUser.uid,
+              userName: userName,
+              lockerId: locker.id,
+              hours: selectedHours,
+              amount: amount,
+              pin: pin,
+              createdAt: Date.now(),
+              startTime: null,
+              duration: durationMs,
+              status: "CONFIRMED"
+            };
+            await addDoc(collection(db, "bookings"), bookingData);
+            console.log("✅ History record added in background.");
+          } catch(e) { console.warn("Booking History Fail:", e); }
+        })();
+
+        // B. Update Realtime Database (Hardware Sync)
+        (async () => {
+          try {
+            await set(ref(rtdb, `lockers/${locker.id}`), {
+              status: "ACTIVE",
+              pin: hashedPin,
+              startTime: 0, 
+              duration: durationMs,
+              sessionEnd: Date.now() + durationMs,
+              lastUpdated: Date.now(),
+              userName: userName,
+              command: null
+            });
+            console.log("✅ Hardware sync completed in background.");
+          } catch(e) { console.warn("Hardware Sync Fail:", e); }
+        })();
       } catch (err) {
         console.error("Booking Error:", err);
         const proceedBtn = document.getElementById("proceedBtn");
