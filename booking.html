@@ -818,25 +818,34 @@
         };
 
         try {
-          await Promise.all([
+          // Wrap in withTimeout to prevent hanging forever on poor connections
+          await withTimeout(Promise.all([
             // A. Add to Bookings History
             addDoc(collection(db, "bookings"), bookingData),
             
-            // B. Update Realtime Database (Hardware Sync)
-            update(ref(rtdb, `lockers/${locker.id}`), {
-              status: "ACTIVE",
-              pin: hashedPin,
-              startTime: 0, 
-              duration: durationMs,
-              sessionEnd: Date.now() + durationMs,
-              lastUpdated: Date.now(),
-              userName: userName,
-              command: null
-            })
-          ]);
+            // B. Update Realtime Database (Hardware Sync) using REST API 
+            // This is infinitely more reliable than WebSockets on poor mobile connections
+            currentUser.getIdToken().then(idToken => 
+              fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${locker.id}.json?auth=${idToken}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  status: "ACTIVE",
+                  pin: hashedPin,
+                  startTime: 0, 
+                  duration: durationMs,
+                  sessionEnd: Date.now() + durationMs,
+                  lastUpdated: Date.now(),
+                  userName: userName,
+                  command: null
+                })
+              })
+            )
+          ]), 10000, "Synchronization timed out");
           console.log(`✅ Synchronization completed.`);
         } catch (syncErr) {
           console.error("Sync Error: ", syncErr);
+          // Don't fail the booking if purely the sync takes too long
         }
 
         // ✅ STEP 3: SHOW SUCCESS IMMEDIATELY 

@@ -1313,11 +1313,11 @@
                         lockerData[id].occupancy = data[id].occupancy || "EMPTY";
                         
                         // AUTO-SYNC LOGIC: ESP32 Hardware reports AVAILABLE, but Firestore thinks ACTIVE
-                        // ✅ FIX: Added a 20-second grace period. 
+                        // ✅ FIX: Extended to a 60-second grace period. 
                         // If a locker was JUST booked, Firestore updates instantly but RTDB might take a few seconds to update to 'ACTIVE'.
                         // This prevents the admin panel's background sync from accidentally thinking it was HW terminated.
                         const rtdbStatus = data[id].status;
-                        const isNewlyBooked = (Date.now() - (lockerData[id].lastUpdated || 0)) < 20000;
+                        const isNewlyBooked = (Date.now() - (lockerData[id].lastUpdated || 0)) < 60000;
                         
                         if (rtdbStatus === "AVAILABLE" && lockerData[id].status === "ACTIVE" && lockerData[id].firestoreStatus && !isNewlyBooked) {
                             console.log(`[Admin Auto-Sync] Hardware terminated locker ${id}. Syncing Firestore...`);
