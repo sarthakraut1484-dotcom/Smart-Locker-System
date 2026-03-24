@@ -799,8 +799,13 @@
             userName: userName
           });
         }), 15000, "Transaction timed out due to network instability. Please try again.");
-        // ✅ STEP 2: CRITICAL SYNC TASKS (Moved from background to main flow for reliability)
-        console.log("Synchronizing with Realtime Database (Hardware) & History...");
+        // ✅ STEP 2: SHOW SUCCESS IMMEDIATELY
+        // Because RTDB WebSockets might take 5-10+ seconds to initialize on poor networks,
+        // we DO NOT wait for the sync to finish before showing the user their confirmation.
+        showSuccessScreen(locker.id, pin, selectedHours);
+
+        // ✅ STEP 3: BACKGROUND SYNC (Fire-and-forget)
+        console.log("Synchronizing with Realtime Database (Hardware) & History in background...");
 
         const amount = window.selectedAmount || (70 * selectedHours); 
         const bookingData = {
@@ -817,8 +822,8 @@
           status: "CONFIRMED"
         };
 
-        // Execute both updates and await them before showing success
-        await withTimeout(Promise.all([
+        // Execute both updates in the background. No await.
+        Promise.all([
           // A. Add to Bookings History
           addDoc(collection(db, "bookings"), bookingData).then(() => console.log("✅ History record added.")),
           
@@ -833,11 +838,8 @@
             userName: userName,
             command: null
           }).then(() => console.log(`✅ Hardware sync at /lockers/${locker.id} completed.`))
-        ]), 12000, "Network sync timed out. Please refresh and check if the booking succeeded.");
+        ]).catch(err => console.warn("Background sync warning:", err));
 
-        // ✅ STEP 3: TRANSACTION COMPLETE & SYNCED
-        // Now show the success screen
-        showSuccessScreen(locker.id, pin, selectedHours);
       } catch (err) {
         console.error("Booking Error:", err);
         const proceedBtn = document.getElementById("proceedBtn");
