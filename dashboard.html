@@ -604,13 +604,21 @@
             });
 
             // 2. Update RTDB (Ensure it's fully clean in case only Firestore was dirty)
-            await update(ref(rtdb, `lockers/${lockerIdNumeric}`), {
-              status: "AVAILABLE",
-              pin: null,
-              startTime: 0,
-              duration: 0,
-              sessionEnd: 0
-            });
+            try {
+              const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : "";
+              await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerIdNumeric}.json?auth=${idToken}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                  status: "AVAILABLE",
+                  pin: "",
+                  startTime: 0,
+                  duration: 0,
+                  sessionEnd: 0,
+                  unlockCount: 0,
+                  command: null
+                })
+              });
+            } catch(e) { console.error("REST RTDB update failed", e); }
           }
         });
       } catch (err) {
