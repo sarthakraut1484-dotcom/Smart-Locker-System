@@ -458,6 +458,9 @@
     </div>
 
     <div class="nav-right">
+      <div id="navCredits" style="display:none; align-items:center; gap:6px; background:rgba(16,185,129,0.1); color:#10b981; padding:8px 16px; border-radius:12px; font-weight:700; font-size:14px; border:1px solid rgba(16,185,129,0.3); transition: transform 0.2s ease;">
+         <i class="bi bi-gift-fill"></i> <span id="navCreditsAmount">0</span> Cr.
+      </div>
       <div class="username" id="userDisplay">User</div>
       <button class="logout-btn" id="logoutBtn">Logout</button>
     </div>
@@ -988,6 +991,28 @@
       document.getElementById("pinModal").style.display = "none";
       window.location.href = "dashboard";
     }
+
+    /* ================= CREDITS LISTENER ================= */
+    onAuthStateChanged(auth, (user) => {
+       if (user) {
+          onSnapshot(doc(db, "users", user.uid), (userDoc) => {
+            if (userDoc.exists()) {
+               const credits = userDoc.data().credits || 0;
+               const creditsEl = document.getElementById("navCredits");
+               const amountEl = document.getElementById("navCreditsAmount");
+               
+               if (credits > 0) {
+                  creditsEl.style.display = "flex";
+                  amountEl.textContent = credits;
+                  creditsEl.style.transform = "scale(1.15)";
+                  setTimeout(() => { creditsEl.style.transform = "scale(1)"; }, 300);
+               } else {
+                  creditsEl.style.display = "none";
+               }
+            }
+          });
+       }
+    });
 
     /* ================= LOGOUT ================= */
 
