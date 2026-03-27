@@ -302,7 +302,7 @@
     </div>
 
     <div class="nav-right">
-      <div id="navCredits" style="display:none; align-items:center; gap:6px; background:rgba(16,185,129,0.1); color:#10b981; padding:8px 16px; border-radius:12px; font-weight:700; font-size:14px; border:1px solid rgba(16,185,129,0.3); transition: transform 0.2s ease;">
+      <div id="navCredits" style="display:flex; align-items:center; gap:6px; background:rgba(16,185,129,0.1); color:#10b981; padding:8px 16px; border-radius:12px; font-weight:700; font-size:14px; border:1px solid rgba(16,185,129,0.3); transition: transform 0.2s ease;">
          <i class="bi bi-gift-fill"></i> <span id="navCreditsAmount">0</span> Cr.
       </div>
       <div class="username" id="userDisplay">User</div>
@@ -363,13 +363,13 @@
                const creditsEl = document.getElementById("navCredits");
                const amountEl = document.getElementById("navCreditsAmount");
                
-               if (credits > 0) {
-                  creditsEl.style.display = "flex";
+               creditsEl.style.display = "flex";
+               if (amountEl.textContent !== String(credits)) {
                   amountEl.textContent = credits;
-                  creditsEl.style.transform = "scale(1.15)";
-                  setTimeout(() => { creditsEl.style.transform = "scale(1)"; }, 300);
-               } else {
-                  creditsEl.style.display = "none";
+                  if (credits > 0) {
+                     creditsEl.style.transform = "scale(1.15)";
+                     setTimeout(() => { creditsEl.style.transform = "scale(1)"; }, 300);
+                  }
                }
             }
          });
