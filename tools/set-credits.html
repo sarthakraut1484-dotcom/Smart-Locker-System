@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Credits Utility</title>
+    <style>body { font-family: sans-serif; padding: 40px; background: #000; color: white; text-align: center; }</style>
+</head>
+<body>
+  <h2 id="status">Connecting to Firestore...</h2>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, query, collection, where, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyAE2ZzUsZPKArWnniCpWT2AX5jDpNJMqX0",
+      authDomain: "asep-smart-locker.firebaseapp.com",
+      projectId: "asep-smart-locker"
+    });
+    const db = getFirestore(app);
+
+    async function run() {
+        try {
+            document.getElementById("status").textContent = "Searching for sarthakraut1484@gmail.com...";
+            const q = query(collection(db, "users"), where("email", "==", "sarthakraut1484@gmail.com"));
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                document.getElementById("status").innerHTML = "<span style='color:#ef4444;'>❌ User not found in 'users' collection. Please check the email spelling.</span>";
+                return;
+            }
+            
+            for (const uDoc of snap.docs) {
+                // Giving you 250 credits to test with!
+                await updateDoc(doc(db, "users", uDoc.id), { credits: 250 });
+                document.getElementById("status").innerHTML = "<span style='color:#10b981; font-size:24px;'>✅ Successfully injected 250 Loyalty Credits to your account!</span><br><br><span style='font-size:16px; color:#94a3b8;'>You can safely close this tab now and refresh your dashboard!</span>";
+            }
+        } catch(e) {
+            document.getElementById("status").innerHTML = "<span style='color:#ef4444;'>Error: " + e.message + "</span>";
+        }
+    }
+    
+    run();
+  </script>
+</body>
+</html>

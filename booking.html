@@ -488,7 +488,7 @@
     </div>
 
     <div class="nav-right">
-      <div id="navCredits" title="Loyalty Credits: 1 Credit = ₹1 Discount on future bookings! (Earned by ending sessions early)" style="display:flex; align-items:center; gap:6px; background:rgba(245,158,11,0.15); color:#f59e0b; padding:8px 16px; border-radius:12px; font-weight:700; font-size:14px; border:1px solid rgba(245,158,11,0.4); transition: transform 0.2s ease; cursor:help;">
+      <div id="navCredits" title="Loyalty Credits: 10 Credits = ₹1 Discount on future bookings! (Earned by ending sessions early)" style="display:flex; align-items:center; gap:6px; background:rgba(245,158,11,0.15); color:#f59e0b; padding:8px 16px; border-radius:12px; font-weight:700; font-size:14px; border:1px solid rgba(245,158,11,0.4); transition: transform 0.2s ease; cursor:help;">
          <i class="bi bi-coin"></i> <span id="navCreditsAmount">0</span>
       </div>
       <div class="username" id="userDisplay">User</div>
@@ -706,7 +706,8 @@
     const customInput = document.getElementById("customHours");
 
     window.availableCredits = window.availableCredits || 0;
-    window.creditsToApply = 0;
+    window.discountAmount = 0;
+    window.creditsToDeduct = 0;
 
     function updatePaymentSummaryUI() {
       // Dynamic Pricing Support
@@ -722,20 +723,26 @@
       }
 
       const toggle = document.getElementById("useCreditToggle");
+      const conversionRate = 0.10; // 10 Credits = ₹1.00 Discount
+
       if (toggle && toggle.checked) {
           // Max discount cannot exceed subtotal
-          window.creditsToApply = Math.min(window.availableCredits, subtotal);
-          document.getElementById("creditDiscount").textContent = `-₹${window.creditsToApply.toFixed(2)}`;
+          const maxDiscountPossible = window.availableCredits * conversionRate;
+          window.discountAmount = Math.min(maxDiscountPossible, subtotal);
+          window.creditsToDeduct = Math.ceil(window.discountAmount / conversionRate);
+          
+          document.getElementById("creditDiscount").textContent = `-₹${window.discountAmount.toFixed(2)}`;
           document.getElementById("creditDiscount").style.display = "inline";
       } else {
-          window.creditsToApply = 0;
+          window.discountAmount = 0;
+          window.creditsToDeduct = 0;
           if (document.getElementById("creditDiscount")) document.getElementById("creditDiscount").style.display = "none";
       }
 
-      const total = subtotal - window.creditsToApply;
+      const total = subtotal - window.discountAmount;
       window.selectedAmount = total;
 
-      document.getElementById("summaryDuration").textContent = `${selectedHours} hours`;
+      document.getElementById("summaryDuration").textContent = `${selectedHours} hours` + (isSurge ? " 🔥" : "");
       document.getElementById("summaryRate").textContent = isSurge ? `Surge Rate` : `₹${rate.toFixed(2)}/hr`;
       document.getElementById("summaryAmount").textContent = `₹${subtotal.toFixed(2)}`;
       document.getElementById("summaryTotal").textContent = `₹${total.toFixed(2)}`;
@@ -792,18 +799,7 @@
             durationBtns.forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             selectedHours = Number(btn.dataset.hours);
-            const total = prices[plan];
-            document.getElementById("summaryDuration").textContent = btn.textContent + (prices._surgeActive ? " 🔥" : "");
-            document.getElementById("summaryRate").textContent = prices._surgeActive ? `Surge Rate (${prices._multiplier}x)` : "Standard Rate";
-            document.getElementById("summaryAmount").textContent = `₹${total.toFixed(2)}`;
-            let finalTot = total;
-            if (window.creditsToApply > 0) {
-                window.creditsToApply = Math.min(window.availableCredits, total);
-                finalTot = total - window.creditsToApply;
-                document.getElementById("creditDiscount").textContent = `-₹${window.creditsToApply.toFixed(2)}`;
-            }
-            document.getElementById("summaryTotal").textContent = `₹${finalTot.toFixed(2)}`;
-            window.selectedAmount = finalTot;
+            updatePaymentSummaryUI();
           };
         }
       });
@@ -903,12 +899,12 @@
           const userContact = currentUser.email || currentUser.phoneNumber || currentUser.uid;
 
           // Deduct credits if used
-          if (window.creditsToApply > 0) {
+          if (window.discountAmount > 0) {
              const userRef = doc(db, "users", currentUser.uid);
              const userSnapTx = await transaction.get(userRef);
              if (userSnapTx.exists()) {
                 const uData = userSnapTx.data();
-                const newCreds = Math.max(0, (uData.credits || 0) - window.creditsToApply);
+                const newCreds = Math.max(0, (uData.credits || 0) - window.creditsToDeduct);
                 transaction.update(userRef, { credits: newCreds });
              }
           }
