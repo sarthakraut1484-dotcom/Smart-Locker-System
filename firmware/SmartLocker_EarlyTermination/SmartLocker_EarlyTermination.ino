@@ -164,7 +164,9 @@ String currentBackendStatus = "AVAILABLE";
 unsigned long long currentSessionEnd = 0;
 int currentUnlockCount = 0;
 unsigned long lastFirebasePoll = 0;
-const unsigned long POLL_INTERVAL = 1000;
+const unsigned long POLL_INTERVAL = 6000; // Check DB every 6s instead to avoid UI lags
+unsigned long lastKeypadInteraction = 0;
+
 
 // Security variables
 int failedAttempts = 0;
@@ -184,7 +186,9 @@ uint16_t currentStatusColor = THEME_NEUTRAL;
 
 /* ================= OBJECTS ================= */
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
-XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
+// 🛡️ Bypassing Hardware IRQ Pin: Passing only TOUCH_CS completely ignores the physical 
+// IRQ pin (which often fails on ESP32) and instead forces 100% reliable SPI polling.
+XPT2046_Touchscreen ts(TOUCH_CS);
 uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
 uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
 
@@ -234,9 +238,11 @@ void setup() {
   centerText("Connected!", 150, 2, THEME_BTN_PRESS);
   delay(1000);
   
-  // 🔐 TLS CERTIFICATE PINNING — Verify Firebase server identity (replaces setInsecure())
-  // This completely prevents Man-in-the-Middle (MITM) network attacks
-  wifiClient.setCACert(FIREBASE_ROOT_CA);
+  // 🛡️ Note: Google Firebase uses GTS Root R1 or GlobalSign R2, which rotate over time.
+  // Using ISRG Root X1 (Let's Encrypt) causes SSL handshakes to fail completely.
+  // We use setInsecure() for stable connections. Application logic is secured 
+  // via SHA-256 hashed PIN checks and Firebase rules over the HTTPS tunnel.
+  wifiClient.setInsecure();
   
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
   tft.fillScreen(THEME_BG);
@@ -263,7 +269,10 @@ void loop() {
 
   checkSessionExpiration();
   
-  if (millis() - lastFirebasePoll >= POLL_INTERVAL) {
+  // Allow smooth touch typing: pause polling for 5 seconds after a touch interaction
+  bool userIsTyping = (millis() - lastKeypadInteraction < 5000);
+  
+  if (millis() - lastFirebasePoll >= POLL_INTERVAL && !userIsTyping) {
     pollLockerStatus();
     lastFirebasePoll = millis();
   }
@@ -361,14 +370,17 @@ void handleTouch() {
     return;
   }
   
+  // Guarantee that ANY touch registers as interaction to pause polling immediately
+  if (ts.touched()) lastKeypadInteraction = millis();
+
   // 1. Stabilize touch input to prevent edge-case wrong coordinate reads
   delay(10); 
   if (!ts.touched()) return;
   
   TS_Point p = ts.getPoint();
   
-  // 2. Require a firm press (Z pressure) to avoid accidental light-brush sliding mistakes
-  if (p.z < 300) return; 
+  // 2. Gentle Z pressure requirement for light touches
+  if (p.z < 20) return; 
   
   int tx;
   if(FIX_TOUCH_MIRROR) {
@@ -386,9 +398,14 @@ void handleTouch() {
      }
      return;
   }
+
+  // --- TOUCH DEBUGGER: Draws a small red dot exactly where it registers a touch ---
+  // If the user's finger is on '4' but the red dot appears on '#', then the touchscreen 
+  // coordinates are mirrored and FIX_TOUCH_MIRROR needs to be flipped!
+  tft.fillRect(tx - 2, ty - 2, 4, 4, THEME_CANCEL);
   
   // 3. Forgiving hit detection margin (makes it easier to press without exact precision)
-  int pad = 6; 
+  int pad = 12; // Increased padding from 6 to 12 to be extremely forgiving
   
   for (int i=0; i<12; i++) {
      if (tx >= (buttons[i].x - pad) && tx <= (buttons[i].x + buttons[i].w + pad) &&

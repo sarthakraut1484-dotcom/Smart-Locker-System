@@ -496,8 +496,10 @@
       }
     }
   </style>
-</head>
-
+<style>
+    @keyframes slideUpToast { 0% { transform:translate(-50%, 100%); opacity:0; } 100% { transform:translate(-50%, 0); opacity:1; } }
+    @keyframes slideDownToast { 0% { transform:translate(-50%, 0); opacity:1; } 100% { transform:translate(-50%, 100%); opacity:0; } }
+</style>
 <body>
 
   <!-- Navbar -->
@@ -807,6 +809,40 @@
           clearInterval(timerInterval);
           timerInterval = null;
         }
+
+        // --- NEW LOGIC: Calculate Early Termination Credits ---
+        try {
+          const lockerDocSnap = await getDoc(doc(db, "lockers", `locker_${lockerIdNumeric}`));
+          if (lockerDocSnap.exists()) {
+             const data = lockerDocSnap.data();
+             if (data.status === "ACTIVE" && data.sessionEnd > 0) {
+                const remainingMs = data.sessionEnd - Date.now();
+                if (remainingMs > 60000) { // more than 1 minute remaining
+                   const earlyCredits = Math.floor(remainingMs / 60000); // 1 credit per minute
+                   if (currentUser && currentUser.uid) {
+                      const userRef = doc(db, "users", currentUser.uid);
+                      const userSnap = await getDoc(userRef);
+                      if (userSnap.exists()) {
+                         const uData = userSnap.data();
+                         const newCredits = (uData.credits || 0) + earlyCredits;
+                         await updateDoc(userRef, { credits: newCredits });
+                         
+                         // Create custom stylish toast for credits
+                         const toast = document.createElement("div");
+                         toast.style = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; padding:16px 24px; border-radius:16px; box-shadow:0 10px 25px rgba(16,185,129,0.5); z-index:9999; animation: slideUpToast 0.5s cubic-bezier(0.34,1.56,0.64,1); font-weight:700; display:flex; align-items:center; gap:12px; font-family:'Outfit', sans-serif;";
+                         toast.innerHTML = `<span style="font-size:24px;">🎁</span> Early Termination! You earned ${earlyCredits} credits.`;
+                         document.body.appendChild(toast);
+                         setTimeout(() => {
+                           toast.style.animation = "slideDownToast 0.5s ease-in forwards";
+                           setTimeout(() => toast.remove(), 500);
+                         }, 5000);
+                      }
+                   }
+                }
+             }
+          }
+        } catch(err) { console.error("Credits error:", err); }
+        // ----------------------------------------------------
 
         // Update UI immediately
         const statusEl = document.getElementById("lockerStatus");
