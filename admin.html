@@ -703,7 +703,7 @@
 
     <main class="main-wrapper">
         <header>
-            <h3 id="sectionTitle">Dashboard Overview</h3>
+            <h3 id="sectionTitle">Dashboard Overview <span class="badge bg-primary" style="font-size: 10px; vertical-align: middle;">Sync V1.0.6</span></h3>
             <div class="d-flex align-items-center gap-3">
                 <button class="btn btn-primary rounded-pill px-4 d-none d-lg-flex align-items-center" id="syncHeaderBtn" onclick="syncAllData()">
                     <i class="bi bi-arrow-repeat me-2"></i> Sync All Data
@@ -1153,7 +1153,7 @@
     <script src="bg-animation.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, where, getDocs, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -1169,8 +1169,11 @@
         const rtdb = getDatabase(app);
         const auth = getAuth(app);
 
-        // Expose Firestore helpers for the auto-pricing algorithm outside this module scope
-        const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+        // Security Check
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
+        if (!currentUser || !currentUser.isAdmin) { window.location.href = "login"; }
+
+        // Core Admin Helpers
         window._firestoreDb = db;
         window._firestoreDoc = doc;
         window._firestoreSetDoc = setDoc;
@@ -1270,10 +1273,6 @@
                 btn.innerHTML = originalText;
             }
         };
-
-        // Security Check
-        const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
-        if (!currentUser || !currentUser.isAdmin) { window.location.href = "login"; }
 
         document.getElementById("logoutBtn").onclick = () => { sessionStorage.clear(); window.location.href = "login"; };
 
