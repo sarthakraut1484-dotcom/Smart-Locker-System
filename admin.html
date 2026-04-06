@@ -1312,7 +1312,8 @@
                 const normalized = (data.lockers) ? { ...data, ...data.lockers } : data;
 
                 Object.keys(normalized).forEach(id => {
-                    if (lockerData[id]) {
+                    // 🛡️ CRITICAL FIX: Skip if the locker entry itself is null or malformed
+                    if (lockerData[id] && normalized[id]) {
                         lockerData[id].doorStatus = normalized[id].doorStatus || "CLOSED";
                         lockerData[id].occupancy = normalized[id].occupancy || "EMPTY";
                         
