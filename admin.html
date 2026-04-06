@@ -1158,7 +1158,8 @@
             const target = document.getElementById(id);
             if(target) target.classList.add("active");
             if(el) el.classList.add("active");
-            document.getElementById("sectionTitle").textContent = el.textContent.trim();
+            const titleEl = document.getElementById("sectionTitle");
+            if(titleEl) titleEl.innerHTML = el.textContent.trim() + ' <span class="badge bg-success" style="font-size: 10px; vertical-align: middle;">V1.1.0 LIVE</span>';
         };
 
         window.lockerData = {};
@@ -1177,13 +1178,16 @@
             return `${m}:${s.toString().padStart(2, '0')}`;
         }
 
-        function renderUI() {
+        window.renderUI = function() {
             try {
+                const lockerData = window.lockerData;
                 let avail = 0, occ = 0, maint = 0;
                 const gridDash = document.getElementById("dashboardLockerGrid");
                 const gridFull = document.getElementById("fullLockerGrid");
+                const sessBody = document.getElementById("sessionsBody");
                 if (!gridDash) return;
                 gridDash.innerHTML = ""; gridFull.innerHTML = "";
+                if(sessBody) sessBody.innerHTML = "";
 
                 Object.keys(lockerData).sort((a,b)=>Number(a)-Number(b)).forEach(id => {
                     const data = lockerData[id];
@@ -1216,7 +1220,7 @@
                 document.getElementById("statMaintenance").textContent = maint;
             } catch (err) { console.error(err); }
         }
-        document.addEventListener('DOMContentLoaded', renderUI);
+        document.addEventListener('DOMContentLoaded', window.renderUI);
     </script>
 
     <script type="module">
@@ -1344,20 +1348,8 @@
             }
         };
 
-        document.getElementById("logoutBtn").onclick = () => { sessionStorage.clear(); window.location.href = "login"; };
-
-        // NAVIGATION
-        window.showSection = (id, el) => {
-            document.querySelectorAll(".dash-section").forEach(s => s.classList.remove("active"));
-            document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
-            document.getElementById(id).classList.add("active");
-            el.classList.add("active");
-            document.getElementById("sectionTitle").textContent = el.textContent.trim();
-        };
-
         // REAL-TIME DATA HANDLING
-        // Data Sync Initialization
-        // window.lockerData is already defined in the global script block
+        // window.lockerData is already defined in the global block
 
         function initRealtime() {
             // 1. Listen to Realtime Database
@@ -1389,7 +1381,7 @@
                         }
                     }
                 });
-                renderUI();
+                window.renderUI();
             });
 
             // 2. Listen to Firestore (Booking & System Status)
@@ -1402,7 +1394,7 @@
                         lockerData[id].firestoreStatus = true; // Mark that we have firestore data
                     }
                 });
-                renderUI();
+                window.renderUI();
             });
 
             // 3. Listen to Bookings (Revenue & History)
@@ -1423,7 +1415,7 @@
                 
                 // Cache bookings for Instant PIN lookups and re-trigger UI securely
                 window._recentBookingsCache = historyData;
-                renderUI();
+                window.renderUI();
             });
 
             // 4. Listen to Maintenance Issues
@@ -1437,65 +1429,6 @@
                 });
             });
         }
-
-        function renderUI() {
-            try {
-                let avail = 0, occ = 0, maint = 0;
-                const gridDash = document.getElementById("dashboardLockerGrid");
-                const gridFull = document.getElementById("fullLockerGrid");
-                const sessionsBody = document.getElementById("sessionsBody");
-                const alertsContainer = document.getElementById("alertsContainer");
-                
-                if (!gridDash) return;
-
-                gridDash.innerHTML = "";
-                gridFull.innerHTML = "";
-                sessionsBody.innerHTML = "";
-                let alertHtml = "";
-                let alertCount = 0;
-
-                Object.keys(lockerData).forEach(id => {
-                    const data = lockerData[id];
-                    const s = String(data.status || "AVAILABLE").toUpperCase();
-                    
-                    if (s === "AVAILABLE") avail++;
-                    else if (s === "ACTIVE" || s === "OCCUPIED") occ++;
-                    else if (s === "MAINTENANCE") maint++;
-
-                    const cardHtml = createLockerCard(id, data);
-                    gridFull.insertAdjacentHTML('beforeend', cardHtml);
-                    
-                    if (s !== "AVAILABLE" || data.doorStatus === "OPEN") {
-                        gridDash.insertAdjacentHTML('beforeend', cardHtml);
-                    }
-
-                    if (s === "ACTIVE" || s === "OCCUPIED") {
-                        sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
-                    }
-
-                    if (data.doorStatus === "OPEN" && s !== "ACTIVE" && s !== "OCCUPIED") {
-                        alertCount++;
-                        alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} is OPEN while status is ${s}.`);
-                    }
-                });
-
-                document.getElementById("statTotal").textContent = Object.keys(lockerData).length;
-                document.getElementById("statAvailable").textContent = avail;
-                document.getElementById("statOccupied").textContent = occ;
-                document.getElementById("statMaintenance").textContent = maint;
-                
-                // 🛡️ SECURITY FIX: Fetch and replace hashed PINs for ACTIVE lockers
-                Object.keys(lockerData).forEach(id => {
-                    if (lockerData[id].status === "ACTIVE") {
-                        updateAdminPin(id);
-                    }
-                });
-            } catch (err) {
-                console.error("Dashboard Rendering Error:", err);
-            }
-        }
-
-        function updateCharts(data) { console.log("Analytics data updated:", data.length); }
 
         function updateCharts(data) { console.log("Analytics data updated:", data ? data.length : 0); }
         function createLockerCard(id, data) {
@@ -2356,8 +2289,8 @@
         window._firestoreSetDoc = null;
 
         initRealtime();
-        if(typeof renderUI === 'function') renderUI(); 
-        console.log("Dashboard V1.0.9 Finalized & Ready.");
+        window.renderUI(); // 🚀 FORCE IMMEDIATE RENDER ON LOAD
+        console.log("Dashboard V1.1.1 Finalized & Ready.");
     </script>
 </body>
 
