@@ -703,7 +703,7 @@
 
     <main class="main-wrapper">
         <header>
-            <h3 id="sectionTitle">Dashboard Overview <span class="badge bg-primary" style="font-size: 10px; vertical-align: middle;">Sync V1.0.7</span></h3>
+            <h3 id="sectionTitle">Dashboard Overview <span class="badge bg-danger" style="font-size: 10px; vertical-align: middle;">V1.0.8 DEBUG</span></h3>
             <div class="d-flex align-items-center gap-3">
                 <button class="btn btn-primary rounded-pill px-4 d-none d-lg-flex align-items-center" id="syncHeaderBtn" onclick="syncAllData()">
                     <i class="bi bi-arrow-repeat me-2"></i> Sync All Data
@@ -723,7 +723,7 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Lockers</div>
-                    <div class="stat-value" id="statTotal">20</div>
+                    <div class="stat-value" id="statTotal">77</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Available</div>
@@ -1152,8 +1152,10 @@
 
     <script src="bg-animation.js"></script>
     <script type="module">
+        window.onerror = (m,s,l,c,e) => alert(`SYSTEM CRASH: ${m}\nAt: ${s}:${l}:${c}`);
+        
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, where, getDocs, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, where, getDocs, getDoc, setDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
