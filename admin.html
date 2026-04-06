@@ -1455,7 +1455,8 @@
         }
 
         function createLockerCard(id, data) {
-            const statusClass = `status-${data.status.toLowerCase()}`;
+            const safeStatus = (data.status || "AVAILABLE");
+            const statusClass = `status-${safeStatus.toLowerCase()}`;
             const doorStatus = data.doorStatus || "CLOSED";
             const occupancy = data.occupancy || "EMPTY";
             const timeLeft = data.startTime ? calculateRemaining(data.startTime, data.duration) : "N/A";
