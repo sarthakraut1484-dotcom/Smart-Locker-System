@@ -703,7 +703,7 @@
 
     <main class="main-wrapper">
         <header>
-            <h3 id="sectionTitle">Dashboard Overview <span class="badge bg-danger" style="font-size: 10px; vertical-align: middle;">V1.0.8 DEBUG</span></h3>
+            <h3 id="sectionTitle">Dashboard Overview <span class="badge bg-success" style="font-size: 10px; vertical-align: middle;">V1.0.9 FINAL</span></h3>
             <div class="d-flex align-items-center gap-3">
                 <button class="btn btn-primary rounded-pill px-4 d-none d-lg-flex align-items-center" id="syncHeaderBtn" onclick="syncAllData()">
                     <i class="bi bi-arrow-repeat me-2"></i> Sync All Data
@@ -723,7 +723,7 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Lockers</div>
-                    <div class="stat-value" id="statTotal">77</div>
+                    <div class="stat-value" id="statTotal">20</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Available</div>
@@ -1150,7 +1150,75 @@
         </div>
     </div>
 
-    <script src="bg-animation.js"></script>
+    <script>
+        // NAVIGATION & CORE (Non-Module)
+        window.showSection = (id, el) => {
+            document.querySelectorAll(".dash-section").forEach(s => s.classList.remove("active"));
+            document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
+            const target = document.getElementById(id);
+            if(target) target.classList.add("active");
+            if(el) el.classList.add("active");
+            document.getElementById("sectionTitle").textContent = el.textContent.trim();
+        };
+
+        window.lockerData = {};
+        const lockerData = window.lockerData;
+        for(let i=1; i<=20; i++) {
+            lockerData[String(i)] = { status: "AVAILABLE", doorStatus: "CLOSED", occupancy: "EMPTY", currentPin: "---", userName: "N/A" };
+        }
+
+        function calculateRemaining(start, dur) {
+            if (!start || !dur) return "---";
+            const left = (start + dur) - Date.now();
+            if (left <= 0) return "Expired";
+            const totalS = Math.floor(left / 1000);
+            const m = Math.floor(totalS / 60);
+            const s = totalS % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function renderUI() {
+            try {
+                let avail = 0, occ = 0, maint = 0;
+                const gridDash = document.getElementById("dashboardLockerGrid");
+                const gridFull = document.getElementById("fullLockerGrid");
+                if (!gridDash) return;
+                gridDash.innerHTML = ""; gridFull.innerHTML = "";
+
+                Object.keys(lockerData).sort((a,b)=>Number(a)-Number(b)).forEach(id => {
+                    const data = lockerData[id];
+                    const s = (data.status || "AVAILABLE").toUpperCase();
+                    if (s === "AVAILABLE") avail++;
+                    else if (s === "ACTIVE" || s === "OCCUPIED") occ++;
+                    else if (s === "MAINTENANCE") maint++;
+
+                    const cardHtml = `
+                        <div class="locker-card">
+                            <div class="locker-header">
+                                <div class="locker-id">Locker #${id}</div>
+                                <span class="status-pill status-${s.toLowerCase()}">${s}</span>
+                            </div>
+                            <div class="locker-details">
+                                <div class="detail-row"><span class="detail-label">Door:</span> <span class="detail-value" style="color: ${data.doorStatus==='OPEN' ? 'var(--danger)' : 'var(--success)'}">${data.doorStatus || 'CLOSED'}</span></div>
+                                <div class="detail-row"><span class="detail-label">PIN:</span> <span class="detail-value admin-pin-${id}" style="color: var(--primary)">${data.currentPin || "---"}</span></div>
+                            </div>
+                            <div class="locker-actions">
+                                <button class="action-btn w-100" style="background: var(--primary); color: white;" onclick="window.sendCommand('${id}', 'OPEN', event)">Open</button>
+                            </div>
+                        </div>`;
+                    gridFull.insertAdjacentHTML('beforeend', cardHtml);
+                    if (s !== "AVAILABLE" || data.doorStatus === "OPEN") gridDash.insertAdjacentHTML('beforeend', cardHtml);
+                });
+
+                document.getElementById("statTotal").textContent = "20";
+                document.getElementById("statAvailable").textContent = avail;
+                document.getElementById("statOccupied").textContent = occ;
+                document.getElementById("statMaintenance").textContent = maint;
+            } catch (err) { console.error(err); }
+        }
+        document.addEventListener('DOMContentLoaded', renderUI);
+    </script>
+
     <script type="module">
         window.onerror = (m,s,l,c,e) => alert(`SYSTEM CRASH: ${m}\nAt: ${s}:${l}:${c}`);
         
@@ -1288,20 +1356,8 @@
         };
 
         // REAL-TIME DATA HANDLING
-        let lockerData = {};
-        // Initialize with 20 lockers from locker-data.js or default
-        for (let i = 1; i <= 20; i++) {
-            const sKey = String(i);
-            lockerData[sKey] = { 
-                status: "AVAILABLE", 
-                doorStatus: "CLOSED", 
-                occupancy: "EMPTY",
-                currentPin: "---",
-                userName: "N/A",
-                startTime: null,
-                duration: 0
-            };
-        }
+        // Data Sync Initialization
+        // window.lockerData is already defined in the global script block
 
         function initRealtime() {
             // 1. Listen to Realtime Database
@@ -1441,6 +1497,7 @@
 
         function updateCharts(data) { console.log("Analytics data updated:", data.length); }
 
+        function updateCharts(data) { console.log("Analytics data updated:", data ? data.length : 0); }
         function createLockerCard(id, data) {
             const rawStatus = (data.status || "AVAILABLE");
             const statusClass = `status-${rawStatus.toLowerCase()}`;
@@ -2299,8 +2356,8 @@
         window._firestoreSetDoc = null;
 
         initRealtime();
-        renderUI(); // 🚀 FORCE IMMEDIATE RENDER ON LOAD
-        console.log("Dashboard V1.0.7 Finalized & Loaded");
+        if(typeof renderUI === 'function') renderUI(); 
+        console.log("Dashboard V1.0.9 Finalized & Ready.");
     </script>
 </body>
 
