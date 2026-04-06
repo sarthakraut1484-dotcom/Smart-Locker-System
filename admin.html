@@ -1303,7 +1303,7 @@
 
         function initRealtime() {
             // 1. Listen to Realtime Database (ESP32 Hardware Status)
-            onValue(ref(rtdb, "lockers"), async (snapshot) => {
+            onValue(ref(rtdb, ""), async (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
                 
@@ -1876,7 +1876,7 @@
                 // Update RTDB
                 const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
                 const authParam = idToken ? `?auth=${idToken}` : "";
-                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json${authParam}`, {
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${id}.json${authParam}`, {
                     method: 'PATCH',
                     body: JSON.stringify({
                         status: "AVAILABLE",
@@ -1966,7 +1966,7 @@
                  const numericId = d.id.replace("locker_", "");
                  const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
                  const authParam = idToken ? `?auth=${idToken}` : "";
-                 const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${numericId}.json${authParam}`, {
+                 const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${numericId}.json${authParam}`, {
                      method: 'PATCH',
                      body: JSON.stringify({
                          status: "AVAILABLE",

@@ -765,7 +765,7 @@
     });
 
     /* ================= RTDB UNLOCK COUNT LISTENER ================= */
-    const unlocksRef = ref(rtdb, `lockers/${lockerIdNumeric}/unlockCount`);
+    const unlocksRef = ref(rtdb, `${lockerIdNumeric}/unlockCount`);
     onValue(unlocksRef, async (snapshot) => {
       const count = snapshot.val() || 0;
       const el = document.getElementById("totalUnlocks");
@@ -789,7 +789,7 @@
 
             if (!existingStart || existingStart === 0) {
               // Double check RTDB just in case
-              const stRef = ref(rtdb, `lockers/${lockerIdNumeric}/startTime`);
+              const stRef = ref(rtdb, `${lockerIdNumeric}/startTime`);
               const stSnap = await get(stRef);
               existingStart = stSnap.val();
             }
@@ -804,7 +804,7 @@
               const sessionEnd = now + (data.duration || 0);
 
               await updateDoc(lockerDocRef, { startTime: now, sessionEnd: sessionEnd });
-              await update(ref(rtdb, `lockers/${lockerIdNumeric}`), { startTime: now, sessionEnd: sessionEnd });
+              await update(ref(rtdb, `${lockerIdNumeric}`), { startTime: now, sessionEnd: sessionEnd });
             } else {
               // Timer is already valid, ensure localState matches
               localStartTime = existingStart;
@@ -818,8 +818,8 @@
 
     /* ================= REAL-TIME TIMER LOGIC ================= */
     const lockerRef = doc(db, "lockers", `locker_${lockerId}`);
-    const rtdbStartTimeRef = ref(rtdb, `lockers/${lockerIdNumeric}/startTime`);
-    const rtdbStatusRef = ref(rtdb, `lockers/${lockerIdNumeric}/status`);
+    const rtdbStartTimeRef = ref(rtdb, `${lockerIdNumeric}/startTime`);
+    const rtdbStatusRef = ref(rtdb, `${lockerIdNumeric}/status`);
 
     let timerInterval = null;
 
@@ -1015,7 +1015,7 @@
         if (data.status === "ACTIVE") {
           const updates = { status: "AVAILABLE", startTime: null, duration: 0, currentPin: null, userId: null, sessionEnd: 0 };
           updateDoc(doc(db, "lockers", `locker_${lockerIdNumeric}`), updates);
-          update(ref(rtdb, `lockers/${lockerIdNumeric}`), { status: "AVAILABLE", pin: null, startTime: 0, duration: 0, unlockCount: 0, sessionEnd: 0 });
+          update(ref(rtdb, `${lockerIdNumeric}`), { status: "AVAILABLE", pin: null, startTime: 0, duration: 0, unlockCount: 0, sessionEnd: 0 });
         }
       }
     });

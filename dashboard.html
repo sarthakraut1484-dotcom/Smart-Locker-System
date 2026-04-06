@@ -586,7 +586,7 @@
         // Fetch BOTH databases to compare
         const [firestoreSnap, rtdbSnap] = await Promise.all([
            getDocs(collection(db, "lockers")),
-           get(ref(rtdb, "lockers"))
+           get(ref(rtdb, ""))
         ]);
 
         const now = Date.now();
@@ -631,7 +631,7 @@
             try {
               const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
               const authParam = idToken ? `?auth=${idToken}` : "";
-              const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerIdNumeric}.json${authParam}`, {
+              const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${lockerIdNumeric}.json${authParam}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                   status: "AVAILABLE",

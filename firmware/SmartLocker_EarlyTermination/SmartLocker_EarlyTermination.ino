@@ -4,7 +4,6 @@
 #include <SPI.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
-#include <XPT2046_Touchscreen.h>
 #include "qrcodegen.h"
 #include <time.h>
 #include <WiFiClientSecure.h>
@@ -87,9 +86,6 @@ const char* FIREBASE_ROOT_CA = \
 
 WiFiClientSecure wifiClient;
 
-/* ================= MIRROR FIXES ================= */
-const bool FIX_TOUCH_MIRROR = true;
-
 /* ================= WIFI ================= */
 #define WIFI_SSID     "Sarthak_Raut"
 #define WIFI_PASSWORD "qwertyuiop"
@@ -102,28 +98,32 @@ const bool FIX_TOUCH_MIRROR = true;
 #define LOCKER_ID     "4"   
 
 /* ================= HARDWARE ================= */
-#define LOCK_PIN 32 
+#define LOCK_PIN 26 
 #define UNLOCK_TIME 3000
 
 /* ================= PINS ================= */
-#define TFT_CS    15
-#define TFT_DC    2
-#define TFT_RST   4
-#define TOUCH_CS  21
-#define TOUCH_IRQ 22 
+#define TFT_CS    5
+#define TFT_DC    4
+#define TFT_RST   22
 
+/* ================= TOUCH ================= */
+#define TOUCH_CS  15
+#define TOUCH_CLK 25
+#define TOUCH_DIN 32
+#define TOUCH_DO  36
 /* ================= THEME (HEX MATCHED) ================= */
 uint16_t RGB565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3); }
 
-#define THEME_BG          (~RGB565(15, 23, 42))    
-#define THEME_HEADER      (~RGB565(30, 58, 138))   
-#define THEME_BTN         (~RGB565(51, 65, 85))    
-#define THEME_BTN_PRESS   (~RGB565(34, 197, 94))   
-#define THEME_TEXT        (~RGB565(255, 255, 255)) 
-#define THEME_CANCEL      (~RGB565(239, 68, 68))   
-#define THEME_ENTER       (~RGB565(59, 130, 246))  
-#define THEME_NEUTRAL     (~RGB565(250, 204, 21))  
-#define THEME_SHADOW      (~RGB565(5, 10, 20))     
+#define THEME_BG          RGB565(15, 23, 42)       // Dark Navy Blue
+#define THEME_HEADER      RGB565(15, 35, 80)       // Deep Navy Header
+#define THEME_BTN         RGB565(40, 55, 90)       // Slate Blue Button
+#define THEME_BTN_PRESS   RGB565(0, 210, 255)      // Cyan Press
+#define THEME_TEXT        RGB565(255, 255, 255)    // White
+#define THEME_ACCENT      RGB565(0, 210, 255)      // Cyan Accent
+#define THEME_CANCEL      RGB565(255, 40, 40)      // Solid Red
+#define THEME_ENTER       RGB565(0, 220, 110)      // Solid Green
+#define THEME_NEUTRAL     RGB565(255, 180, 0)      // Gold
+#define THEME_SHADOW      RGB565(0, 10, 20)        // Deep Shadow
 
 /* ================= TOUCH KEYPAD ================= */
 struct TouchButton {
@@ -147,7 +147,7 @@ TouchButton buttons[12] = {
   { 88,  201, 64, 42, '8', THEME_BTN, THEME_BTN_PRESS, false },
   { 160, 201, 64, 42, '9', THEME_BTN, THEME_BTN_PRESS, false },
   
-  { 16,  249, 64, 42, '*', THEME_CANCEL, THEME_BTN_PRESS, false }, // Cancel/Del
+  { 16,  249, 64, 42, '<', THEME_CANCEL, THEME_BTN_PRESS, false }, // Cancel/Del
   { 88,  249, 64, 42, '0', THEME_BTN, THEME_BTN_PRESS, false },
   { 160, 249, 64, 42, '#', THEME_ENTER, THEME_BTN_PRESS, false }  // Enter
 };
@@ -166,6 +166,7 @@ int currentUnlockCount = 0;
 unsigned long lastFirebasePoll = 0;
 const unsigned long POLL_INTERVAL = 6000; // Check DB every 6s instead to avoid UI lags
 unsigned long lastKeypadInteraction = 0;
+unsigned long lastTouch = 0; 
 
 
 // Security variables
@@ -186,11 +187,45 @@ uint16_t currentStatusColor = THEME_NEUTRAL;
 
 /* ================= OBJECTS ================= */
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
-// 🛡️ Bypassing Hardware IRQ Pin: Passing only TOUCH_CS completely ignores the physical 
-// IRQ pin (which often fails on ESP32) and instead forces 100% reliable SPI polling.
-XPT2046_Touchscreen ts(TOUCH_CS);
 uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
 uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
+
+/* ================= TOUCH HELPERS (BIT-BANGED) ================= */
+uint16_t readTouch(uint8_t cmd) {
+  uint16_t r = 0;
+  digitalWrite(TOUCH_CS, LOW);
+  for (int i = 7; i >= 0; i--) {
+    digitalWrite(TOUCH_DIN, (cmd >> i) & 1);
+    digitalWrite(TOUCH_CLK, HIGH);
+    delayMicroseconds(2);
+    digitalWrite(TOUCH_CLK, LOW);
+  }
+  for (int i = 11; i >= 0; i--) {
+    digitalWrite(TOUCH_CLK, HIGH);
+    if (digitalRead(TOUCH_DO)) r |= (1 << i);
+    digitalWrite(TOUCH_CLK, LOW);
+  }
+  digitalWrite(TOUCH_CS, HIGH);
+  return r;
+}
+
+bool getTouch(int &x, int &y) {
+  uint16_t z = readTouch(0xB0);
+  if (z < 120) return false;
+
+  uint16_t rx = (readTouch(0xD0) + readTouch(0xD0)) / 2;
+  uint16_t ry = (readTouch(0x90) + readTouch(0x90)) / 2;
+
+  if (rx < 200 || rx > 1800 || ry < 300 || ry > 1900) return false;
+
+  x = map(rx, 250, 1650, 0, 240);
+  y = map(ry, 390, 1850, 0, 320);
+
+  x = constrain(x, 0, 239);
+  y = constrain(y, 0, 319);
+
+  return true;
+}
 
 void unlockLocker(bool clearCommand = false);
 void terminateSession();
@@ -200,10 +235,17 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   
+  digitalWrite(LOCK_PIN, LOW); // Ensure pin is LOW before making it an output to prevent glitch
   pinMode(LOCK_PIN, OUTPUT);
-  digitalWrite(LOCK_PIN, LOW); // Locked
+  digitalWrite(LOCK_PIN, LOW); // Double check
   
-  SPI.begin(18, 19, 23); 
+  pinMode(TOUCH_CLK, OUTPUT);
+  pinMode(TOUCH_DIN, OUTPUT);
+  pinMode(TOUCH_DO, INPUT);
+  pinMode(TOUCH_CS, OUTPUT);
+  digitalWrite(TOUCH_CS, HIGH);
+
+  SPI.begin(18, 19, 23);  // SCK=18, MISO=19, MOSI=23
   
   tft.init(240, 320); 
   tft.setRotation(2);
@@ -211,11 +253,10 @@ void setup() {
   uint8_t madctl = 0x88; 
   tft.sendCommand(0x36, &madctl, 1); 
 
-  tft.invertDisplay(true);
+  tft.invertDisplay(false);
   tft.fillScreen(THEME_BG);
   
-  ts.begin();
-  ts.setRotation(2);
+  Serial.println("[TOUCH] Bit-banged XPT2046 init done.");
   
   centerText("Connecting...", 150, 2, THEME_NEUTRAL);
   
@@ -236,7 +277,7 @@ void setup() {
   
   tft.fillScreen(THEME_BG);
   centerText("Connected!", 150, 2, THEME_BTN_PRESS);
-  delay(1000);
+  delay(500);
   
   // 🛡️ Note: Google Firebase uses GTS Root R1 or GlobalSign R2, which rotate over time.
   // Using ISRG Root X1 (Let's Encrypt) causes SSL handshakes to fail completely.
@@ -250,10 +291,13 @@ void setup() {
   
   time_t now = time(NULL);
   unsigned long tStart = millis();
-  while (now < 24 * 3600 && millis() - tStart < 5000) { 
-    delay(100);
+  while (now < 1600000000 && millis() - tStart < 15000) { // Wait up to 15s for valid time
+    delay(500);
     now = time(NULL);
+    Serial.print("T");
   }
+  if (now > 1600000000) Serial.println("\n[TIME] Sync Successful");
+  else Serial.println("\n[TIME] Sync Failed (Proceeding with local timer)");
   
   pollLockerStatus();
   forceRedraw = true;
@@ -321,7 +365,7 @@ void processKeypadEntry(char key) {
     else if (key == '#') {
       if (terminationPIN.length() > 0) checkTerminationPIN();
     }
-    else if (key == '*') {
+    else if (key == '<') {
       // Smart Backspace vs Exit
       if (terminationPIN.length() > 0) {
          terminationPIN.remove(terminationPIN.length() - 1); // Delete last character
@@ -344,7 +388,7 @@ void processKeypadEntry(char key) {
   else if (key == '#') {
     if (enteredPIN.length() > 0) checkPIN();
   }
-  else if (key == '*') {
+  else if (key == '<') {
     // Smart Backspace vs Terminate
     if (enteredPIN.length() > 0) {
        enteredPIN.remove(enteredPIN.length() - 1); // Delete last character
@@ -358,100 +402,76 @@ void processKeypadEntry(char key) {
   }
 }
 
+/* ================= TOUCH HANDLER ================= */
 void handleTouch() {
-  if (!ts.touched()) {
-    // Ensure all buttons unpress visually if released
-    for (int i=0; i<12; i++) {
-       if (buttons[i].isPressed) {
-          buttons[i].isPressed = false;
-          drawButton(i); 
-       }
+  int tx, ty;
+  if (!getTouch(tx, ty)) {
+    for (int i = 0; i < 12; i++) {
+      if (buttons[i].isPressed) {
+        buttons[i].isPressed = false;
+        drawButton(i);
+      }
     }
     return;
   }
-  
-  // Guarantee that ANY touch registers as interaction to pause polling immediately
-  if (ts.touched()) lastKeypadInteraction = millis();
 
-  // 1. Stabilize touch input to prevent edge-case wrong coordinate reads
-  delay(10); 
-  if (!ts.touched()) return;
-  
-  TS_Point p = ts.getPoint();
-  
-  // 2. Gentle Z pressure requirement for light touches
-  if (p.z < 20) return; 
-  
-  int tx;
-  if(FIX_TOUCH_MIRROR) {
-    tx = map(p.x, 300, 3800, 0, 240); 
-  } else {
-    tx = map(p.x, 3800, 300, 0, 240); 
-  }
-  int ty = map(p.y, 3800, 300, 0, 320); 
-  
+  if (millis() - lastTouch < 120) return;
+  lastTouch = millis();
+  lastKeypadInteraction = millis();
+
   if (currentDisplayMode == DISP_QR && !terminationMode) {
-     static unsigned long lastQRTap = 0;
-     if (ty < 40 && millis() - lastQRTap > 3000) {
-        lastQRTap = millis();
-        pollLockerStatus(); // Silent sync without screen blinking
-     }
-     return;
+    if (ty < 40) {
+      pollLockerStatus();
+    }
+    return;
   }
 
-  // --- TOUCH DEBUGGER: Draws a small red dot exactly where it registers a touch ---
-  // If the user's finger is on '4' but the red dot appears on '#', then the touchscreen 
-  // coordinates are mirrored and FIX_TOUCH_MIRROR needs to be flipped!
-  tft.fillRect(tx - 2, ty - 2, 4, 4, THEME_CANCEL);
-  
-  // 3. Forgiving hit detection margin (makes it easier to press without exact precision)
-  int pad = 12; // Increased padding from 6 to 12 to be extremely forgiving
-  
-  for (int i=0; i<12; i++) {
-     if (tx >= (buttons[i].x - pad) && tx <= (buttons[i].x + buttons[i].w + pad) &&
-         ty >= (buttons[i].y - pad) && ty <= (buttons[i].y + buttons[i].h + pad)) {
-         
-         if (!buttons[i].isPressed) {
-             // Show press visually instantly
-             buttons[i].isPressed = true;
-             drawButton(i); 
-             
-             processKeypadEntry(buttons[i].label);
-             
-             // ---------- RESPONSIVE DEBOUNCE LOGIC ----------
-             delay(120); // Hold green "pressed" visual just enough for human perception
-             
-             buttons[i].isPressed = false;
-             drawButton(i); 
-             
-             // Wait for finger to be physically lifted to prevent rapid fire
-             uint32_t pressTime = millis();
-             while(ts.touched() && (millis() - pressTime < 2000)) {
-                 delay(10);
-             }
-             delay(100); // Post-release buffer
-             // ---------------------------------------------
-             
-             return; 
-         }
-     }
+  int pad = 15;
+  for (int i = 0; i < 12; i++) {
+    if (tx >= (buttons[i].x - pad) && tx <= (buttons[i].x + buttons[i].w + pad) &&
+        ty >= (buttons[i].y - pad) && ty <= (buttons[i].y + buttons[i].h + pad)) {
+      
+      if (!buttons[i].isPressed) {
+        buttons[i].isPressed = true;
+        drawButton(i);
+        processKeypadEntry(buttons[i].label);
+        delay(100);
+        buttons[i].isPressed = false;
+        drawButton(i);
+        return;
+      }
+    }
   }
 }
 
+
+
+
 void drawButton(int i) {
-   uint16_t bgColor = buttons[i].isPressed ? buttons[i].pressColor : buttons[i].color;
+   uint16_t bgColor = buttons[i].isPressed ? THEME_BTN_PRESS : buttons[i].color;
+   uint16_t textColor = THEME_TEXT;
    
+   // Handle special button colors
+   if (buttons[i].label == '<') bgColor = buttons[i].isPressed ? THEME_BTN_PRESS : THEME_CANCEL;
+   if (buttons[i].label == '#') bgColor = buttons[i].isPressed ? THEME_BTN_PRESS : THEME_ENTER;
+
    if (!buttons[i].isPressed) {
-     tft.fillRoundRect(buttons[i].x + 2, buttons[i].y + 3, buttons[i].w, buttons[i].h, 8, THEME_SHADOW);
+     tft.fillRoundRect(buttons[i].x + 2, buttons[i].y + 2, buttons[i].w, buttons[i].h, 10, THEME_SHADOW);
    }
 
-   tft.fillRoundRect(buttons[i].x, buttons[i].y, buttons[i].w, buttons[i].h, 8, bgColor);
+   tft.fillRoundRect(buttons[i].x, buttons[i].y, buttons[i].w, buttons[i].h, 10, bgColor);
+   tft.drawRoundRect(buttons[i].x, buttons[i].y, buttons[i].w, buttons[i].h, 10, THEME_ACCENT);
    
    tft.setTextSize(2);
-   tft.setTextColor(THEME_TEXT);
+   tft.setTextColor(textColor);
    
-   int cx = buttons[i].x + (buttons[i].w - 12) / 2;
-   int cy = buttons[i].y + (buttons[i].h - 16) / 2;
+   int16_t x1, y1;
+   uint16_t tw, th;
+   String lbl = String(buttons[i].label);
+   tft.getTextBounds(lbl.c_str(), 0, 0, &x1, &y1, &tw, &th);
+   
+   int cx = buttons[i].x + (buttons[i].w - tw) / 2;
+   int cy = buttons[i].y + (buttons[i].h - th) / 2;
    tft.setCursor(cx, cy);
    tft.print(buttons[i].label);
 }
@@ -461,27 +481,26 @@ void drawKeypad() {
 }
 
 void drawPinState() {
-  tft.fillRect(0, 58, 240, 40, THEME_BG);
+  tft.fillRect(0, 50, 240, 45, THEME_BG);
   
   if (enteredPIN.length() > 0) {
     String masked = "";
     for (int i = 0; i < enteredPIN.length(); i++) masked += "* ";
-    centerText(masked.c_str(), 70, 3, THEME_TEXT);
+    centerText(masked.c_str(), 75, 2, THEME_TEXT);
   } else {
-    // Clearer "Empty" indication
-    centerText("- - - -", 70, 3, THEME_BTN);
+    centerText("- - - -", 75, 2, THEME_BTN);
   }
 }
 
 void drawTerminationPinState() {
-  tft.fillRect(0, 58, 240, 40, THEME_BG);
+  tft.fillRect(0, 50, 240, 45, THEME_BG);
   
   if (terminationPIN.length() > 0) {
     String masked = "";
     for (int i = 0; i < terminationPIN.length(); i++) masked += "* ";
-    centerText(masked.c_str(), 70, 3, THEME_TEXT);
+    centerText(masked.c_str(), 75, 2, THEME_TEXT);
   } else {
-    centerText("- - - -", 70, 3, THEME_BTN);
+    centerText("- - - -", 75, 2, THEME_BTN);
   }
 }
 
@@ -523,18 +542,24 @@ void drawQRMode() {
   if (forceRedraw) {
     tft.fillScreen(THEME_BG);
 
-    tft.fillRect(0, 0, 240, 42, THEME_HEADER);
-    centerText("LOCKNLEAVE", 14, 2, THEME_TEXT);
-    
-    centerText("Scan to book locker", 60, 2, THEME_NEUTRAL);
+    // Dark Navy Header
+    tft.fillRect(0, 0, 240, 45, THEME_HEADER);
+    tft.drawFastHLine(0, 45, 240, THEME_ACCENT);
+    centerText("LockNLeave", 14, 2, THEME_TEXT);
 
+    // Subtitle
+    centerText("SCAN TO BOOK", 60, 2, THEME_NEUTRAL);
+    
+    // QR code with white backing for scanning integrity
     unsigned long long nowMs = (unsigned long long)time(NULL) * 1000ULL;
     String dynamicURL = "https://locknleave.vercel.app/booking?id=" + String(LOCKER_ID) + "&t=" + String(nowMs);
-    displayQRCode(dynamicURL.c_str(), 95, 6);
-    
-    String lockerText = "Locker #" + String(LOCKER_ID);
-    centerText(lockerText.c_str(), 290, 2, THEME_TEXT);
-    
+    displayQRCode(dynamicURL.c_str(), 100, 5);
+
+    // Modern Locker Badge
+    tft.fillRoundRect(50, 290, 140, 25, 8, THEME_BTN);
+    String lockerText = "LOCKER #" + String(LOCKER_ID);
+    centerText(lockerText.c_str(), 295, 2, THEME_TEXT);
+
     lastQrUpdate = millis();
     forceRedraw = false;
   }
@@ -547,23 +572,17 @@ void drawInfoMode() {
   if (forceRedraw) {
     tft.fillScreen(THEME_BG);
     
-    tft.fillRect(0, 0, 240, 42, THEME_HEADER);
-    centerText("LOCKNLEAVE", 14, 2, THEME_TEXT);
-    
-    if (showTimer) {
-        // Leave space for timer
-    } else {
-        centerText("Waiting to unlock...", 45, 1, THEME_NEUTRAL);
-    }
+    // Header
+    tft.fillRect(0, 0, 240, 40, THEME_HEADER);
+    centerText("LockNLeave", 12, 2, THEME_TEXT);
     
     drawKeypad();
     drawPinState();
-    updateStatus("Enter PIN...", THEME_NEUTRAL);
+    updateStatus("Enter PIN to Open", THEME_TEXT);
     
     forceRedraw = false;
   }
   
-  // Continuously update the timer
   if (showTimer) {
       long remainingSeconds = 0;
       if (currentSessionEnd > nowMs) {
@@ -577,9 +596,10 @@ void drawInfoMode() {
       char timeStr[16];
       sprintf(timeStr, "%02d:%02d:%02d", hours, minutes, seconds);
       
-      // Clear specifically the timer area (adjusted for larger size 2 font)
-      tft.fillRect(0, 43, 240, 15, THEME_BG);
-      centerText(timeStr, 43, 2, THEME_NEUTRAL);
+      // Smaller Timer Box
+      tft.fillRect(60, 45, 120, 25, THEME_BTN);
+      tft.drawRoundRect(60, 45, 120, 25, 6, THEME_ACCENT);
+      centerText(timeStr, 50, 2, THEME_TEXT);
   }
 }
 
@@ -606,7 +626,7 @@ void pollLockerStatus() {
 
   HTTPClient http;
   http.setReuse(true);
-  String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+  String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
   
   http.begin(wifiClient, url);
   int httpCode = http.GET();
@@ -628,17 +648,14 @@ void pollLockerStatus() {
       unlockLocker(true);
     }
     
+    // Read timestamps with precision
+    debugStartTime = doc["startTime"].as<unsigned long long>();
+    debugDuration = doc["duration"].as<long>(); // Assuming duration is in ms or converted later
+    
     if (endTs == 0) {
-       long long start = doc["startTime"];
-       long duration = doc["duration"]; 
-       debugStartTime = start;
-       debugDuration = duration;
-       if (start > 0 && duration > 0) {
-         endTs = (unsigned long long)start + (unsigned long long)duration;
+       if (debugStartTime > 0 && debugDuration > 0) {
+         endTs = debugStartTime + (unsigned long long)debugDuration;
        }
-    } else {
-       debugStartTime = doc["startTime"] | 0;
-       debugDuration = doc["duration"] | 0;
     }
     
     int unlocks = doc["unlockCount"] | 0; 
@@ -695,7 +712,7 @@ void checkPIN() {
   
   HTTPClient http;
   http.setReuse(true);
-  String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+  String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
   http.begin(wifiClient, url);
   int httpCode = http.GET();
   String payload = http.getString();
@@ -724,6 +741,7 @@ void checkPIN() {
       enteredPIN = ""; // Clear immediately on success
       
       updateStatus("Access Granted!", THEME_BTN_PRESS);
+      Serial.println("[AUTH] PIN Correct. Unlocking...");
       delay(700);
       unlockLocker();
     } else {
@@ -753,7 +771,7 @@ void checkTerminationPIN() {
   
   HTTPClient http;
   http.setReuse(true);
-  String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+  String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
   
   http.begin(wifiClient, url);
   int httpCode = http.GET();
@@ -785,7 +803,7 @@ void terminateSession() {
   if (WiFi.status() == WL_CONNECTED) {
      HTTPClient http;
      http.setReuse(true);
-     String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+     String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
      String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0}";
      
      http.begin(wifiClient, url);
@@ -823,47 +841,75 @@ void unlockLocker(bool clearCommand) {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.setReuse(true);
-    String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+    String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
     
-    String jsonUpdate = "{\"unlockCount\":" + String(currentUnlockCount);
+    // Use ArduinoJson to build the payload for better reliability
+    StaticJsonDocument<512> updateDoc;
+    updateDoc["unlockCount"] = currentUnlockCount;
+    updateDoc["status"] = "ACTIVE";
+    updateDoc["lastAction"] = "USER_UNLOCK";
+    updateDoc["lastUpdate"] = (unsigned long long)time(NULL) * 1000ULL;
     
-    if (clearCommand) {
-      jsonUpdate += ",\"command\":null";
-    }
+    if (clearCommand) updateDoc["command"] = (char*)NULL;
     
-    if (debugStartTime == 0) {
+    if (debugStartTime == 0 && time(NULL) > 1600000000) {
        unsigned long long nowUTC = (unsigned long long)time(NULL) * 1000ULL;
-       unsigned long long newEndUTC = nowUTC;
+       unsigned long long durMs = (unsigned long long)debugDuration;
+       if (durMs > 0 && durMs < 10000) durMs *= 60000ULL; 
        
-       jsonUpdate += ",\"startTime\":" + String((unsigned long long)nowUTC);
+       unsigned long long newEndUTC = nowUTC + durMs;
        
-       if (debugDuration > 0) {
-          newEndUTC = nowUTC + (unsigned long long)debugDuration;
-          jsonUpdate += ",\"sessionEnd\":" + String(newEndUTC);
-       }
+       updateDoc["startTime"] = nowUTC;
+       updateDoc["sessionEnd"] = newEndUTC;
        
        debugStartTime = nowUTC;
-       currentSessionEnd = newEndUTC; // Set local end immediately
+       currentSessionEnd = newEndUTC; 
+       Serial.println("[SYNC] First unlock - setting startTime and sessionEnd.");
     }
     
-    jsonUpdate += "}";
+    String jsonUpdate;
+    serializeJson(updateDoc, jsonUpdate);
     
+    Serial.print("[DB] Sending Update: "); Serial.println(jsonUpdate);
+    
+    // Use fresh connection for the write operation
+    http.setReuse(false); 
     http.begin(wifiClient, url);
-    http.sendRequest("PATCH", jsonUpdate);
+    http.addHeader("Content-Type", "application/json");
+    int patchCode = http.sendRequest("PATCH", jsonUpdate);
+    
+    Serial.print("[DB] Locker Update Code: "); Serial.println(patchCode);
+    if (patchCode == 200 || patchCode == 201 || patchCode == 204) {
+       Serial.println("[DB] Update Successful!");
+    } else {
+       Serial.print("[DB] Error Response: "); Serial.println(http.getString());
+    }
     http.end();
     
     // --- IoT BLOCKCHAIN AUDIT LOG ---
-    String logPayload = "{\"locker_id\":\"" + String(LOCKER_ID) + "\",\"timestamp\":" + String((unsigned long long)time(NULL) * 1000ULL) + ",\"action\":\"UNLOCK\"}";
-    String newHash = generateBlockchainHash(lastBlockHash, logPayload);
+    StaticJsonDocument<256> blockDoc;
+    JsonObject payloadObj = blockDoc.createNestedObject("payload");
+    payloadObj["locker_id"] = LOCKER_ID;
+    payloadObj["timestamp"] = (unsigned long long)time(NULL) * 1000ULL;
+    payloadObj["action"] = "UNLOCK";
     
-    String blockJson = "{\"payload\":" + logPayload + ",\"previousHash\":\"" + lastBlockHash + "\",\"hash\":\"" + newHash + "\"}";
+    blockDoc["previousHash"] = lastBlockHash;
+    String logPayload;
+    serializeJson(payloadObj, logPayload);
+    String newHash = generateBlockchainHash(lastBlockHash, logPayload);
+    blockDoc["hash"] = newHash;
+    
+    String blockJson;
+    serializeJson(blockDoc, blockJson);
     String blockUrl = "https://" + String(FIREBASE_HOST) + "/blockchain_ledger/" + String(LOCKER_ID) + "_" + String(time(NULL)) + ".json?auth=" + String(FIREBASE_SECRET);
     
     http.begin(wifiClient, blockUrl);
-    http.sendRequest("PUT", blockJson);
+    http.addHeader("Content-Type", "application/json");
+    int blockCode = http.sendRequest("PUT", blockJson);
     http.end();
+    Serial.print("[DB] Blockchain Status: "); Serial.println(blockCode);
     
-    lastBlockHash = newHash; // Step the physical ledger forward
+    lastBlockHash = newHash; 
     // --------------------------------
   }
   
@@ -871,10 +917,13 @@ void unlockLocker(bool clearCommand) {
   currentDisplayMode = DISP_INFO;
   forceRedraw = true;
   
-  tft.fillScreen(THEME_BTN_PRESS); // Full Green Background
+  tft.fillScreen(THEME_BG); // Integrated Dark Background
+  tft.fillRect(0, 0, 240, 42, THEME_ENTER); // Green Success Top Bar
+  centerText("UNLOCKED", 14, 2, THEME_TEXT);
+
   tft.setTextColor(THEME_TEXT);
   tft.setTextSize(3);
-  tft.setCursor(45, 120); tft.print("UNLOCKED");
+  tft.setCursor(45, 120); tft.print("GRANTED");
   tft.setTextSize(2);
   tft.setCursor(40, 160); tft.print("Open Locker Now");
 }
@@ -899,7 +948,7 @@ void checkSessionExpiration() {
     if (WiFi.status() == WL_CONNECTED) {
        HTTPClient http;
        http.setReuse(true);
-       String url = "https://" + String(FIREBASE_HOST) + "/lockers/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+       String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
        String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0}";
        http.begin(wifiClient, url);
        http.sendRequest("PATCH", json);
