@@ -795,7 +795,7 @@
             }
 
             // 4. If absolutely NO start time found anywhere, THEN start it
-            if (!existingStart || existingStart === 0) {
+            if (!existingStart || existingStart === 0 || existingStart === "0") {
               console.log("Unlock detected & no start time found. Starting timer...");
               const now = Date.now();
               localStartTime = now;
@@ -807,7 +807,7 @@
               await update(ref(rtdb, `${lockerIdNumeric}`), { startTime: now, sessionEnd: sessionEnd });
             } else {
               // Timer is already valid, ensure localState matches
-              localStartTime = existingStart;
+              localStartTime = Number(existingStart);
             }
           }
         } catch (err) {

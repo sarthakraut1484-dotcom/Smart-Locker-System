@@ -1303,40 +1303,29 @@
         }
 
         function initRealtime() {
-            // 1. Listen to Realtime Database (ESP32 Hardware Status)
-            onValue(ref(rtdb, ""), async (snapshot) => {
+            // 1. Listen to Realtime Database
+            onValue(ref(rtdb, ""), (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
                 
-                const { updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                // Check if data is nested under 'lockers' and flatten it temporarily for iteration
+                const normalized = (data.lockers) ? { ...data, ...data.lockers } : data;
 
-                Object.keys(data).forEach(async (id) => {
+                Object.keys(normalized).forEach(id => {
                     if (lockerData[id]) {
-                        lockerData[id].doorStatus = data[id].doorStatus || "CLOSED";
-                        lockerData[id].occupancy = data[id].occupancy || "EMPTY";
+                        lockerData[id].doorStatus = normalized[id].doorStatus || "CLOSED";
+                        lockerData[id].occupancy = normalized[id].occupancy || "EMPTY";
                         
-                        // AUTO-SYNC LOGIC: ESP32 Hardware reports AVAILABLE, but Firestore thinks ACTIVE
-                        // ✅ FIX: Extended to a 60-second grace period. 
-                        // If a locker was JUST booked, Firestore updates instantly but RTDB might take a few seconds to update to 'ACTIVE'.
-                        // This prevents the admin panel's background sync from accidentally thinking it was HW terminated.
-                        const rtdbStatus = data[id].status;
+                        const rtdbStatus = normalized[id].status;
                         const isNewlyBooked = (Date.now() - (lockerData[id].lastUpdated || 0)) < 60000;
                         
                         if (rtdbStatus === "AVAILABLE" && lockerData[id].status === "ACTIVE" && lockerData[id].firestoreStatus && !isNewlyBooked) {
-                            console.log(`[Admin Auto-Sync] Hardware terminated locker ${id}. Syncing Firestore...`);
-                            try {
-                                updateDoc(doc(db, "lockers", `locker_${id}`), {
-                                    status: "AVAILABLE",
-                                    userId: null,
-                                    startTime: null,
-                                    duration: 0,
-                                    currentPin: null,
-                                    userName: null
-                                });
-                            } catch (e) { console.error("Admin Auto-sync failed:", e); }
+                            console.log(`[Auto-Sync] HW term locker ${id}`);
+                            updateDoc(doc(db, "lockers", `locker_${id}`), {
+                                status: "AVAILABLE", userId: null, startTime: null, duration: 0, currentPin: null, userName: null
+                            }).catch(e => console.error(e));
                         }
 
-                        // Some systems might store status here too
                         if (rtdbStatus && !lockerData[id].firestoreStatus) {
                             lockerData[id].status = rtdbStatus;
                         }
@@ -1404,32 +1393,34 @@
             let alertHtml = "";
             let alertCount = 0;
 
+            console.log("Rendering UI with lockerData keys:", Object.keys(lockerData));
+
             Object.keys(lockerData).forEach(id => {
                 const data = lockerData[id];
-
-                const statusRaw = String(data.status || "AVAILABLE").toUpperCase();
-                if (statusRaw === "AVAILABLE") avail++;
-                else if (statusRaw === "ACTIVE") occ++;
-                else if (statusRaw === "MAINTENANCE") maint++;
+                const s = String(data.status || "AVAILABLE").toUpperCase();
+                
+                if (s === "AVAILABLE") avail++;
+                else if (s === "ACTIVE" || s === "OCCUPIED") occ++;
+                else if (s === "MAINTENANCE") maint++;
 
                 // Render Card
                 const cardHtml = createLockerCard(id, data);
                 gridFull.insertAdjacentHTML('beforeend', cardHtml);
                 
                 // Dashboard Grid (Only show non-available or abnormal status)
-                if (data.status !== "AVAILABLE" || data.doorStatus === "OPEN") {
+                if (s !== "AVAILABLE" || data.doorStatus === "OPEN") {
                     gridDash.insertAdjacentHTML('beforeend', cardHtml);
                 }
 
                 // Sessions
-                if (data.status === "ACTIVE") {
+                if (s === "ACTIVE" || s === "OCCUPIED") {
                     sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
                 }
 
-                // Alerts (Hardware Alerts)
-                if (data.doorStatus === "OPEN" && data.status !== "ACTIVE") {
+                // Alerts
+                if (data.doorStatus === "OPEN" && s !== "ACTIVE" && s !== "OCCUPIED") {
                     alertCount++;
-                    alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} is OPEN while status is ${data.status}.`);
+                    alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} is OPEN while status is ${s}.`);
                 }
             });
 
