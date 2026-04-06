@@ -703,7 +703,7 @@
 
     <main class="main-wrapper">
         <header>
-            <h3 id="sectionTitle">Dashboard Overview <span class="badge bg-success" style="font-size: 10px; vertical-align: middle;">V1.0.9 FINAL</span></h3>
+            <h3 id="sectionTitle">Dashboard Overview</h3>
             <div class="d-flex align-items-center gap-3">
                 <button class="btn btn-primary rounded-pill px-4 d-none d-lg-flex align-items-center" id="syncHeaderBtn" onclick="syncAllData()">
                     <i class="bi bi-arrow-repeat me-2"></i> Sync All Data
@@ -1150,84 +1150,10 @@
         </div>
     </div>
 
-    <script>
-        // NAVIGATION & CORE (Non-Module)
-        window.showSection = (id, el) => {
-            document.querySelectorAll(".dash-section").forEach(s => s.classList.remove("active"));
-            document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
-            const target = document.getElementById(id);
-            if(target) target.classList.add("active");
-            if(el) el.classList.add("active");
-            const titleEl = document.getElementById("sectionTitle");
-            if(titleEl) titleEl.innerHTML = el.textContent.trim() + ' <span class="badge bg-success" style="font-size: 10px; vertical-align: middle;">V1.1.0 LIVE</span>';
-        };
-
-        window.lockerData = {};
-        const lockerData = window.lockerData;
-        for(let i=1; i<=20; i++) {
-            lockerData[String(i)] = { status: "AVAILABLE", doorStatus: "CLOSED", occupancy: "EMPTY", currentPin: "---", userName: "N/A" };
-        }
-
-        function calculateRemaining(start, dur) {
-            if (!start || !dur) return "---";
-            const left = (start + dur) - Date.now();
-            if (left <= 0) return "Expired";
-            const totalS = Math.floor(left / 1000);
-            const m = Math.floor(totalS / 60);
-            const s = totalS % 60;
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        }
-
-        window.renderUI = function() {
-            try {
-                const lockerData = window.lockerData;
-                let avail = 0, occ = 0, maint = 0;
-                const gridDash = document.getElementById("dashboardLockerGrid");
-                const gridFull = document.getElementById("fullLockerGrid");
-                const sessBody = document.getElementById("sessionsBody");
-                if (!gridDash) return;
-                gridDash.innerHTML = ""; gridFull.innerHTML = "";
-                if(sessBody) sessBody.innerHTML = "";
-
-                Object.keys(lockerData).sort((a,b)=>Number(a)-Number(b)).forEach(id => {
-                    const data = lockerData[id];
-                    const s = (data.status || "AVAILABLE").toUpperCase();
-                    if (s === "AVAILABLE") avail++;
-                    else if (s === "ACTIVE" || s === "OCCUPIED") occ++;
-                    else if (s === "MAINTENANCE") maint++;
-
-                    const cardHtml = `
-                        <div class="locker-card">
-                            <div class="locker-header">
-                                <div class="locker-id">Locker #${id}</div>
-                                <span class="status-pill status-${s.toLowerCase()}">${s}</span>
-                            </div>
-                            <div class="locker-details">
-                                <div class="detail-row"><span class="detail-label">Door:</span> <span class="detail-value" style="color: ${data.doorStatus==='OPEN' ? 'var(--danger)' : 'var(--success)'}">${data.doorStatus || 'CLOSED'}</span></div>
-                                <div class="detail-row"><span class="detail-label">PIN:</span> <span class="detail-value admin-pin-${id}" style="color: var(--primary)">${data.currentPin || "---"}</span></div>
-                            </div>
-                            <div class="locker-actions">
-                                <button class="action-btn w-100" style="background: var(--primary); color: white;" onclick="window.sendCommand('${id}', 'OPEN', event)">Open</button>
-                            </div>
-                        </div>`;
-                    gridFull.insertAdjacentHTML('beforeend', cardHtml);
-                    if (s !== "AVAILABLE" || data.doorStatus === "OPEN") gridDash.insertAdjacentHTML('beforeend', cardHtml);
-                });
-
-                document.getElementById("statTotal").textContent = "20";
-                document.getElementById("statAvailable").textContent = avail;
-                document.getElementById("statOccupied").textContent = occ;
-                document.getElementById("statMaintenance").textContent = maint;
-            } catch (err) { console.error(err); }
-        }
-        document.addEventListener('DOMContentLoaded', window.renderUI);
-    </script>
-
+    <script src="bg-animation.js"></script>
     <script type="module">
-        window.onerror = (m,s,l,c,e) => alert(`SYSTEM CRASH: ${m}\nAt: ${s}:${l}:${c}`);
-        
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, where, getDocs, getDoc, setDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, updateDoc, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -1243,11 +1169,8 @@
         const rtdb = getDatabase(app);
         const auth = getAuth(app);
 
-        // Security Check
-        const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
-        if (!currentUser || !currentUser.isAdmin) { window.location.href = "login"; }
-
-        // Core Admin Helpers
+        // Expose Firestore helpers for the auto-pricing algorithm outside this module scope
+        const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
         window._firestoreDb = db;
         window._firestoreDoc = doc;
         window._firestoreSetDoc = setDoc;
@@ -1284,7 +1207,7 @@
                 // 2. Refresh Local Cache & Tables
                 console.log("Syncing: Updating local data structures...");
                 const historyData = bookingSnap.docs.map(d => d.data());
-                if (typeof updateCharts === 'function') updateCharts(historyData);
+                updateCharts(historyData);
                 
                 // 3. Log Action
                 await logAdminAction(`Manual System Sync Complete`, `Fixed ${fixedCount} records`);
@@ -1348,40 +1271,78 @@
             }
         };
 
+        // Security Check
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser"));
+        if (!currentUser || !currentUser.isAdmin) { window.location.href = "login"; }
+
+        document.getElementById("logoutBtn").onclick = () => { sessionStorage.clear(); window.location.href = "login"; };
+
+        // NAVIGATION
+        window.showSection = (id, el) => {
+            document.querySelectorAll(".dash-section").forEach(s => s.classList.remove("active"));
+            document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
+            document.getElementById(id).classList.add("active");
+            el.classList.add("active");
+            document.getElementById("sectionTitle").textContent = el.textContent.trim();
+        };
+
         // REAL-TIME DATA HANDLING
-        // window.lockerData is already defined in the global block
+        let lockerData = {};
+        // Initialize with 20 lockers from locker-data.js or default
+        for (let i = 1; i <= 20; i++) {
+            const sKey = String(i);
+            lockerData[sKey] = { 
+                status: "AVAILABLE", 
+                doorStatus: "CLOSED", 
+                occupancy: "EMPTY",
+                currentPin: "---",
+                userName: "N/A",
+                startTime: null,
+                duration: 0
+            };
+        }
 
         function initRealtime() {
-            // 1. Listen to Realtime Database
-            onValue(ref(rtdb, ""), (snapshot) => {
+            // 1. Listen to Realtime Database (ESP32 Hardware Status)
+            onValue(ref(rtdb, ""), async (snapshot) => {
                 const data = snapshot.val();
                 if (!data) return;
                 
-                // Check if data is nested under 'lockers' and flatten it temporarily for iteration
-                const normalized = (data.lockers) ? { ...data, ...data.lockers } : data;
+                const { updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
-                Object.keys(normalized).forEach(id => {
-                    // 🛡️ CRITICAL FIX: Skip if the locker entry itself is null or malformed
-                    if (lockerData[id] && normalized[id]) {
-                        lockerData[id].doorStatus = normalized[id].doorStatus || "CLOSED";
-                        lockerData[id].occupancy = normalized[id].occupancy || "EMPTY";
+                Object.keys(data).forEach(async (id) => {
+                    if (lockerData[id]) {
+                        lockerData[id].doorStatus = data[id].doorStatus || "CLOSED";
+                        lockerData[id].occupancy = data[id].occupancy || "EMPTY";
                         
-                        const rtdbStatus = normalized[id].status;
+                        // AUTO-SYNC LOGIC: ESP32 Hardware reports AVAILABLE, but Firestore thinks ACTIVE
+                        // ✅ FIX: Extended to a 60-second grace period. 
+                        // If a locker was JUST booked, Firestore updates instantly but RTDB might take a few seconds to update to 'ACTIVE'.
+                        // This prevents the admin panel's background sync from accidentally thinking it was HW terminated.
+                        const rtdbStatus = data[id].status;
                         const isNewlyBooked = (Date.now() - (lockerData[id].lastUpdated || 0)) < 60000;
                         
                         if (rtdbStatus === "AVAILABLE" && lockerData[id].status === "ACTIVE" && lockerData[id].firestoreStatus && !isNewlyBooked) {
-                            console.log(`[Auto-Sync] HW term locker ${id}`);
-                            updateDoc(doc(db, "lockers", `locker_${id}`), {
-                                status: "AVAILABLE", userId: null, startTime: null, duration: 0, currentPin: null, userName: null
-                            }).catch(e => console.error(e));
+                            console.log(`[Admin Auto-Sync] Hardware terminated locker ${id}. Syncing Firestore...`);
+                            try {
+                                updateDoc(doc(db, "lockers", `locker_${id}`), {
+                                    status: "AVAILABLE",
+                                    userId: null,
+                                    startTime: null,
+                                    duration: 0,
+                                    currentPin: null,
+                                    userName: null
+                                });
+                            } catch (e) { console.error("Admin Auto-sync failed:", e); }
                         }
 
+                        // Some systems might store status here too
                         if (rtdbStatus && !lockerData[id].firestoreStatus) {
                             lockerData[id].status = rtdbStatus;
                         }
                     }
                 });
-                window.renderUI();
+                renderUI();
             });
 
             // 2. Listen to Firestore (Booking & System Status)
@@ -1394,7 +1355,7 @@
                         lockerData[id].firestoreStatus = true; // Mark that we have firestore data
                     }
                 });
-                window.renderUI();
+                renderUI();
             });
 
             // 3. Listen to Bookings (Revenue & History)
@@ -1411,11 +1372,11 @@
                     body.insertAdjacentHTML('afterbegin', createHistoryRow(data, index));
                 });
                 document.getElementById("statRevenue").textContent = `₹${rev.toFixed(2)}`;
-                if (typeof updateCharts === 'function') updateCharts(historyData);
+                updateCharts(historyData);
                 
                 // Cache bookings for Instant PIN lookups and re-trigger UI securely
                 window._recentBookingsCache = historyData;
-                window.renderUI();
+                renderUI();
             });
 
             // 4. Listen to Maintenance Issues
@@ -1430,10 +1391,80 @@
             });
         }
 
-        function updateCharts(data) { console.log("Analytics data updated:", data ? data.length : 0); }
+        function renderUI() {
+            let avail = 0, occ = 0, maint = 0;
+            const gridDash = document.getElementById("dashboardLockerGrid");
+            const gridFull = document.getElementById("fullLockerGrid");
+            const sessionsBody = document.getElementById("sessionsBody");
+            const alertsContainer = document.getElementById("alertsContainer");
+            
+            gridDash.innerHTML = "";
+            gridFull.innerHTML = "";
+            sessionsBody.innerHTML = "";
+            let alertHtml = "";
+            let alertCount = 0;
+
+            Object.keys(lockerData).forEach(id => {
+                const data = lockerData[id];
+
+                const statusRaw = String(data.status || "AVAILABLE").toUpperCase();
+                if (statusRaw === "AVAILABLE") avail++;
+                else if (statusRaw === "ACTIVE") occ++;
+                else if (statusRaw === "MAINTENANCE") maint++;
+
+                // Render Card
+                const cardHtml = createLockerCard(id, data);
+                gridFull.insertAdjacentHTML('beforeend', cardHtml);
+                
+                // Dashboard Grid (Only show non-available or abnormal status)
+                if (data.status !== "AVAILABLE" || data.doorStatus === "OPEN") {
+                    gridDash.insertAdjacentHTML('beforeend', cardHtml);
+                }
+
+                // Sessions
+                if (data.status === "ACTIVE") {
+                    sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
+                }
+
+                // Alerts (Hardware Alerts)
+                if (data.doorStatus === "OPEN" && data.status !== "ACTIVE") {
+                    alertCount++;
+                    alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} is OPEN while status is ${data.status}.`);
+                }
+            });
+
+            document.getElementById("statTotal").textContent = Object.keys(lockerData).length;
+            document.getElementById("statAvailable").textContent = avail;
+            document.getElementById("statOccupied").textContent = occ;
+            document.getElementById("statMaintenance").textContent = maint;
+            
+            // 🛡️ SECURITY FIX: Fetch and replace hashed PINs for ACTIVE lockers
+            Object.keys(lockerData).forEach(id => {
+                if (lockerData[id].status === "ACTIVE") {
+                    updateAdminPin(id);
+                }
+            });
+            
+            if (alertCount > 0) {
+                document.getElementById("alertBadge").classList.remove("d-none");
+                document.getElementById("alertBadge").textContent = alertCount;
+                alertsContainer.innerHTML = alertHtml;
+            } else {
+                document.getElementById("alertBadge").classList.add("d-none");
+                // Restore empty state if no alerts
+                if (alertsContainer.children.length === 0) {
+                     alertsContainer.innerHTML = `
+                        <div class="empty-state text-center py-5">
+                            <i class="bi bi-check2-circle text-success" style="font-size: 48px;"></i>
+                            <h5 class="mt-3">System Clear</h5>
+                            <p class="text-muted">No active security alerts or hardware failures detected.</p>
+                        </div>`;
+                }
+            }
+        }
+
         function createLockerCard(id, data) {
-            const rawStatus = (data.status || "AVAILABLE");
-            const statusClass = `status-${rawStatus.toLowerCase()}`;
+            const statusClass = `status-${data.status.toLowerCase()}`;
             const doorStatus = data.doorStatus || "CLOSED";
             const occupancy = data.occupancy || "EMPTY";
             const timeLeft = data.startTime ? calculateRemaining(data.startTime, data.duration) : "N/A";
@@ -1442,7 +1473,7 @@
                 <div class="locker-card">
                     <div class="locker-header">
                         <div class="locker-id">Locker #${id}</div>
-                        <span class="status-pill ${statusClass}">${rawStatus}</span>
+                        <span class="status-pill ${statusClass}">${data.status}</span>
                     </div>
                     <div class="locker-details">
                         <div class="detail-row"><span class="detail-label">Door Status:</span> <span class="detail-value" style="color: ${doorStatus==='OPEN' ? 'var(--danger)' : 'var(--success)'}">${doorStatus}</span></div>
@@ -2289,8 +2320,6 @@
         window._firestoreSetDoc = null;
 
         initRealtime();
-        window.renderUI(); // 🚀 FORCE IMMEDIATE RENDER ON LOAD
-        console.log("Dashboard V1.1.1 Finalized & Ready.");
     </script>
 </body>
 
