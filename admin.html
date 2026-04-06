@@ -1381,82 +1381,65 @@
         }
 
         function renderUI() {
-            let avail = 0, occ = 0, maint = 0;
-            const gridDash = document.getElementById("dashboardLockerGrid");
-            const gridFull = document.getElementById("fullLockerGrid");
-            const sessionsBody = document.getElementById("sessionsBody");
-            const alertsContainer = document.getElementById("alertsContainer");
-            
-            gridDash.innerHTML = "";
-            gridFull.innerHTML = "";
-            sessionsBody.innerHTML = "";
-            let alertHtml = "";
-            let alertCount = 0;
-
-            console.log("Rendering UI with lockerData keys:", Object.keys(lockerData));
-
-            Object.keys(lockerData).forEach(id => {
-                const data = lockerData[id];
-                const s = String(data.status || "AVAILABLE").toUpperCase();
+            try {
+                let avail = 0, occ = 0, maint = 0;
+                const gridDash = document.getElementById("dashboardLockerGrid");
+                const gridFull = document.getElementById("fullLockerGrid");
+                const sessionsBody = document.getElementById("sessionsBody");
+                const alertsContainer = document.getElementById("alertsContainer");
                 
-                if (s === "AVAILABLE") avail++;
-                else if (s === "ACTIVE" || s === "OCCUPIED") occ++;
-                else if (s === "MAINTENANCE") maint++;
+                if (!gridDash) return;
 
-                // Render Card
-                const cardHtml = createLockerCard(id, data);
-                gridFull.insertAdjacentHTML('beforeend', cardHtml);
+                gridDash.innerHTML = "";
+                gridFull.innerHTML = "";
+                sessionsBody.innerHTML = "";
+                let alertHtml = "";
+                let alertCount = 0;
+
+                Object.keys(lockerData).forEach(id => {
+                    const data = lockerData[id];
+                    const s = String(data.status || "AVAILABLE").toUpperCase();
+                    
+                    if (s === "AVAILABLE") avail++;
+                    else if (s === "ACTIVE" || s === "OCCUPIED") occ++;
+                    else if (s === "MAINTENANCE") maint++;
+
+                    const cardHtml = createLockerCard(id, data);
+                    gridFull.insertAdjacentHTML('beforeend', cardHtml);
+                    
+                    if (s !== "AVAILABLE" || data.doorStatus === "OPEN") {
+                        gridDash.insertAdjacentHTML('beforeend', cardHtml);
+                    }
+
+                    if (s === "ACTIVE" || s === "OCCUPIED") {
+                        sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
+                    }
+
+                    if (data.doorStatus === "OPEN" && s !== "ACTIVE" && s !== "OCCUPIED") {
+                        alertCount++;
+                        alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} is OPEN while status is ${s}.`);
+                    }
+                });
+
+                document.getElementById("statTotal").textContent = Object.keys(lockerData).length;
+                document.getElementById("statAvailable").textContent = avail;
+                document.getElementById("statOccupied").textContent = occ;
+                document.getElementById("statMaintenance").textContent = maint;
                 
-                // Dashboard Grid (Only show non-available or abnormal status)
-                if (s !== "AVAILABLE" || data.doorStatus === "OPEN") {
-                    gridDash.insertAdjacentHTML('beforeend', cardHtml);
-                }
-
-                // Sessions
-                if (s === "ACTIVE" || s === "OCCUPIED") {
-                    sessionsBody.insertAdjacentHTML('beforeend', createSessionRow(id, data));
-                }
-
-                // Alerts
-                if (data.doorStatus === "OPEN" && s !== "ACTIVE" && s !== "OCCUPIED") {
-                    alertCount++;
-                    alertHtml += createAlertItem(id, "UNAUTHORIZED_OPEN", `Locker #${id} is OPEN while status is ${s}.`);
-                }
-            });
-
-            document.getElementById("statTotal").textContent = Object.keys(lockerData).length;
-            document.getElementById("statAvailable").textContent = avail;
-            document.getElementById("statOccupied").textContent = occ;
-            document.getElementById("statMaintenance").textContent = maint;
-            
-            // 🛡️ SECURITY FIX: Fetch and replace hashed PINs for ACTIVE lockers
-            Object.keys(lockerData).forEach(id => {
-                if (lockerData[id].status === "ACTIVE") {
-                    updateAdminPin(id);
-                }
-            });
-            
-            if (alertCount > 0) {
-                document.getElementById("alertBadge").classList.remove("d-none");
-                document.getElementById("alertBadge").textContent = alertCount;
-                alertsContainer.innerHTML = alertHtml;
-            } else {
-                document.getElementById("alertBadge").classList.add("d-none");
-                // Restore empty state if no alerts
-                if (alertsContainer.children.length === 0) {
-                     alertsContainer.innerHTML = `
-                        <div class="empty-state text-center py-5">
-                            <i class="bi bi-check2-circle text-success" style="font-size: 48px;"></i>
-                            <h5 class="mt-3">System Clear</h5>
-                            <p class="text-muted">No active security alerts or hardware failures detected.</p>
-                        </div>`;
-                }
+                // 🛡️ SECURITY FIX: Fetch and replace hashed PINs for ACTIVE lockers
+                Object.keys(lockerData).forEach(id => {
+                    if (lockerData[id].status === "ACTIVE") {
+                        updateAdminPin(id);
+                    }
+                });
+            } catch (err) {
+                console.error("Dashboard Rendering Error:", err);
             }
         }
 
         function createLockerCard(id, data) {
-            const safeStatus = (data.status || "AVAILABLE");
-            const statusClass = `status-${safeStatus.toLowerCase()}`;
+            const rawStatus = (data.status || "AVAILABLE");
+            const statusClass = `status-${rawStatus.toLowerCase()}`;
             const doorStatus = data.doorStatus || "CLOSED";
             const occupancy = data.occupancy || "EMPTY";
             const timeLeft = data.startTime ? calculateRemaining(data.startTime, data.duration) : "N/A";
@@ -1465,7 +1448,7 @@
                 <div class="locker-card">
                     <div class="locker-header">
                         <div class="locker-id">Locker #${id}</div>
-                        <span class="status-pill ${statusClass}">${data.status}</span>
+                        <span class="status-pill ${statusClass}">${rawStatus}</span>
                     </div>
                     <div class="locker-details">
                         <div class="detail-row"><span class="detail-label">Door Status:</span> <span class="detail-value" style="color: ${doorStatus==='OPEN' ? 'var(--danger)' : 'var(--success)'}">${doorStatus}</span></div>
