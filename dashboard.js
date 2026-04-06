@@ -71,7 +71,7 @@ async function autoExpireLockers() {
       // 2. Update Realtime Database (Hardware Sync)
       try {
         const lockerIdNumeric = docSnap.id.replace("locker_", "");
-        const rtdbRef = ref(rtdb, `lockers/${lockerIdNumeric}`);
+        const rtdbRef = ref(rtdb, `${lockerIdNumeric}`);
         await update(rtdbRef, {
           status: "AVAILABLE",
           pin: null,

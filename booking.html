@@ -967,7 +967,7 @@
             // B. Update Realtime Database (Hardware Sync) using REST API 
             // This is infinitely more reliable than WebSockets on poor mobile connections
             currentUser.getIdToken().then(idToken => 
-              fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${locker.id}.json?auth=${idToken}`, {
+              fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${locker.id}.json?auth=${idToken}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1023,9 +1023,12 @@
              <div style="font-size:14px; color:#94a3b8; font-weight:500;">Please remember this PIN to unlock your locker.</div>
           </div>
 
-          <button onclick="window.location.href='dashboard'" class="dash-btn">
-             Go to Dashboard <i class="bi bi-arrow-right"></i>
+          <button onclick="window.location.href='unlock?id=${lockerId}'" class="dash-btn">
+             Access Locker <i class="bi bi-shield-lock ms-2"></i>
           </button>
+          <div style="margin-top:16px;">
+             <a href="dashboard" style="color:#94a3b8; font-size:14px; text-decoration:none; font-weight:600;">Back to Dashboard</a>
+          </div>
         </div>
       `;
       document.body.appendChild(overlay);
