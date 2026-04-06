@@ -1290,7 +1290,8 @@
         let lockerData = {};
         // Initialize with 20 lockers from locker-data.js or default
         for (let i = 1; i <= 20; i++) {
-            lockerData[i] = { 
+            const sKey = String(i);
+            lockerData[sKey] = { 
                 status: "AVAILABLE", 
                 doorStatus: "CLOSED", 
                 occupancy: "EMPTY",
@@ -1406,9 +1407,10 @@
             Object.keys(lockerData).forEach(id => {
                 const data = lockerData[id];
 
-                if (data.status === "AVAILABLE") avail++;
-                else if (data.status === "ACTIVE") occ++;
-                else if (data.status === "MAINTENANCE") maint++;
+                const statusRaw = String(data.status || "AVAILABLE").toUpperCase();
+                if (statusRaw === "AVAILABLE") avail++;
+                else if (statusRaw === "ACTIVE") occ++;
+                else if (statusRaw === "MAINTENANCE") maint++;
 
                 // Render Card
                 const cardHtml = createLockerCard(id, data);
@@ -1804,7 +1806,7 @@
                 await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { status: "MAINTENANCE" });
                 const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
                 const authParam = idToken ? `?auth=${idToken}` : "";
-                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerId}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "MAINTENANCE" }) });
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${lockerId}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "MAINTENANCE" }) });
                 if (!res.ok) throw new Error("RTDB Update Failed");
                 
                 logAdminAction(`Reported issue for Locker #${lockerId}`, issue);
@@ -1832,7 +1834,7 @@
                         await updateDoc(doc(db, "lockers", `locker_${id}`), { status: "AVAILABLE" });
                         const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
                         const authParam = idToken ? `?auth=${idToken}` : "";
-                        const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
+                        const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${id}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
                         if (!res.ok) throw new Error("RTDB Update Failed");
                         logAdminAction("Restored from Maintenance", `Locker #${id}`);
                     } catch (e) { alert(e.message); }
@@ -1850,7 +1852,7 @@
                 await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { status: "AVAILABLE" });
                 const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
                 const authParam = idToken ? `?auth=${idToken}` : "";
-                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${lockerId}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${lockerId}.json${authParam}`, { method: 'PATCH', body: JSON.stringify({ status: "AVAILABLE" }) });
                 if (!res.ok) throw new Error("RTDB Update Failed");
                 
                 logAdminAction("Resolved Maintenance Issue", `Locker #${lockerId}`);
@@ -1902,7 +1904,7 @@
             try {
                 const idToken = await new Promise(r => auth.onAuthStateChanged(u => r(u ? u.getIdToken() : "")));
                 const authParam = idToken ? `?auth=${idToken}` : "";
-                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/lockers/${id}.json${authParam}`, {
+                const res = await fetch(`https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${id}.json${authParam}`, {
                     method: 'PATCH',
                     body: JSON.stringify({
                         command: cmd,

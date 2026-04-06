@@ -751,7 +751,7 @@
             sessionEnd: newSessionEnd
           });
 
-          await update(ref(rtdb, `lockers/${lockerIdNumeric}`), {
+          await update(ref(rtdb, `${lockerIdNumeric}`), {
             duration: newDuration,
             sessionEnd: newSessionEnd
           });
