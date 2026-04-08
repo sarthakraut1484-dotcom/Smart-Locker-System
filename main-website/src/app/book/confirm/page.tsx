@@ -93,60 +93,62 @@ function BookingConfirmInner() {
     const bookingId = `book_${Date.now()}`;
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const lockerDocRef = doc(db, "lockers", selectedLocker.firestoreId);
-        const lockerSnap = await transaction.get(lockerDocRef);
-        
-        if (lockerSnap.exists() && lockerSnap.data().status === 'ACTIVE') {
-          throw new Error("Locker was just taken. Please select another one.");
-        }
+      // Parallelize Firestore transaction and RTDB sync to reduce booking finalization latency
+      await Promise.all([
+        runTransaction(db, async (transaction) => {
+          const lockerDocRef = doc(db, "lockers", selectedLocker.firestoreId);
+          const lockerSnap = await transaction.get(lockerDocRef);
+          
+          if (lockerSnap.exists() && lockerSnap.data().status === 'ACTIVE') {
+            throw new Error("Locker was just taken. Please select another one.");
+          }
 
-        transaction.set(lockerDocRef, {
-          status: 'ACTIVE',
-          userId: user.uid,
-          userName: user.name,
-          startTime: null,
-          lastUpdated: Date.now(),
-          duration: duration * 60 * 60 * 1000,
-          sessionEnd: null,
-          currentPin: pinHash, // Store Hash for Hardware
-          encryptedPin: pinEncrypted, // Store Encrypted for User/Admin
-          bookingId: bookingId
-        }, { merge: true });
+          transaction.set(lockerDocRef, {
+            status: 'ACTIVE',
+            userId: user.uid,
+            userName: user.name,
+            startTime: null,
+            lastUpdated: Date.now(),
+            duration: duration * 60 * 60 * 1000,
+            sessionEnd: null,
+            currentPin: pinHash, 
+            encryptedPin: pinEncrypted,
+            bookingId: bookingId
+          }, { merge: true });
 
-        const bookingRef = doc(collection(db, "bookings"), bookingId);
-        transaction.set(bookingRef, {
-          id: bookingId,
-          userId: user.uid,
-          lockerId: selectedLocker.id,
-          amount: total,
-          duration: duration,
-          startTime: null,
-          sessionEnd: null,
-          pin: pinHash, // Store Hash for Hardware
-          encryptedPin: pinEncrypted, // Store Encrypted
-          status: 'PAID',
-          createdAt: Date.now()
-        });
-
-        if (useCredits) {
-          const creditsToDeduct = Math.ceil(creditDiscount * 10);
-          const userRef = doc(db, "users", user.uid);
-          transaction.update(userRef, {
-            credits: (user.credits || 0) - creditsToDeduct
+          const bookingRef = doc(collection(db, "bookings"), bookingId);
+          transaction.set(bookingRef, {
+            id: bookingId,
+            userId: user.uid,
+            lockerId: selectedLocker.id,
+            amount: total,
+            duration: duration,
+            startTime: null,
+            sessionEnd: null,
+            pin: pinHash,
+            encryptedPin: pinEncrypted,
+            status: 'PAID',
+            createdAt: Date.now()
           });
-        }
-      });
 
-      await update(ref(rtdb, selectedLocker.id), {
-        status: "ACTIVE",
-        pin: pinHash, // Store Hash for Hardware
-        sessionEnd: 0,
-        startTime: 0,
-        duration: duration * 60 * 60 * 1000,
-        unlockCount: 0,
-        lastUpdated: Date.now() // Prevents abandoned-session cleanup before first unlock
-      });
+          if (useCredits) {
+            const creditsToDeduct = Math.ceil(creditDiscount * 10);
+            const userRef = doc(db, "users", user.uid);
+            transaction.update(userRef, {
+              credits: (user.credits || 0) - creditsToDeduct
+            });
+          }
+        }),
+        update(ref(rtdb, selectedLocker.id), {
+          status: "ACTIVE",
+          pin: pinHash,
+          sessionEnd: 0,
+          startTime: 0,
+          duration: duration * 60 * 60 * 1000,
+          unlockCount: 0,
+          lastUpdated: Date.now()
+        })
+      ]);
 
       setGeneratedPin(pin);
       setIsSuccess(true);
