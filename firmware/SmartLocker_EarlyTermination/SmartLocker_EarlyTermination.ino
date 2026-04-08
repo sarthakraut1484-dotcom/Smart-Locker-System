@@ -661,37 +661,31 @@ void pollLockerStatus() {
     int unlocks = doc["unlockCount"] | 0; 
     String newStatus = st ? String(st) : "AVAILABLE";
     
-    if (newStatus != currentBackendStatus || unlocks != currentUnlockCount) {
-      if (newStatus != currentBackendStatus) forceRedraw = true;
-      if (unlocks != currentUnlockCount && currentBackendStatus == "ACTIVE") forceRedraw = true;
-      
-      currentBackendStatus = newStatus;
-      bool sameSession = ((unsigned long long)endTs == currentSessionEnd);
-      
-      if (currentSessionEnd == 0 && endTs > 0) sameSession = true;
-      currentSessionEnd = (unsigned long long)endTs;
-      
-      if (sameSession) {
-        if (unlocks > currentUnlockCount) currentUnlockCount = unlocks;
-      } else {
-        currentUnlockCount = unlocks;
-      }
-      
-      if (currentBackendStatus == "ACTIVE") {
-        currentDisplayMode = DISP_INFO;
-      } else {
+    // Always update internal state from RTDB on every poll
+    bool statusChanged = (newStatus != currentBackendStatus);
+    bool unlockChanged = (unlocks != currentUnlockCount);
+
+    currentBackendStatus = newStatus;
+    currentSessionEnd = (unsigned long long)endTs;
+    currentUnlockCount = unlocks;
+
+    // Always enforce correct display mode based on current status
+    if (currentBackendStatus == "ACTIVE") {
+      if (statusChanged || unlockChanged) forceRedraw = true;
+      currentDisplayMode = DISP_INFO;
+      Serial.println("[POLL] Status=ACTIVE -> DISP_INFO");
+    } else {
+      if (statusChanged) {
         currentDisplayMode = DISP_QR;
         terminationMode = false;
         terminationPIN = "";
-      }
-    } else {
-      if (currentBackendStatus == "ACTIVE") {
-        currentSessionEnd = (unsigned long long)endTs;
-        currentUnlockCount = unlocks;
+        forceRedraw = true;
+        Serial.println("[POLL] Status=AVAILABLE -> DISP_QR");
       }
     }
   }
 }
+
 
 void checkPIN() {
   if (millis() < lockoutUntil) {
