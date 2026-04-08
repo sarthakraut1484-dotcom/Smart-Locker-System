@@ -1366,9 +1366,12 @@
                 const { updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
                 Object.keys(data).forEach(async (id) => {
-                    if (lockerData[id]) {
-                        lockerData[id].doorStatus = data[id].doorStatus || "CLOSED";
-                        lockerData[id].occupancy = data[id].occupancy || "EMPTY";
+                    if (!lockerData[id]) {
+                        // Register new dynamically provisioned hardware node
+                        lockerData[id] = { status: "AVAILABLE", doorStatus: "CLOSED", occupancy: "EMPTY", currentPin: "---", userName: "N/A", startTime: null, duration: 0 };
+                    }
+                    lockerData[id].doorStatus = data[id].doorStatus || "CLOSED";
+                    lockerData[id].occupancy = data[id].occupancy || "EMPTY";
                         
                         // AUTO-SYNC LOGIC: ESP32 Hardware reports AVAILABLE, but Firestore thinks ACTIVE
                         // ✅ FIX: Extended to a 60-second grace period. 
@@ -1395,7 +1398,6 @@
                         if (rtdbStatus && !lockerData[id].firestoreStatus) {
                             lockerData[id].status = rtdbStatus;
                         }
-                    }
                 });
                 window.logDebug("Hardware state synchronized for all lockernodes.");
                 renderUI();
@@ -1407,10 +1409,11 @@
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
                     const id = docSnap.id.replace("locker_", "");
-                    if (lockerData[id]) {
-                        lockerData[id] = { ...lockerData[id], ...data };
-                        lockerData[id].firestoreStatus = true; // Mark that we have firestore data
+                    if (!lockerData[id]) {
+                        lockerData[id] = { status: "AVAILABLE", doorStatus: "CLOSED", occupancy: "EMPTY", currentPin: "---", userName: "N/A", startTime: null, duration: 0 };
                     }
+                    lockerData[id] = { ...lockerData[id], ...data };
+                    lockerData[id].firestoreStatus = true; // Mark that we have firestore data
                 });
                 window.logDebug(`Firestore sync verified: ${snapshot.size} locker configurations.`);
                 renderUI();
@@ -2149,7 +2152,7 @@
             });
 
             // Chart 2: Usage Donut
-            const totalLockers = 20; // Hardcoded total for now
+            const totalLockers = Object.keys(lockerData).length; // Dynamic total computed directly from active registry
             const activeCount = Object.values(lockerData).filter(l => l.status==='ACTIVE' || l.status==='OCCUPIED').length;
             usageChart = new Chart(ctx2, {
                 type: 'doughnut',
@@ -2380,7 +2383,17 @@
         window._firestoreDoc = null;
         window._firestoreSetDoc = null;
 
-        initRealtime();
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                if (window.logDebug) window.logDebug("Auth session securely rehydrated. Linking databases...");
+                initRealtime();
+            } else {
+                console.warn("No active Firebase Auth session found. Database queries will be blocked.");
+                if (window.logDebug) window.logDebug("Awaiting secure login session cache...");
+            }
+        });
     </script>
 </body>
 
