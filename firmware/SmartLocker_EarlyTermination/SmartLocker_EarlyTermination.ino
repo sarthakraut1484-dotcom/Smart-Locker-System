@@ -313,8 +313,8 @@ void loop() {
 
   checkSessionExpiration();
   
-  // Allow smooth touch typing: pause polling for 5 seconds after a touch interaction
-  bool userIsTyping = (millis() - lastKeypadInteraction < 5000);
+  // Allow smooth touch typing: pause polling for 3 seconds after a touch interaction (reduced for responsiveness)
+  bool userIsTyping = (millis() - lastKeypadInteraction < 3000);
   
   if (millis() - lastFirebasePoll >= POLL_INTERVAL && !userIsTyping) {
     pollLockerStatus();
@@ -625,7 +625,8 @@ void pollLockerStatus() {
   if (WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
-  http.setReuse(true);
+  http.setReuse(false); // Forced fresh connection for maximum reliability
+  http.setConnectTimeout(2000); // 2s timeout for snappier failure recovery
   String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
   
   http.begin(wifiClient, url);
@@ -671,16 +672,18 @@ void pollLockerStatus() {
 
     // Always enforce correct display mode based on current status
     if (currentBackendStatus == "ACTIVE") {
-      if (statusChanged || unlockChanged) forceRedraw = true;
-      currentDisplayMode = DISP_INFO;
-      Serial.println("[POLL] Status=ACTIVE -> DISP_INFO");
+      if (currentDisplayMode != DISP_INFO || statusChanged || unlockChanged) {
+        currentDisplayMode = DISP_INFO;
+        forceRedraw = true;
+        Serial.println("[POLL] Status=ACTIVE -> Transition to DISP_INFO");
+      }
     } else {
-      if (statusChanged) {
+      if (currentDisplayMode != DISP_QR || statusChanged) {
         currentDisplayMode = DISP_QR;
         terminationMode = false;
         terminationPIN = "";
         forceRedraw = true;
-        Serial.println("[POLL] Status=AVAILABLE -> DISP_QR");
+        Serial.println("[POLL] Status=AVAILABLE -> Transition to DISP_QR");
       }
     }
   }
