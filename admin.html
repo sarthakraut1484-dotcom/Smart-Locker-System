@@ -703,9 +703,17 @@
 
     <main class="main-wrapper">
         <header>
-            <h3 id="sectionTitle">Dashboard Overview</h3>
+            <h3 id="sectionTitle" style="display: flex; align-items: center; gap: 10px;">
+                Dashboard <span class="badge bg-success" style="font-size: 10px; padding: 4px 8px;">V1.2 PREMIUM</span>
+            </h3>
             <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-primary rounded-pill px-4 d-none d-lg-flex align-items-center" id="syncHeaderBtn" onclick="syncAllData()">
+                <div class="d-none d-md-flex align-items-center me-3" style="font-family: monospace; font-size: 12px; color: var(--success); background: rgba(16, 185, 129, 0.1); padding: 6px 12px; border-radius: 20px; border: 1px dashed rgba(16, 185, 129, 0.4);">
+                    <i class="bi bi-activity me-2"></i> Pulse: <span id="sysPulse" class="ms-1 fw-bold text-white">Connecting...</span>
+                </div>
+                <button class="btn btn-outline-info rounded-pill px-3 d-none d-lg-flex align-items-center" onclick="window.exportCSV()">
+                    <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export CSV
+                </button>
+                <button class="btn btn-primary rounded-pill px-4 d-none d-lg-flex align-items-center" id="syncHeaderBtn" onclick="window.syncAllData()">
                     <i class="bi bi-arrow-repeat me-2"></i> Sync All Data
                 </button>
                 <div class="user-info">
@@ -1082,6 +1090,10 @@
                         <button class="btn btn-outline-secondary btn-sm" onclick="clearLogs()">Clear History</button>
                     </div>
                 </div>
+                <!-- Internal Live Debug UI Console -->
+                <div id="liveDebugConsole" class="alert alert-dark mb-4 p-3 border rounded shadow-sm" style="font-size: 12px; font-family: monospace; max-height: 150px; overflow-y: auto; background: rgba(10,10,10,0.8); color: #10b981;">
+                    Waiting for live data streams...
+                </div>
                 <div id="blockchainAuditResult" class="d-none alert mb-4 p-3 border rounded shadow-sm" style="font-size: 14px;"></div>
                 <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
                     <table class="table">
@@ -1302,9 +1314,52 @@
             };
         }
 
+        // ================= SECURE GLOBAL LOGIC ===================
+        window.logDebug = (msg) => {
+            const c = document.getElementById("liveDebugConsole");
+            if(c) {
+                if(c.innerHTML.includes("Wait")) c.innerHTML = "";
+                c.innerHTML += `<div><span style="color:#cbd5e1">[${new Date().toLocaleTimeString()}]</span> ${msg}</div>`;
+                c.scrollTop = c.scrollHeight;
+            }
+        };
+        window.updatePulse = () => {
+            const p = document.getElementById("sysPulse");
+            if(p) p.textContent = new Date().toLocaleTimeString();
+        };
+        window.exportCSV = () => {
+            if(!window._recentBookingsCache || !window._recentBookingsCache.length) {
+                alert("No data available for export yet."); return;
+            }
+            let csv = "CreatedAt,LockerID,UserName,Amount,Hours,Status\n";
+            window._recentBookingsCache.forEach(r => {
+                csv += `"${new Date(r.createdAt || Date.now()).toLocaleString()}","${r.lockerId}","${r.userName}","${r.amount}","${r.hours}","${r.status}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'ASEP2_Lockers_Report.csv'; a.click();
+        };
+        window.logAdminAction = async (action, target) => {
+            try {
+                const { addDoc, collection } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                await addDoc(collection(window._firestoreDb || db, "admin_logs"), {
+                    action: action,
+                    target: target,
+                    adminAgent: navigator.userAgent,
+                    adminTime: new Date().toISOString(),
+                    timestamp: Date.now()
+                });
+                window.logDebug(`SecLog: ${action} on ${target}`);
+            } catch(e) { console.error("Audit log failed", e); }
+        };
+
         function initRealtime() {
+            console.log("Initializing Premium V1.2 Real-Time Sync...");
+            window.logDebug("System Initialization started.");
+            
             // 1. Listen to Realtime Database (ESP32 Hardware Status)
             onValue(ref(rtdb, ""), async (snapshot) => {
+                window.updatePulse();
                 const data = snapshot.val();
                 if (!data) return;
                 
@@ -1342,11 +1397,13 @@
                         }
                     }
                 });
+                window.logDebug("Hardware state synchronized for all lockernodes.");
                 renderUI();
             });
 
             // 2. Listen to Firestore (Booking & System Status)
             onSnapshot(collection(db, "lockers"), (snapshot) => {
+                window.updatePulse();
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
                     const id = docSnap.id.replace("locker_", "");
@@ -1355,11 +1412,13 @@
                         lockerData[id].firestoreStatus = true; // Mark that we have firestore data
                     }
                 });
+                window.logDebug(`Firestore sync verified: ${snapshot.size} locker configurations.`);
                 renderUI();
             });
 
             // 3. Listen to Bookings (Revenue & History)
             onSnapshot(collection(db, "bookings"), (snapshot) => {
+                window.updatePulse();
                 let rev = 0;
                 const body = document.getElementById("historyBody");
                 body.innerHTML = "";
@@ -1376,11 +1435,13 @@
                 
                 // Cache bookings for Instant PIN lookups and re-trigger UI securely
                 window._recentBookingsCache = historyData;
+                window.logDebug(`Financial database synced: parsed ${historyData.length} total ledgers.`);
                 renderUI();
             });
 
             // 4. Listen to Maintenance Issues
             onSnapshot(query(collection(db, "maintenance_logs"), orderBy("timestamp", "desc")), (snapshot) => {
+                window.updatePulse();
                 const body = document.getElementById("maintenanceTableBody");
                 if (!body) return;
                 body.innerHTML = "";
@@ -1482,13 +1543,13 @@
                         <div class="detail-row"><span class="detail-label">PIN:</span> <span class="detail-value pin-display admin-pin-${id}" style="color: var(--primary)" data-locker-id="${id}">${data.currentPin && data.currentPin.length > 8 ? "Fetching..." : (data.currentPin || "---")}</span></div>
                     </div>
                     <div class="locker-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <button class="action-btn" onclick="sendCommand('${id}', 'OPEN', event)" style="grid-column: span 2; background: var(--primary); color: white;">
+                        <button class="action-btn" onclick="window.sendCommand('${id}', 'OPEN', event)" style="grid-column: span 2; background: var(--primary); color: white; border: none; font-weight: bold;">
                             <i class="bi bi-unlock"></i> Open
                         </button>
-                        <button class="action-btn" onclick="setMaintenance('${id}')">
+                        <button class="action-btn" onclick="window.setMaintenance('${id}')" style="border: none; background: rgba(255,255,255,0.1); color: var(--text-main);">
                             <i class="bi bi-tools"></i> Maint.
                         </button>
-                        <button class="action-btn btn-danger-lite" onclick="endSession('${id}')">
+                        <button class="action-btn btn-danger-lite" onclick="window.endSession('${id}')" style="border: 1px dashed var(--danger);">
                             <i class="bi bi-arrow-counterclockwise"></i> Reset
                         </button>
                     </div>

@@ -1,0 +1,20 @@
+﻿727de2d Restored 18:15 baseline
+99f254c Admin V1.1.1 - Unified state management and fixed real-time sync
+0bad733 Admin V1.0.9 - Global navigation and state initialization fixed
+4340587 Admin V1.0.8 - Added global error alerts and debug markers
+229274c Admin V1.0.7 - Forced immediate UI render on load
+ddee98f Admin V1.0.6 - Optimized Firebase imports and fixed initialization
+c1256eb Fixed critical crash due to null RTDB entries (locker 16)
+d8fd5cb Resolved admin dashboard rendering crash and optimized RTDB sync
+5e4d8a2 Fixed critical dashboard crashes and unlock PIN scope errors
+4b76b06 dfdsfsd
+acf4e3a dfgdfg
+0d4a94c sdfdsf
+08a4b2b fsdfsd
+de879ec sfgf
+d67af69 sdfgfd
+6b668e4 dfdsfds
+10a677f change
+af11523 gfgdfgfd
+aedf4ac sdfsdfds
+5c7f31a fix(admin): use digit PINs instead of hashes
