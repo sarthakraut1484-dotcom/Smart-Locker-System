@@ -93,68 +93,71 @@ function BookingConfirmInner() {
     const bookingId = `book_${Date.now()}`;
 
     try {
-      // Parallelize Firestore transaction and RTDB sync to reduce booking finalization latency
-      await Promise.all([
-        runTransaction(db, async (transaction) => {
-          const lockerDocRef = doc(db, "lockers", selectedLocker.firestoreId);
-          const lockerSnap = await transaction.get(lockerDocRef);
-          
-          if (lockerSnap.exists() && lockerSnap.data().status === 'ACTIVE') {
-            throw new Error("Locker was just taken. Please select another one.");
-          }
+      console.log("[Booking] Starting transaction...");
+      await runTransaction(db, async (transaction) => {
+        const lockerDocRef = doc(db, "lockers", selectedLocker.firestoreId);
+        const lockerSnap = await transaction.get(lockerDocRef);
+        
+        if (lockerSnap.exists() && lockerSnap.data().status === 'ACTIVE') {
+          throw new Error("Locker is already taken.");
+        }
 
-          transaction.set(lockerDocRef, {
-            status: 'ACTIVE',
-            userId: user.uid,
-            userName: user.name,
-            startTime: null,
-            lastUpdated: Date.now(),
-            duration: duration * 60 * 60 * 1000,
-            sessionEnd: null,
-            currentPin: pinHash, 
-            encryptedPin: pinEncrypted,
-            bookingId: bookingId
-          }, { merge: true });
-
-          const bookingRef = doc(collection(db, "bookings"), bookingId);
-          transaction.set(bookingRef, {
-            id: bookingId,
-            userId: user.uid,
-            lockerId: selectedLocker.id,
-            amount: total,
-            duration: duration,
-            startTime: null,
-            sessionEnd: null,
-            pin: pinHash,
-            encryptedPin: pinEncrypted,
-            status: 'PAID',
-            createdAt: Date.now()
-          });
-
-          if (useCredits) {
-            const creditsToDeduct = Math.ceil(creditDiscount * 10);
-            const userRef = doc(db, "users", user.uid);
-            transaction.update(userRef, {
-              credits: (user.credits || 0) - creditsToDeduct
-            });
-          }
-        }),
-        update(ref(rtdb, selectedLocker.id), {
-          status: "ACTIVE",
-          pin: pinHash,
-          sessionEnd: 0,
-          startTime: 0,
+        transaction.set(lockerDocRef, {
+          status: 'ACTIVE',
+          userId: user.uid,
+          userName: user.name,
+          startTime: null,
+          lastUpdated: Date.now(),
           duration: duration * 60 * 60 * 1000,
-          unlockCount: 0,
-          lastUpdated: Date.now()
-        })
-      ]);
+          sessionEnd: null,
+          currentPin: pinHash, 
+          encryptedPin: pinEncrypted,
+          bookingId: bookingId
+        }, { merge: true });
+
+        const bookingRef = doc(collection(db, "bookings"), bookingId);
+        transaction.set(bookingRef, {
+          id: bookingId,
+          userId: user.uid,
+          lockerId: selectedLocker.id,
+          amount: total,
+          duration: duration,
+          status: 'PAID',
+          createdAt: Date.now(),
+          pin: pinHash,
+          encryptedPin: pinEncrypted
+        });
+
+        if (useCredits && (user?.credits || 0) > 0) {
+          const creditsToDeduct = Math.ceil(creditDiscount * 10);
+          const userRef = doc(db, "users", user.uid);
+          transaction.update(userRef, {
+            credits: (user.credits || 0) - creditsToDeduct
+          });
+        }
+      });
+
+      console.log("[Booking] Firestore success. Updating RTDB for hardware...");
+      
+      // Update RTDB (hardware) - we don't strictly await this for the UI to show success,
+      // but we kick it off and handle errors silently to keep the user moving.
+      update(ref(rtdb, selectedLocker.id), {
+        status: "ACTIVE",
+        pin: pinHash,
+        sessionEnd: 0,
+        startTime: 0,
+        duration: duration * 60 * 60 * 1000,
+        unlockCount: 0,
+        lastUpdated: Date.now()
+      }).catch(e => console.error("[RTDB Sync Error]", e));
 
       setGeneratedPin(pin);
       setIsSuccess(true);
-      setLoading(false);
+      window.scrollTo(0,0);
     } catch (err: any) {
-      alert(err.message);
+      console.error("[Booking Error]", err);
+      alert(err.message || "Booking failed. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
