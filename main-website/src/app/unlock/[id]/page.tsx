@@ -111,10 +111,38 @@ export default function UnlockPage() {
       }
     });
 
+    // 3. RTDB Status Listener — Bridge hardware early-termination to Firestore
+    //    The ESP32's terminateSession() only writes to RTDB. This listener
+    //    detects that write and propagates it to Firestore so the website UI
+    //    updates correctly (credits award, session end, etc.)
+    const unsubRtdbStatus = onValue(ref(rtdb, `${lockerId}/status`), async (snap) => {
+      const rtdbStatus = snap.val() as string | null;
+      const currentLocker = lockerDataRef.current;
+      
+      // Hardware terminated early: RTDB is AVAILABLE but Firestore still shows ACTIVE
+      if (rtdbStatus === 'AVAILABLE' && currentLocker?.status === 'ACTIVE') {
+        console.info('[HW-SYNC] Hardware early termination detected. Syncing Firestore...');
+        try {
+          await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+            status: 'AVAILABLE',
+            startTime: null,
+            sessionEnd: 0,
+            duration: 0,
+            currentPin: null,
+            lastUpdated: Date.now()
+          });
+        } catch (err) {
+          console.error('[HW-SYNC] Failed to sync termination to Firestore:', err);
+        }
+      }
+    });
+
     return () => {
       unsubFirestore();
       unsubUnlockCount();
+      unsubRtdbStatus();
     };
+
   }, [lockerId]);
 
   // Timer Effect: Syncs with Firestore startTime / sessionEnd
