@@ -70,17 +70,6 @@ export default function UnlockPage() {
         if (remaining > 60000) {
           const credits = Math.floor(remaining / 60000);
           setCreditsAwarded(credits);
-          
-          // PERSIST CREDITS TO DATABASE - Use currentUser from sessionStorage if user store is lagging
-          const storedUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
-          const targetUid = user?.uid || storedUser?.uid;
-
-          if (targetUid) {
-            const userRef = doc(db, "users", targetUid);
-            setDoc(userRef, {
-              credits: increment(credits)
-            }, { merge: true }).catch(err => console.error("Credit update failed:", err));
-          }
         }
       }
     });
@@ -404,18 +393,9 @@ export default function UnlockPage() {
                     router.push('/dashboard');
                   }
                 }}
-                className="w-full bg-linear-to-r from-amber-500 to-orange-600 text-white py-4 rounded-xl text-base font-black uppercase italic tracking-widest hover:scale-105 transition-all shadow-lg shadow-amber-500/30 mb-4"
+                className="w-full bg-linear-to-r from-amber-500 to-orange-600 text-white py-4 rounded-xl text-base font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-amber-500/30"
               >
-                CLAIM & DASHBOARD
-              </button>
-              <button 
-                onClick={() => {
-                  setCreditsAwarded(null);
-                  router.push('/dashboard');
-                }}
-                className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-white transition-colors"
-              >
-                SKIP FOR NOW
+                CLAIM
               </button>
              </motion.div>
           </div>

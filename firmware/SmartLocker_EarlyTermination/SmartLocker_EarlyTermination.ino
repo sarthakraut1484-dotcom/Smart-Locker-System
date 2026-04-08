@@ -164,7 +164,7 @@ String currentBackendStatus = "AVAILABLE";
 unsigned long long currentSessionEnd = 0;
 int currentUnlockCount = 0;
 unsigned long lastFirebasePoll = 0;
-const unsigned long POLL_INTERVAL = 6000; // Check DB every 6s instead to avoid UI lags
+const unsigned long POLL_INTERVAL = 3000; // Reduced to 3s for lower latency
 unsigned long lastKeypadInteraction = 0;
 unsigned long lastTouch = 0; 
 
@@ -610,7 +610,7 @@ void drawTerminationMode() {
     tft.fillRect(0, 0, 240, 42, THEME_CANCEL);
     centerText("END SESSION", 14, 2, THEME_TEXT);
 
-    centerText("Confirm PIN", 45, 2, THEME_NEUTRAL);
+    // centerText("Confirm PIN", 45, 2, THEME_NEUTRAL); // Removed as requested
     
     drawKeypad();
     drawTerminationPinState();

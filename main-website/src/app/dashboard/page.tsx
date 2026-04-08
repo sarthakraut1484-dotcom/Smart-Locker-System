@@ -131,7 +131,7 @@ export default function UserDashboard() {
       }
     };
 
-    const interval = setInterval(autoExpireLockers, 15000); // 15s interval like old dashboard.js
+    const interval = setInterval(autoExpireLockers, 5000); // Reduced to 5s for lower latency
     autoExpireLockers(); // Initial run
     return () => clearInterval(interval);
   }, []);

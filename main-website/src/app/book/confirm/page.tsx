@@ -79,7 +79,7 @@ function BookingConfirmInner() {
   };
 
   const subtotal = calculateSubtotal();
-  const creditDiscount = useCredits ? Math.min((user?.credits || 0) * 1, subtotal) : 0;
+  const creditDiscount = useCredits ? Math.min((user?.credits || 0) / 10, subtotal) : 0;
   const total = subtotal - creditDiscount;
 
   const handleBooking = async () => {
@@ -130,7 +130,7 @@ function BookingConfirmInner() {
         });
 
         if (useCredits) {
-          const creditsToDeduct = Math.ceil(creditDiscount / 1);
+          const creditsToDeduct = Math.ceil(creditDiscount * 10);
           const userRef = doc(db, "users", user.uid);
           transaction.update(userRef, {
             credits: (user.credits || 0) - creditsToDeduct
@@ -301,7 +301,7 @@ function BookingConfirmInner() {
                 />
               </div>
               <div className="flex justify-between items-end mt-2">
-                <span className="text-[10px] text-gray-600 font-bold tracking-tight">Available: <span className="text-amber-500/80">{user?.credits || 0}</span></span>
+                <span className="text-[10px] text-gray-600 font-bold tracking-tight">Available: <span className="text-amber-500/80">{user?.credits || 0}</span> <span className="text-[8px] opacity-50">(10:1 ratio)</span></span>
                 {useCredits && (
                   <span className="text-amber-400 font-black text-xs">−₹{creditDiscount.toFixed(2)}</span>
                 )}
