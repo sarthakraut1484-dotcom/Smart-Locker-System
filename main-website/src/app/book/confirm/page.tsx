@@ -139,9 +139,7 @@ function BookingConfirmInner() {
 
       console.log("[Booking] Firestore success. Updating RTDB for hardware...");
       
-      // Update RTDB (hardware) - we don't strictly await this for the UI to show success,
-      // but we kick it off and handle errors silently to keep the user moving.
-      update(ref(rtdb, selectedLocker.id), {
+      await update(ref(rtdb, selectedLocker.id), {
         status: "ACTIVE",
         pin: pinHash,
         sessionEnd: 0,
@@ -149,7 +147,7 @@ function BookingConfirmInner() {
         duration: duration * 60 * 60 * 1000,
         unlockCount: 0,
         lastUpdated: Date.now()
-      }).catch(e => console.error("[RTDB Sync Error]", e));
+      });
 
       setGeneratedPin(pin);
       setIsSuccess(true);

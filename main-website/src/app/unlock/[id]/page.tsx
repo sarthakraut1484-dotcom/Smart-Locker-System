@@ -109,7 +109,8 @@ export default function UnlockPage() {
       const currentLocker = lockerDataRef.current;
       
       // Hardware terminated early: RTDB is AVAILABLE but Firestore still shows ACTIVE
-      if (rtdbStatus === 'AVAILABLE' && currentLocker?.status === 'ACTIVE') {
+      // Only trigger if startTime exists (meaning session had already actually started)
+      if (rtdbStatus === 'AVAILABLE' && currentLocker?.status === 'ACTIVE' && currentLocker?.startTime) {
         console.info('[HW-SYNC] Hardware early termination detected. Syncing Firestore...');
         try {
           await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
