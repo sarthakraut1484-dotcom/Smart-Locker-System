@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #000000;
+  --color-foreground: #f8fafc;
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-secondary: #38bdf8;
+  --color-accent: #8b5cf6;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-muted: #94a3b8;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #f8fafc;
+  --primary: #6366f1;
+  --secondary: #38bdf8;
+  --accent: #8b5cf6;
+  --surface: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body {
+    background-color: #080808;
+    color: white;
+    min-height: 100vh;
+    background-image: 
+      linear-gradient(rgba(255, 255, 255, 0.08) 1.2px, transparent 1.2px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1.2px, transparent 1.2px),
+      radial-gradient(circle at center, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 100%);
+    background-size: 40px 40px, 40px 40px, 100% 100%;
+    background-attachment: fixed;
+    overflow-x: hidden;
+    position: relative;
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)];
+  }
+
+  .cyber-grid {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  }
+
+  .btn-primary {
+    @apply bg-linear-to-br from-primary to-primary-dark text-white px-6 py-2.5 rounded-full font-semibold transition-all hover:translate-y-[-2px] hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] active:scale-95;
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary px-6 py-2.5 rounded-full font-semibold transition-all hover:bg-primary/10 hover:translate-y-[-2px] active:scale-95;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+}

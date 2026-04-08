@@ -1,0 +1,397 @@
+"use client";
+
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowLeft, 
+  Lock, 
+  Unlock as UnlockIcon, 
+  Clock, 
+  ShieldCheck, 
+  History, 
+  Zap, 
+  Loader2,
+  Coins,
+  ChevronRight,
+  HandMetal
+} from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { db, rtdb } from '@/lib/firebase/config';
+import { doc, getDoc, updateDoc, onSnapshot, increment, setDoc } from 'firebase/firestore';
+import { ref, update, onValue, get } from 'firebase/database';
+import { decryptData } from '@/lib/crypto';
+
+export default function UnlockPage() {
+  const params = useParams();
+  const router = useRouter();
+  const lockerId = params.id as string;
+  const { user, initAuth } = useAuthStore();
+
+  const [lockerData, setLockerData] = useState<any>(null);
+  const [unlockCount, setUnlockCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState("00:00:00");
+  const [showExtension, setShowExtension] = useState(false);
+  const [extending, setExtending] = useState(false);
+  const [creditsAwarded, setCreditsAwarded] = useState<number | null>(null);
+  const awardTriggered = useRef(false);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lockerDataRef = useRef<any>(null); // Keep a ref to avoid stale closure in listeners
+
+  useEffect(() => {
+    initAuth();
+  }, []);
+
+  useEffect(() => {
+    lockerDataRef.current = lockerData;
+  }, [lockerData]);
+
+  useEffect(() => {
+    if (!lockerId) return;
+
+    // 1. Firestore Listener
+    const unsubFirestore = onSnapshot(doc(db, "lockers", `locker_${lockerId}`), (snap) => {
+      if (!snap.exists()) {
+        router.push('/dashboard');
+        return;
+      }
+      const data = snap.data();
+      const prevData = lockerDataRef.current;
+      setLockerData(data);
+      setLoading(false);
+
+      // Detection for early termination (Transition from ACTIVE to AVAILABLE)
+      if (data.status === 'AVAILABLE' && prevData?.status === 'ACTIVE' && !awardTriggered.current) {
+        awardTriggered.current = true; // Prevent double-awarding
+        
+        const remaining = (prevData.sessionEnd || 0) - Date.now();
+        if (remaining > 60000) {
+          const credits = Math.floor(remaining / 60000);
+          setCreditsAwarded(credits);
+          
+          // PERSIST CREDITS TO DATABASE - Use currentUser from sessionStorage if user store is lagging
+          const storedUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+          const targetUid = user?.uid || storedUser?.uid;
+
+          if (targetUid) {
+            const userRef = doc(db, "users", targetUid);
+            setDoc(userRef, {
+              credits: increment(credits)
+            }, { merge: true }).catch(err => console.error("Credit update failed:", err));
+          }
+        }
+      }
+    });
+
+    // 2. RTDB Unlock Count Listener
+    const unsubUnlockCount = onValue(ref(rtdb, `${lockerId}/unlockCount`), async (snap) => {
+      const count = snap.val() || 0;
+      setUnlockCount(count);
+
+      const currentLocker = lockerDataRef.current;
+      
+      // Hardware First-Unlock Trigger Logic
+      if (count > 0 && currentLocker?.status === 'ACTIVE' && !currentLocker?.startTime) {
+        const now = Date.now();
+        const duration = currentLocker.duration || 3600000; // Default 1hr if missing
+        const sessionEnd = now + duration;
+        
+        // Update both Firestore and RTDB to sync the timer start
+        await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+          startTime: now,
+          sessionEnd: sessionEnd
+        });
+        
+        await update(ref(rtdb, lockerId), {
+          startTime: now,
+          sessionEnd: sessionEnd
+        });
+      }
+    });
+
+    return () => {
+      unsubFirestore();
+      unsubUnlockCount();
+    };
+  }, [lockerId]);
+
+  // Timer Effect: Syncs with Firestore startTime / sessionEnd
+  useEffect(() => {
+    if (lockerData?.status === 'ACTIVE' && lockerData?.sessionEnd) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      
+      timerRef.current = setInterval(() => {
+        const now = Date.now();
+        const diff = lockerData.sessionEnd - now;
+
+        if (diff <= 0) {
+          setTimeLeft("00:00:00");
+          clearInterval(timerRef.current!);
+          return;
+        }
+
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+      }, 1000);
+      
+      return () => clearInterval(timerRef.current!);
+    } else {
+      setTimeLeft("--:--:--");
+    }
+  }, [lockerData?.sessionEnd, lockerData?.status]);
+
+  const handleExtend = async (hours: number) => {
+    setExtending(true);
+    const addMs = hours * 3600000;
+    const newDuration = (lockerData.duration || 0) + addMs;
+    const newEnd = (lockerData.sessionEnd || Date.now()) + addMs;
+
+    try {
+      await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+        duration: newDuration,
+        sessionEnd: newEnd
+      });
+      await update(ref(rtdb, lockerId), {
+        duration: newDuration,
+        sessionEnd: newEnd
+      });
+      setShowExtension(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setExtending(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+        <p className="text-gray-400 font-medium tracking-widest uppercase text-xs">Decrypting Signal...</p>
+      </div>
+    );
+  }
+
+  const isLocked = lockerData?.status === 'ACTIVE' && lockerData?.startTime;
+  const isReady = lockerData?.status === 'ACTIVE' && !lockerData?.startTime;
+  const isExpired = lockerData?.status === 'AVAILABLE';
+
+  return (
+    <div className="container mx-auto px-6 py-8 max-w-2xl">
+      <div className="mb-8 text-center md:text-left">
+        <h1 className="text-2xl font-black text-white font-outfit uppercase italic tracking-tighter leading-none mb-1">
+          Locker Access <span className="text-primary italic">{lockerId}</span>
+        </h1>
+        <p className="text-gray-600 text-[9px] font-bold uppercase tracking-widest">Digital-Hardware Synchronization System.</p>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {/* Module 1: Status & Timer */}
+        <div className="glass-panel p-6 rounded-2xl text-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-0.5 bg-white/5" />
+          
+          <div className={`p-3 rounded-xl w-14 h-14 mx-auto mb-4 flex items-center justify-center transition-all duration-500 ${
+            isLocked ? 'bg-rose-500/10 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.1)]' : 
+            isReady ? 'bg-primary/10 text-primary animate-pulse shadow-[0_0_20px_rgba(99,102,241,0.1)]' : 
+            'bg-emerald-500/10 text-emerald-500'
+          }`}>
+            {isLocked ? <Lock className="w-7 h-7" /> : <UnlockIcon className="w-7 h-7" />}
+          </div>
+
+          <div className="space-y-0.5 mb-4">
+            <div className="text-[8px] font-bold text-gray-600 uppercase tracking-[0.3em] leading-none mb-1.5">Operation Mode</div>
+            <div className={`text-xl font-black font-outfit uppercase italic tracking-tight ${
+              isLocked ? 'text-rose-500' : isReady ? 'text-primary' : 'text-emerald-500'
+            }`}>
+              {isLocked ? 'SESSION ACTIVE' : isReady ? 'READY' : 'TERMINATED'}
+            </div>
+          </div>
+
+          <div className="space-y-0.5">
+            <div className="text-[8px] font-bold text-gray-600 uppercase tracking-[0.3em] leading-none mb-1.5">Session Countdown</div>
+            <div className="text-4xl font-black text-white font-outfit tracking-tighter">
+              {timeLeft}
+            </div>
+          </div>
+
+          {!isExpired && (
+            <button 
+              onClick={() => setShowExtension(true)}
+              className="mt-6 group flex items-center gap-2 text-primary hover:text-white transition-all text-[8px] font-black uppercase tracking-[0.2em] mx-auto bg-white/5 px-4 py-2 rounded-full border border-white/5 hover:border-primary/30"
+            >
+              <Clock className="w-3 h-3" /> Extend
+            </button>
+          )}
+
+          {isReady && (
+             <div className="mt-6 pt-5 border-t border-white/5">
+                <p className="text-[9px] text-primary font-black uppercase tracking-[0.2em] animate-pulse max-w-[180px] mx-auto leading-relaxed">
+                  ENTER PIN TO START
+                </p>
+             </div>
+          )}
+        </div>
+
+        {/* Module 2: Access PIN */}
+        <div className="glass-panel p-6 rounded-2xl text-center border-primary/20 bg-linear-to-b from-primary/10 to-transparent relative overflow-hidden">
+          <div className="absolute -right-6 -top-6 p-10 opacity-5">
+             <ShieldCheck className="w-24 h-24 text-primary" />
+          </div>
+          <h4 className="text-[8px] font-black text-primary uppercase tracking-[0.3em] mb-6">Access Authorization PIN</h4>
+          <div className="flex gap-3 justify-center mb-6">
+            {(decryptData(lockerData?.encryptedPin || '') || '----').split('').map((char: string, i: number) => (
+              <div key={i} className="w-12 h-16 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center text-2xl font-black text-primary font-outfit tracking-tighter shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)]">
+                {char}
+              </div>
+            ))}
+          </div>
+          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest max-w-[220px] mx-auto leading-relaxed">
+            Encrypted session code. <span className="text-gray-400">Restricted for unit {lockerId}.</span>
+          </p>
+        </div>
+
+        {/* Module 3: Instructions & Telemetry */}
+        <div className="glass-panel p-6 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-8 border-white/5">
+          <div className="space-y-5">
+            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Operational Flow</h4>
+            <div className="space-y-4">
+              {[
+                { step: 'Locate Unit '+lockerId, desc: 'Find your locker at S3.' },
+                { step: 'Input Access PIN', desc: 'Secure keypad verification.' },
+                { step: 'Wait for Click', desc: 'Solenoid confirmation.' }
+              ].map((item, i) => (
+                <div key={i} className="flex gap-4">
+                  <span className="text-primary font-black font-outfit text-base">0{i+1}</span>
+                  <div>
+                    <div className="text-sm text-white font-bold leading-none mb-1.5">{item.step}</div>
+                    <div className="text-[10px] text-gray-500 font-medium leading-relaxed">{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="text-center flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-white/5 pt-6 md:pt-0">
+              <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em] mb-4">Hardware Telemetry</h4>
+              <div className="text-5xl font-black text-white font-outfit leading-none mb-3">
+                {String(unlockCount).padStart(2, '0')}
+              </div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Initial Unlocks</p>
+              <div className="mt-5 flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/5 opacity-80">
+                 <ShieldCheck className="w-3 h-3 text-primary" />
+                 <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Hardware Sync Active</span>
+              </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Extension Modal */}
+      <AnimatePresence>
+        {showExtension && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowExtension(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative glass-panel p-8 rounded-[2rem] max-w-sm w-full border-primary/30"
+            >
+              <h3 className="text-xl font-black text-white font-outfit uppercase italic mb-6 flex items-center gap-3 tracking-tighter">
+                <Clock className="text-primary w-5 h-5" /> Extend Time
+              </h3>
+              <div className="space-y-2 mb-8">
+                {[0.5, 1, 3, 6].map((h) => (
+                  <button
+                    key={h}
+                    disabled={extending}
+                    onClick={() => handleExtend(h)}
+                    className="w-full flex justify-between items-center p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-primary/10 transition-all text-left group"
+                  >
+                    <div>
+                      <div className="text-white font-bold text-xs">{h === 0.5 ? '30 Minutes' : `${h} Hours`}</div>
+                      <div className="text-[8px] text-gray-600 font-bold uppercase tracking-widest mt-1">Instant Add-on</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-primary font-black font-outfit text-sm">₹{(h * 70).toFixed(0)}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-700 group-hover:text-primary transition-all" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button 
+                onClick={() => setShowExtension(false)}
+                className="w-full py-1 text-[9px] font-black text-gray-600 uppercase tracking-[0.2em] hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Credit Celebration Overlay */}
+      <AnimatePresence>
+        {creditsAwarded && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+             <motion.div 
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              className="glass-panel p-10 rounded-[2.5rem] text-center border-amber-500/50 bg-linear-to-b from-amber-500/20 to-transparent"
+            >
+              <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
+                <Coins className="text-amber-500 w-10 h-10" />
+              </div>
+              <h2 className="text-3xl font-black text-white font-outfit uppercase italic mb-4 tracking-tighter leading-none">Credits!</h2>
+              <p className="text-gray-500 mb-8 max-w-xs mx-auto text-xs font-medium">
+                Earned <span className="text-amber-500 font-bold">{creditsAwarded}</span> loyalty credits.
+              </p>
+              <button 
+                onClick={async () => {
+                  try {
+                    const storedUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+                    const targetUid = user?.uid || storedUser?.uid;
+
+                    if (targetUid) {
+                      const userRef = doc(db, "users", targetUid);
+                      await setDoc(userRef, {
+                        credits: increment(creditsAwarded || 0)
+                      }, { merge: true });
+                    }
+                    setCreditsAwarded(null);
+                    router.push('/dashboard');
+                  } catch (err) {
+                    console.error("Claim failed:", err);
+                    router.push('/dashboard');
+                  }
+                }}
+                className="w-full bg-linear-to-r from-amber-500 to-orange-600 text-white py-4 rounded-xl text-base font-black uppercase italic tracking-widest hover:scale-105 transition-all shadow-lg shadow-amber-500/30 mb-4"
+              >
+                CLAIM & DASHBOARD
+              </button>
+              <button 
+                onClick={() => {
+                  setCreditsAwarded(null);
+                  router.push('/dashboard');
+                }}
+                className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-white transition-colors"
+              >
+                SKIP FOR NOW
+              </button>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

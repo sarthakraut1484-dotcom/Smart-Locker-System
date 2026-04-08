@@ -1,0 +1,331 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowLeft, 
+  Clock, 
+  CreditCard, 
+  Coins, 
+  ShieldCheck, 
+  Zap,
+  CheckCircle,
+  Loader2,
+  Box,
+  Lock as LockIcon
+} from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useLockerStore } from '@/store/useLockerStore';
+import { db, rtdb } from '@/lib/firebase/config';
+import { collection, doc, runTransaction, getDoc } from 'firebase/firestore';
+import { ref, update, onValue } from 'firebase/database';
+import { encryptData, hashPIN } from '@/lib/crypto';
+
+export default function BookingConfirmPage() {
+  const router = useRouter();
+  const { user, initAuth } = useAuthStore();
+  const { cleanupExpiredLocker } = useLockerStore();
+
+  const [selectedLocker, setSelectedLocker] = useState<any>(null);
+  const [duration, setDuration] = useState(1); // Hours
+  const [useCredits, setUseCredits] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [generatedPin, setGeneratedPin] = useState('');
+  const [pricing, setPricing] = useState<any>(null);
+
+  useEffect(() => {
+    initAuth();
+    const stored = sessionStorage.getItem("selectedLocker");
+    if (!stored) {
+      router.push('/book/select');
+      return;
+    }
+    setSelectedLocker(JSON.parse(stored));
+
+    // Fetch dynamic pricing
+    getDoc(doc(db, "settings", "pricing")).then(snap => {
+      if (snap.exists()) setPricing(snap.data());
+    });
+  }, []);
+
+  const calculateSubtotal = () => {
+    if (!selectedLocker) return 0;
+    const rate = selectedLocker.price || 70;
+    const planStr = duration === 0.5 ? "30min" : `${duration}hr`;
+    
+    if (pricing && pricing[planStr] && pricing._surgeActive) {
+      return pricing[planStr];
+    }
+    return rate * duration;
+  };
+
+  const subtotal = calculateSubtotal();
+  const creditDiscount = useCredits ? Math.min((user?.credits || 0) * 1, subtotal) : 0;
+  const total = subtotal - creditDiscount;
+
+  const handleBooking = async () => {
+    if (!user || !selectedLocker) return;
+    setLoading(true);
+
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    const pinHash = hashPIN(pin); // For Hardware Comparison (SHA-256)
+    const pinEncrypted = encryptData(pin); // For UI Retrieval (AES-256)
+
+    const startTime = Date.now();
+    const sessionEnd = startTime + (duration * 60 * 60 * 1000);
+    const bookingId = `book_${Date.now()}`;
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const lockerDocRef = doc(db, "lockers", selectedLocker.firestoreId);
+        const lockerSnap = await transaction.get(lockerDocRef);
+        
+        if (lockerSnap.exists() && lockerSnap.data().status === 'ACTIVE') {
+          throw new Error("Locker was just taken. Please select another one.");
+        }
+
+        transaction.set(lockerDocRef, {
+          status: 'ACTIVE',
+          userId: user.uid,
+          userName: user.name,
+          startTime: null,
+          lastUpdated: Date.now(),
+          duration: duration * 60 * 60 * 1000,
+          sessionEnd: null,
+          currentPin: pinHash, // Store Hash for Hardware
+          encryptedPin: pinEncrypted, // Store Encrypted for User/Admin
+          bookingId: bookingId
+        }, { merge: true });
+
+        const bookingRef = doc(collection(db, "bookings"), bookingId);
+        transaction.set(bookingRef, {
+          id: bookingId,
+          userId: user.uid,
+          lockerId: selectedLocker.id,
+          amount: total,
+          duration: duration,
+          startTime: null,
+          sessionEnd: null,
+          pin: pinHash, // Store Hash for Hardware
+          encryptedPin: pinEncrypted, // Store Encrypted
+          status: 'PAID',
+          createdAt: Date.now()
+        });
+
+        if (useCredits) {
+          const creditsToDeduct = Math.ceil(creditDiscount / 1);
+          const userRef = doc(db, "users", user.uid);
+          transaction.update(userRef, {
+            credits: (user.credits || 0) - creditsToDeduct
+          });
+        }
+      });
+
+      await update(ref(rtdb, selectedLocker.id), {
+        status: "ACTIVE",
+        pin: pinHash, // Store Hash for Hardware
+        sessionEnd: 0,
+        startTime: 0,
+        duration: duration * 60 * 60 * 1000,
+        unlockCount: 0
+      });
+
+      setGeneratedPin(pin);
+      setIsSuccess(true);
+      setLoading(false);
+    } catch (err: any) {
+      alert(err.message);
+      setLoading(false);
+    }
+  };
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="glass-panel p-10 md:p-12 rounded-[2.5rem] max-w-md w-full text-center relative overflow-hidden shadow-2xl"
+        >
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-linear-to-r from-emerald-500 to-primary" />
+          <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="text-emerald-500 w-10 h-10" />
+          </div>
+          <h2 className="text-3xl font-black text-white mb-3 font-outfit uppercase italic leading-none">Locker Reserved!</h2>
+          <p className="text-gray-500 text-sm mb-8 font-medium">Scan the station QR and use this PIN to access your locker.</p>
+          
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 mb-8 relative">
+             <div className="text-gray-600 text-[10px] font-bold uppercase tracking-widest mb-3">Access PIN</div>
+             <div className="text-6xl font-black text-primary tracking-[0.2em] font-outfit">{generatedPin}</div>
+          </div>
+
+          <button 
+            onClick={() => router.push('/dashboard')}
+            className="bg-primary hover:bg-primary/90 text-white w-full py-4 rounded-xl text-base font-bold uppercase tracking-widest transition-all shadow-lg shadow-primary/20"
+          >
+            Go to Dashboard
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-6 py-12 max-w-2xl">
+      <div className="mb-10 text-center md:text-left">
+        <button 
+          onClick={() => router.back()}
+          className="group inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest mb-4"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+          Change Locker
+        </button>
+        <h1 className="text-3xl font-black text-white font-outfit uppercase italic tracking-tighter leading-none">
+          Complete Your <span className="text-primary italic">Booking</span>
+        </h1>
+      </div>
+
+      <div className="glass-panel overflow-hidden rounded-3xl border-white/5 shadow-2xl">
+        {/* Section 1: Locker Info */}
+        <div className="p-8 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Box className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white font-outfit uppercase italic leading-none mb-1">Locker #{(selectedLocker?.id) || '--'}</h3>
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Premium Storage</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-primary font-black text-2xl font-outfit leading-none mb-1">₹{selectedLocker?.price || 70}/hr</div>
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Base Rate</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/2 p-4 rounded-xl border border-white/5">
+              <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                <div className="w-1 h-1 rounded-full bg-primary" /> Station
+              </div>
+              <div className="text-white text-sm font-bold">Pune Junction</div>
+            </div>
+            <div className="bg-white/2 p-4 rounded-xl border border-white/5">
+              <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                 <div className="w-1 h-1 rounded-full bg-primary" /> Coach
+              </div>
+              <div className="text-white text-sm font-bold">S3</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Duration */}
+        <div className="p-8 border-b border-white/5">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" /> Set Duration
+            </h3>
+            <span className="text-primary font-bold text-xs">{duration} {duration === 1 ? 'Hour' : 'Hours'}</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2 mb-6">
+            {[0.5, 1, 3, 6].map((h) => (
+              <button
+                key={h}
+                onClick={() => setDuration(h)}
+                className={`py-3.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${
+                  duration === h 
+                  ? 'bg-primary text-white shadow-[0_5px_20px_rgba(99,102,241,0.3)] scale-[1.02]' 
+                  : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-gray-300'
+                }`}
+              >
+                {h === 0.5 ? '30m' : `${h}h`}
+              </button>
+            ))}
+          </div>
+          <div className="bg-white/2 rounded-xl p-3 flex items-center justify-between border border-white/5">
+            <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest ml-1">Precision Adjust (hr)</span>
+            <input 
+              type="number" 
+              value={duration}
+              onChange={(e) => setDuration(Math.max(0.1, Number(e.target.value)))}
+              className="w-16 bg-black/40 border border-white/10 rounded-lg py-1.5 text-center text-white font-black text-sm outline-hidden focus:border-primary/50 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Section 3: Summary & Pay */}
+        <div className="p-8 bg-linear-to-b from-transparent to-white/[0.02]">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-primary" /> Order Summary
+          </h3>
+          
+          <div className="space-y-4 mb-8">
+            <div className="flex justify-between text-xs font-bold uppercase tracking-wide">
+              <span className="text-gray-600">Locker Rental ({duration}h)</span>
+              <span className="text-white">₹{subtotal.toFixed(2)}</span>
+            </div>
+            
+            <div className={`p-4 rounded-xl border transition-all ${
+              useCredits ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/2 border-white/5'
+            }`}>
+              <div className="flex justify-between items-center mb-1">
+                <div className="flex items-center gap-2">
+                  <Coins className={`w-3.5 h-3.5 ${useCredits ? 'text-amber-400' : 'text-gray-600'}`} />
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${useCredits ? 'text-white' : 'text-gray-500'}`}>Redeem Credits</span>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={useCredits}
+                  onChange={(e) => setUseCredits(e.target.checked)}
+                  disabled={!user?.credits}
+                  className="w-4 h-4 rounded-sm accent-amber-500 cursor-pointer"
+                />
+              </div>
+              <div className="flex justify-between items-end mt-2">
+                <span className="text-[10px] text-gray-600 font-bold tracking-tight">Available: <span className="text-amber-500/80">{user?.credits || 0}</span></span>
+                {useCredits && (
+                  <span className="text-amber-400 font-black text-xs">−₹{creditDiscount.toFixed(2)}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest block mb-0.5">Total Payable</span>
+                <span className="text-4xl font-black text-white font-outfit tracking-tighter leading-none">₹{total.toFixed(2)}</span>
+              </div>
+              <button 
+                onClick={handleBooking}
+                disabled={loading}
+                className="bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(99,102,241,0.3)] flex items-center justify-center gap-3 disabled:opacity-50 group"
+              >
+                {loading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <>
+                    Checkout <Zap className="w-4 h-4 fill-white group-hover:scale-125 transition-transform" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-center gap-4">
+             <div className="flex items-center gap-2 opacity-40">
+                <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                <span className="text-[8px] text-white font-bold uppercase tracking-widest">Secure 256-bit SSL</span>
+             </div>
+             <div className="w-1 h-1 rounded-full bg-white/10" />
+             <div className="flex items-center gap-2 opacity-40">
+                <LockIcon className="w-3.5 h-3.5 text-white" />
+                <span className="text-[8px] text-white font-bold uppercase tracking-widest">End-to-End Encrypted</span>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
