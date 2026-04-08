@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -19,11 +19,13 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLockerStore } from '@/store/useLockerStore';
 import { db, rtdb } from '@/lib/firebase/config';
 import { collection, doc, runTransaction, getDoc } from 'firebase/firestore';
-import { ref, update, onValue } from 'firebase/database';
+import { ref, update } from 'firebase/database';
 import { encryptData, hashPIN } from '@/lib/crypto';
 
-export default function BookingConfirmPage() {
+// Inner component that uses useSearchParams (must be inside Suspense)
+function BookingConfirmInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, initAuth } = useAuthStore();
   const { cleanupExpiredLocker } = useLockerStore();
 
@@ -38,11 +40,26 @@ export default function BookingConfirmPage() {
   useEffect(() => {
     initAuth();
     const stored = sessionStorage.getItem("selectedLocker");
-    if (!stored) {
-      router.push('/book/select');
-      return;
+    if (stored) {
+      setSelectedLocker(JSON.parse(stored));
+    } else {
+      // Fallback: QR code scan passes ?id=N — pre-select that locker
+      const qrId = searchParams.get('id');
+      if (qrId) {
+        const lockerFromQR = {
+          id: qrId,
+          firestoreId: `locker_${qrId}`,
+          status: 'AVAILABLE',
+          price: 70,
+          size: 'Standard'
+        };
+        setSelectedLocker(lockerFromQR);
+        sessionStorage.setItem("selectedLocker", JSON.stringify(lockerFromQR));
+      } else {
+        router.push('/book/select');
+        return;
+      }
     }
-    setSelectedLocker(JSON.parse(stored));
 
     // Fetch dynamic pricing
     getDoc(doc(db, "settings", "pricing")).then(snap => {
@@ -73,8 +90,6 @@ export default function BookingConfirmPage() {
     const pinHash = hashPIN(pin); // For Hardware Comparison (SHA-256)
     const pinEncrypted = encryptData(pin); // For UI Retrieval (AES-256)
 
-    const startTime = Date.now();
-    const sessionEnd = startTime + (duration * 60 * 60 * 1000);
     const bookingId = `book_${Date.now()}`;
 
     try {
@@ -328,5 +343,18 @@ export default function BookingConfirmPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap in Suspense — required because useSearchParams() needs it during SSR
+export default function BookingConfirmPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    }>
+      <BookingConfirmInner />
+    </Suspense>
   );
 }

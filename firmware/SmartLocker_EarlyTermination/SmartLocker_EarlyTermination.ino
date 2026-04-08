@@ -552,7 +552,7 @@ void drawQRMode() {
     
     // QR code with white backing for scanning integrity
     unsigned long long nowMs = (unsigned long long)time(NULL) * 1000ULL;
-    String dynamicURL = "https://locknleave.vercel.app/unlock/" + String(LOCKER_ID) + "?t=" + String(nowMs);
+    String dynamicURL = "https://locknleave.vercel.app/book/confirm?id=" + String(LOCKER_ID) + "&t=" + String(nowMs);
     displayQRCode(dynamicURL.c_str(), 100, 5);
 
     // Modern Locker Badge
