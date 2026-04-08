@@ -129,6 +129,7 @@ export default function UnlockPage() {
             sessionEnd: 0,
             duration: 0,
             currentPin: null,
+            encryptedPin: null,
             lastUpdated: Date.now()
           });
         } catch (err) {

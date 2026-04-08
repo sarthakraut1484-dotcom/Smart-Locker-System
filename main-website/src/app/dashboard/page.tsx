@@ -22,6 +22,7 @@ import { useLockerStore } from '@/store/useLockerStore';
 import { db, rtdb } from '@/lib/firebase/config';
 import { collection, query, where, onSnapshot, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { ref, update } from 'firebase/database';
+import { decryptData } from '@/lib/crypto';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, suffix = "" }: any) => (
   <motion.div
@@ -71,7 +72,7 @@ const ActiveLockerCard = ({ locker, onUnlock }: any) => {
       <div className="flex flex-col gap-1.5">
         <div className="text-white font-bold text-lg font-outfit">Locker {locker.id}</div>
         <div className="text-sm text-gray-500 font-medium leading-relaxed">
-          Pin: <strong className="text-white tracking-widest">{locker.currentPin}</strong><br />
+          Pin: <strong className="text-primary tracking-[0.3em] font-black text-base font-outfit">{decryptData(locker.encryptedPin || '') || '----'}</strong><br />
           <span className={locker.sessionEnd ? "text-gray-500" : "text-primary"}>{timeLeft}</span>
         </div>
       </div>
@@ -111,6 +112,7 @@ export default function UserDashboard() {
               sessionEnd: null,
               startTime: null,
               currentPin: null,
+              encryptedPin: null,
               bookingId: null
             });
 
