@@ -129,7 +129,8 @@ export default function BookingConfirmPage() {
         sessionEnd: 0,
         startTime: 0,
         duration: duration * 60 * 60 * 1000,
-        unlockCount: 0
+        unlockCount: 0,
+        lastUpdated: Date.now() // Prevents abandoned-session cleanup before first unlock
       });
 
       setGeneratedPin(pin);
