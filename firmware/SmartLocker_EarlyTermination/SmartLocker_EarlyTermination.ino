@@ -164,7 +164,7 @@ String currentBackendStatus = "AVAILABLE";
 unsigned long long currentSessionEnd = 0;
 int currentUnlockCount = 0;
 unsigned long lastFirebasePoll = 0;
-const unsigned long POLL_INTERVAL = 3000; // Reduced to 3s for lower latency
+const unsigned long POLL_INTERVAL = 1000; // Hyper-aggressive 1s polling for instant booking feel
 unsigned long lastKeypadInteraction = 0;
 unsigned long lastTouch = 0; 
 

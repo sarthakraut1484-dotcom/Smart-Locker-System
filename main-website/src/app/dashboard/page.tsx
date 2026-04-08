@@ -131,7 +131,7 @@ export default function UserDashboard() {
       }
     };
 
-    const interval = setInterval(autoExpireLockers, 5000); // Reduced to 5s for lower latency
+    const interval = setInterval(autoExpireLockers, 3000); // Further reduced to 3s for ultra-low latency
     autoExpireLockers(); // Initial run
     return () => clearInterval(interval);
   }, []);
