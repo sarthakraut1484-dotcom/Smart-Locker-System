@@ -615,7 +615,7 @@ void drawTerminationMode() {
     drawKeypad();
     drawTerminationPinState();
     
-    updateStatus("Enter PIN...", THEME_NEUTRAL);
+    // updateStatus("Enter PIN...", THEME_NEUTRAL); // Removed as requested
     forceRedraw = false;
   }
 }
@@ -788,7 +788,7 @@ void checkTerminationPIN() {
       delay(2000);
       terminationPIN = "";
       drawTerminationPinState();
-      updateStatus("Enter PIN...", THEME_NEUTRAL);
+      // updateStatus("Enter PIN...", THEME_NEUTRAL); // Removed as requested
     }
   }
 }
