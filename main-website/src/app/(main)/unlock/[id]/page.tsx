@@ -159,18 +159,21 @@ export default function UnlockPage() {
 
   }, [lockerId]);
 
-  // Timer Effect: Syncs with Firestore startTime / sessionEnd
+  // Timer Effect: Prioritizes RTDB/Hardware timings for the live UI
   useEffect(() => {
-    if (lockerData?.status === 'ACTIVE' && lockerData?.sessionEnd) {
+    const active = lockerData?.status === 'ACTIVE';
+    const hasEnd = lockerData?.sessionEnd && lockerData.sessionEnd > 0;
+    
+    if (active && hasEnd) {
       if (timerRef.current) clearInterval(timerRef.current);
       
-      timerRef.current = setInterval(() => {
+      const runTimer = () => {
         const now = Date.now();
         const diff = lockerData.sessionEnd - now;
 
         if (diff <= 0) {
           setTimeLeft("00:00:00");
-          clearInterval(timerRef.current!);
+          if (timerRef.current) clearInterval(timerRef.current);
           return;
         }
 
@@ -178,13 +181,18 @@ export default function UnlockPage() {
         const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const s = Math.floor((diff % (1000 * 60)) / 1000);
         setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
-      }, 1000);
+      };
+
+      runTimer();
+      timerRef.current = setInterval(runTimer, 1000);
       
-      return () => clearInterval(timerRef.current!);
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
     } else {
       setTimeLeft("--:--:--");
     }
-  }, [lockerData?.sessionEnd, lockerData?.status]);
+  }, [lockerData?.sessionEnd, lockerData?.status, lockerData?.startTime]);
 
   const handleExtend = async (hours: number) => {
     setExtending(true);
@@ -218,8 +226,8 @@ export default function UnlockPage() {
     );
   }
 
-  const isLocked = lockerData?.status === 'ACTIVE' && lockerData?.startTime;
-  const isReady = lockerData?.status === 'ACTIVE' && !lockerData?.startTime;
+  const isLocked = lockerData?.status === 'ACTIVE' && (lockerData?.startTime || unlockCount > 0);
+  const isReady = lockerData?.status === 'ACTIVE' && !lockerData?.startTime && unlockCount === 0;
   const isExpired = lockerData?.status === 'AVAILABLE';
 
   return (
