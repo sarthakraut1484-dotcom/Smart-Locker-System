@@ -251,27 +251,61 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       return { lockers: initial };
     });
 
-    // 1. RTDB Sync
+    // 1. RTDB Sync & Cloud-Bridge (Synchronizes Hardware -> Firestore)
     onValue(ref(rtdb, '/'), (snapshot) => {
       get().triggerPulse();
       const raw = snapshot.val();
       if (!raw || typeof raw !== 'object') return;
+      
       set((state) => {
         const updated = { ...state.lockers };
+        
         Object.keys(raw).forEach((rawId) => {
           const nodeData = raw[rawId];
           if (!nodeData || typeof nodeData !== 'object') return;
-          const lockerNum = parseInt(rawId);
-          if (isNaN(lockerNum) || lockerNum < 1 || lockerNum > 20) return;
+          
           const id = String(rawId);
           if (!updated[id]) updated[id] = { id, status: 'AVAILABLE', doorStatus: 'CLOSED', occupancy: 'EMPTY', currentPin: '---', userName: 'N/A', startTime: null, duration: 0, unlockCount: 0 };
+          
+          const prevStatus = updated[id].status;
+          const prevUnlockCount = updated[id].unlockCount;
+          const prevStartTime = updated[id].startTime;
+
+          // Local state update
           updated[id].status = (nodeData.status || 'AVAILABLE') as LockerStatus;
           updated[id].startTime = nodeData.startTime || null;
           updated[id].duration = nodeData.duration || 0;
           updated[id].unlockCount = nodeData.unlockCount || 0;
           updated[id].sessionEnd = nodeData.sessionEnd;
           if (nodeData.userName) updated[id].userName = nodeData.userName;
+
+          // CLOUD-BRIDGE LOGIC: Proactively sync hardware-initiated states to Firestore
+          // This ensures the main website (which follows Firestore) stays in sync.
+          const firestoreDocId = `locker_${id}`;
+          
+          // Trigger 1: Hardware just started a session (Unlock Count 1)
+          if (updated[id].unlockCount > 0 && !prevStartTime && updated[id].startTime) {
+             console.log(`[Bridge] Syncing Hardware Start for Locker #${id} to Firestore...`);
+             updateDoc(doc(db, 'lockers', firestoreDocId), {
+               startTime: updated[id].startTime,
+               sessionEnd: updated[id].sessionEnd,
+               unlockCount: updated[id].unlockCount,
+               status: 'ACTIVE'
+             }).catch(e => console.error('[Bridge] Firestore sync failed:', e));
+          }
+
+          // Trigger 2: Hardware session end (Status became AVAILABLE on hardware)
+          if (updated[id].status === 'AVAILABLE' && prevStatus === 'ACTIVE' && prevStartTime) {
+             console.log(`[Bridge] Syncing Hardware Termination for Locker #${id} to Firestore...`);
+             updateDoc(doc(db, 'lockers', firestoreDocId), {
+               status: 'AVAILABLE',
+               startTime: null,
+               sessionEnd: 0,
+               unlockCount: 0
+             }).catch(e => console.error('[Bridge] Firestore termination failed:', e));
+          }
         });
+        
         return { lockers: updated };
       });
     });
