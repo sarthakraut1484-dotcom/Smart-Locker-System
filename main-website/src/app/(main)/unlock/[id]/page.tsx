@@ -74,29 +74,52 @@ export default function UnlockPage() {
       }
     });
 
-    // 2. RTDB Unlock Count Listener
-    const unsubUnlockCount = onValue(ref(rtdb, `${lockerId}/unlockCount`), async (snap) => {
-      const count = snap.val() || 0;
+    // 2. RTDB Unlock Count & Timer Sync Listener
+    // This now proactively checks if a session has ALREADY started on hardware
+    const unsubRtdbMain = onValue(ref(rtdb, lockerId), async (snap) => {
+      const data = snap.val();
+      if (!data) return;
+
+      const count = data.unlockCount || 0;
       setUnlockCount(count);
 
       const currentLocker = lockerDataRef.current;
       
-      // Hardware First-Unlock Trigger Logic
-      if (count > 0 && currentLocker?.status === 'ACTIVE' && !currentLocker?.startTime) {
+      // SYNC LOGIC: If hardware has a startTime/sessionEnd, but Firestore doesn't, sync them.
+      // This ensures the website "catches up" if the user opened it after entering their PIN.
+      if (currentLocker?.status === 'ACTIVE') {
+         const hwStartTime = data.startTime;
+         const hwSessionEnd = data.sessionEnd;
+         const hwDuration = data.duration;
+
+         // Scenario A: Hardware just started, Firestore is missing startTime
+         if (count > 0 && !currentLocker.startTime && hwStartTime) {
+            console.info('[SYNC] Hardware-initiated session detected. Updating Firestore...');
+            await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+              startTime: hwStartTime,
+              sessionEnd: hwSessionEnd,
+              duration: hwDuration
+            });
+         }
+         
+         // Scenario B: Fallback—if Firestore is stale, use RTDB values to drive the UI timer immediately
+         if (hwSessionEnd && (!currentLocker.sessionEnd || currentLocker.sessionEnd !== hwSessionEnd)) {
+            setLockerData((prev: any) => ({ 
+              ...prev, 
+              startTime: hwStartTime, 
+              sessionEnd: hwSessionEnd,
+              duration: hwDuration 
+            }));
+         }
+      }
+
+      // Legacy First-Unlock Trigger (Keep as safety)
+      if (count > 0 && currentLocker?.status === 'ACTIVE' && !currentLocker?.startTime && !data.startTime) {
         const now = Date.now();
-        const duration = currentLocker.duration || 3600000; // Default 1hr if missing
+        const duration = currentLocker.duration || 3600000;
         const sessionEnd = now + duration;
-        
-        // Update both Firestore and RTDB to sync the timer start
-        await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
-          startTime: now,
-          sessionEnd: sessionEnd
-        });
-        
-        await update(ref(rtdb, lockerId), {
-          startTime: now,
-          sessionEnd: sessionEnd
-        });
+        await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { startTime: now, sessionEnd });
+        await update(ref(rtdb, lockerId), { startTime: now, sessionEnd });
       }
     });
 
@@ -130,7 +153,7 @@ export default function UnlockPage() {
 
     return () => {
       unsubFirestore();
-      unsubUnlockCount();
+      unsubRtdbMain();
       unsubRtdbStatus();
     };
 
