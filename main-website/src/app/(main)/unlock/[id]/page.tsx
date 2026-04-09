@@ -73,6 +73,14 @@ export default function UnlockPage() {
       }
       const data = snap.data();
       const prevData = lockerDataRef.current;
+      
+      // If we are currently being driven by LIVE hardware telemetry, 
+      // do not let a stale Firestore doc with no startTime overwrite us.
+      if (prevData?.isHardwareActive && !data.startTime && prevData.startTime) {
+        console.log('[SYNC] Ignoring stale Firestore update while hardware is active.');
+        return;
+      }
+
       setLockerData(data);
       setLoading(false);
 
@@ -99,24 +107,23 @@ export default function UnlockPage() {
       const hwStartTime = data.startTime;
       const hwSessionEnd = data.sessionEnd;
       
-      // Immediate UI Sync: Prioritize hardware telemetry over Firestore
+      // Immediate UI Sync: Prioritize hardware telemetry ALWAYS
       if (hwSessionEnd && hwSessionEnd > 0) {
-        setLockerData((prev: any) => {
-          if (prev?.status === 'ACTIVE' && prev?.startTime === hwStartTime) return prev;
-          return {
-            ...prev,
-            status: data.status || 'ACTIVE',
-            startTime: hwStartTime,
-            sessionEnd: hwSessionEnd,
-            duration: data.duration || prev?.duration
-          };
-        });
+        setLockerData((prev: any) => ({
+          ...prev,
+          status: data.status || prev?.status || 'ACTIVE',
+          startTime: hwStartTime,
+          sessionEnd: hwSessionEnd,
+          duration: data.duration || prev?.duration || 3600000,
+          // Flag this as a hardware-driven state to prevent Firestore overwrites
+          isHardwareActive: true 
+        }));
       }
 
-      // BRIDGE TO CLOUD: If hardware started but Firestore isn't updated
+      // BRIDGE TO CLOUD: Sync to Firestore
       const currentLocker = lockerDataRef.current;
-      if (count > 0 && currentLocker?.status === 'ACTIVE' && !currentLocker?.startTime && hwStartTime) {
-         console.info('[BRIDGE] Syncing Hardware Start to Firestore...');
+      if (count > 0 && hwStartTime && (!currentLocker?.startTime)) {
+         console.info('[BRIDGE] Pushing Hardware Start to Firestore...');
          updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
            startTime: hwStartTime,
            sessionEnd: hwSessionEnd,
