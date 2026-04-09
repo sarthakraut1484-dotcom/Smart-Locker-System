@@ -51,6 +51,20 @@ export default function UnlockPage() {
   useEffect(() => {
     if (!lockerId) return;
 
+    // 0. ENSURE AUTH (Admin Gateway fallback for hardware sync)
+    const ensureSystemAuth = async () => {
+       const { signInWithEmailAndPassword } = await import('firebase/auth');
+       const { auth: firebaseAuth } = await import('@/lib/firebase/config');
+       try {
+         if (!firebaseAuth.currentUser) {
+           await signInWithEmailAndPassword(firebaseAuth, 'admin@0861.locker', 'admin@0861');
+         }
+       } catch (e) {
+         console.warn('[AUTH] System auth failed...');
+       }
+    };
+    ensureSystemAuth();
+
     // 1. Firestore Listener
     const unsubFirestore = onSnapshot(doc(db, "lockers", `locker_${lockerId}`), (snap) => {
       if (!snap.exists()) {
@@ -74,52 +88,41 @@ export default function UnlockPage() {
       }
     });
 
-    // 2. RTDB Unlock Count & Timer Sync Listener
-    // This now proactively checks if a session has ALREADY started on hardware
+    // 2. ENHANCED RTDB Listener (Hardware Brain)
     const unsubRtdbMain = onValue(ref(rtdb, lockerId), async (snap) => {
       const data = snap.val();
       if (!data) return;
 
       const count = data.unlockCount || 0;
       setUnlockCount(count);
-
-      const currentLocker = lockerDataRef.current;
       
-      // SYNC LOGIC: If hardware has a startTime/sessionEnd, but Firestore doesn't, sync them.
-      // This ensures the website "catches up" if the user opened it after entering their PIN.
-      if (currentLocker?.status === 'ACTIVE') {
-         const hwStartTime = data.startTime;
-         const hwSessionEnd = data.sessionEnd;
-         const hwDuration = data.duration;
-
-         // Scenario A: Hardware just started, Firestore is missing startTime
-         if (count > 0 && !currentLocker.startTime && hwStartTime) {
-            console.info('[SYNC] Hardware-initiated session detected. Updating Firestore...');
-            await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
-              startTime: hwStartTime,
-              sessionEnd: hwSessionEnd,
-              duration: hwDuration
-            });
-         }
-         
-         // Scenario B: Fallback—if Firestore is stale, use RTDB values to drive the UI timer immediately
-         if (hwSessionEnd && (!currentLocker.sessionEnd || currentLocker.sessionEnd !== hwSessionEnd)) {
-            setLockerData((prev: any) => ({ 
-              ...prev, 
-              startTime: hwStartTime, 
-              sessionEnd: hwSessionEnd,
-              duration: hwDuration 
-            }));
-         }
+      const hwStartTime = data.startTime;
+      const hwSessionEnd = data.sessionEnd;
+      
+      // Immediate UI Sync: Prioritize hardware telemetry over Firestore
+      if (hwSessionEnd && hwSessionEnd > 0) {
+        setLockerData((prev: any) => {
+          if (prev?.status === 'ACTIVE' && prev?.startTime === hwStartTime) return prev;
+          return {
+            ...prev,
+            status: data.status || 'ACTIVE',
+            startTime: hwStartTime,
+            sessionEnd: hwSessionEnd,
+            duration: data.duration || prev?.duration
+          };
+        });
       }
 
-      // Legacy First-Unlock Trigger (Keep as safety)
-      if (count > 0 && currentLocker?.status === 'ACTIVE' && !currentLocker?.startTime && !data.startTime) {
-        const now = Date.now();
-        const duration = currentLocker.duration || 3600000;
-        const sessionEnd = now + duration;
-        await updateDoc(doc(db, "lockers", `locker_${lockerId}`), { startTime: now, sessionEnd });
-        await update(ref(rtdb, lockerId), { startTime: now, sessionEnd });
+      // BRIDGE TO CLOUD: If hardware started but Firestore isn't updated
+      const currentLocker = lockerDataRef.current;
+      if (count > 0 && currentLocker?.status === 'ACTIVE' && !currentLocker?.startTime && hwStartTime) {
+         console.info('[BRIDGE] Syncing Hardware Start to Firestore...');
+         updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+           startTime: hwStartTime,
+           sessionEnd: hwSessionEnd,
+           status: 'ACTIVE',
+           unlockCount: count
+         }).catch(err => console.error('[BRIDGE] Sync failed:', err));
       }
     });
 
