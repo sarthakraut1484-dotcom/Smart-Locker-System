@@ -21,7 +21,7 @@ export default function LoginPage() {
     setError(null);
     try {
       if (email === "admin@0861" && password === "admin@0861") {
-        window.location.href = "http://localhost:3333";
+        router.push("/admin");
         return;
       }
       await signInWithEmailAndPassword(auth, email, password);

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Outfit } from "next/font/google";
-import "./globals.css";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
-import { FlickeringGrid } from "@/components/FlickeringGrid";
+import "./(main)/globals.css";
 
 const jakarta = Plus_Jakarta_Sans({ 
   subsets: ["latin"],
@@ -22,20 +19,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" className={`${jakarta.variable} ${outfit.variable} dark`} suppressHydrationWarning>
       <body className="antialiased font-jakarta" suppressHydrationWarning>
-        <FlickeringGrid />
-        <div className="flex flex-col min-h-screen relative z-0">
-          <Navbar />
-          <main className="flex-grow pt-24">
-            {children}
-          </main>
-          <Footer />
-        </div>
+        {children}
       </body>
     </html>
   );
