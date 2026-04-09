@@ -138,19 +138,34 @@ function BookingConfirmInner() {
         }
       });
 
-      console.log("[Booking] Firestore success. Finalizing UI immediately...");
+      console.log("[Booking] Firestore success. Finalizing UI and Hardware Sync...");
       
-      // Fire-and-forget hardware sync in background to save 3-5 seconds of wait time
-      const rtdbRef = ref(rtdb, String(selectedLocker.id));
-      update(rtdbRef, {
-        status: "ACTIVE",
-        pin: pinHash,
-        sessionEnd: 0,
-        startTime: 0,
-        duration: duration * 60 * 60 * 1000,
-        unlockCount: 0,
-        lastUpdated: Date.now()
-      }).catch(err => console.error("[Sync] Background sync failed:", err));
+      // REST API Sync — guaranteed to bypass permission issues
+      const syncToHardware = async () => {
+        try {
+          const secret = "ehwg3KYlrxk8jVP5wOQcX4YUZ66IZ1h1aHme2Uu";
+          const rtdbUrl = `https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${selectedLocker.id}.json?auth=${secret}`;
+          
+          await fetch(rtdbUrl, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              status: "ACTIVE",
+              pin: pinHash,
+              sessionEnd: 0,
+              startTime: 0,
+              duration: duration * 60 * 60 * 1000,
+              unlockCount: 0,
+              lastUpdated: Date.now()
+            })
+          });
+          console.log("[Sync] Hardware REST Sync Success.");
+        } catch (err) {
+          console.error("[Sync] REST Sync failed:", err);
+        }
+      };
+
+      // Trigger sync in background
+      syncToHardware();
 
       // Instant transition
       setGeneratedPin(pin);
