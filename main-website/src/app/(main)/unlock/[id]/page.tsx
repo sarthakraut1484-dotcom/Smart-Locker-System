@@ -96,7 +96,7 @@ export default function UnlockPage() {
       }
     });
 
-    // 2. ENHANCED RTDB Listener (Hardware Brain)
+    // 2. ENHANCED RTDB Listener (Hardware Brain - Virtual Clock)
     const unsubRtdbMain = onValue(ref(rtdb, lockerId), async (snap) => {
       const data = snap.val();
       if (!data) return;
@@ -104,38 +104,33 @@ export default function UnlockPage() {
       const count = data.unlockCount || 0;
       setUnlockCount(count);
       
-      const hwStartTime = data.startTime;
-      let hwSessionEnd = data.sessionEnd;
-      const hwDuration = data.duration || 3600000;
-      const lastUpdated = data.lastUpdated || Date.now();
+      // VIRTUAL CLOCK SYNC: 
+      // Calculate how many ms the hardware THINKS are left, then apply to local Date.now()
+      const hwNow = data.lastUpdate || data.startTime || Date.now();
+      const hwEnd = data.sessionEnd || (hwNow + (data.duration || 3600000));
+      const msLeft = Math.max(0, hwEnd - hwNow);
       
-      // CLOCK-DESYNC FIX: If hardware clock is way off (e.g., 30 hours behind),
-      // detected because startTime + duration is still < now, we use a relative timer.
-      const now = Date.now();
-      if (hwStartTime && (hwStartTime + hwDuration < now)) {
-         console.warn('[SYNC] Hardware clock desync detected. Using relative timing.');
-         // Recalculate a virtual session end based on when it was last updated
-         hwSessionEnd = lastUpdated + hwDuration;
-      }
+      // Website's absolute session end for the timer effect
+      const virtualSessionEnd = Date.now() + msLeft;
 
       // Immediate UI Sync
-      if (hwSessionEnd && hwSessionEnd > 0) {
+      if (msLeft > 0) {
         setLockerData((prev: any) => ({
           ...prev,
           status: data.status || prev?.status || 'ACTIVE',
-          startTime: hwStartTime,
-          sessionEnd: hwSessionEnd,
-          duration: hwDuration,
+          startTime: Date.now() - ( (data.duration || 3600000) - msLeft ),
+          sessionEnd: virtualSessionEnd,
+          duration: data.duration || 3600000,
           isHardwareActive: true 
         }));
       }
 
-      // BRIDGE TO CLOUD: Sync to Firestore
+      // BRIDGE TO CLOUD: Sync the "corrected" timestamps to Firestore
       const currentLocker = lockerDataRef.current;
-      if (count > 0 && hwStartTime && (!currentLocker?.startTime)) {
+      if (count > 0 && msLeft > 0 && (!currentLocker?.startTime)) {
          updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
-           startTime: hwStartTime,
-           sessionEnd: hwSessionEnd, // Use the corrected/relative end
+           startTime: Date.now() - ( (data.duration || 3600000) - msLeft ),
+           sessionEnd: virtualSessionEnd,
            status: 'ACTIVE',
            unlockCount: count
          }).catch(err => console.error('[BRIDGE] Sync failed:', err));
