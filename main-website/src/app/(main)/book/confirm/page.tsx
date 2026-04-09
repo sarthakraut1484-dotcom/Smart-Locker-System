@@ -21,6 +21,7 @@ import { db, rtdb } from '@/lib/firebase/config';
 import { collection, doc, runTransaction, getDoc } from 'firebase/firestore';
 import { ref, update } from 'firebase/database';
 import { encryptData, hashPIN } from '@/lib/crypto';
+import { syncHardwareAction } from '@/app/actions/syncHardware';
 
 // Inner component that uses useSearchParams (must be inside Suspense)
 function BookingConfirmInner() {
@@ -138,34 +139,17 @@ function BookingConfirmInner() {
         }
       });
 
-      console.log("[Booking] Firestore success. Finalizing UI and Hardware Sync...");
+      console.log("[Booking] Firestore success. Finalizing UI and Hardware Sync (Server-Side)...");
       
-      // REST API Sync — guaranteed to bypass permission issues
-      const syncToHardware = async () => {
-        try {
-          const secret = "ehwg3KYlrxk8jVP5wOQcX4YUZ66IZ1h1aHme2Uu";
-          const rtdbUrl = `https://asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app/${selectedLocker.id}.json?auth=${secret}`;
-          
-          await fetch(rtdbUrl, {
-            method: 'PATCH',
-            body: JSON.stringify({
-              status: "ACTIVE",
-              pin: pinHash,
-              sessionEnd: 0,
-              startTime: 0,
-              duration: duration * 60 * 60 * 1000,
-              unlockCount: 0,
-              lastUpdated: Date.now()
-            })
-          });
-          console.log("[Sync] Hardware REST Sync Success.");
-        } catch (err) {
-          console.error("[Sync] REST Sync failed:", err);
-        }
-      };
-
-      // Trigger sync in background
-      syncToHardware();
+      // Trigger Server Action in background
+      syncHardwareAction(String(selectedLocker.id), {
+        status: "ACTIVE",
+        pin: pinHash,
+        sessionEnd: 0,
+        startTime: 0,
+        duration: duration * 60 * 60 * 1000,
+        unlockCount: 0
+      });
 
       // Instant transition
       setGeneratedPin(pin);
