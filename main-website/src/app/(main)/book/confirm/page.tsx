@@ -140,18 +140,24 @@ function BookingConfirmInner() {
 
       console.log("[Booking] Firestore success. Updating Hardware Sync (RTDB)...");
       
-      const rtdbRef = ref(rtdb, String(selectedLocker.id));
-      await update(rtdbRef, {
-        status: "ACTIVE",
-        pin: pinHash,
-        sessionEnd: 0,
-        startTime: 0,
-        duration: duration * 60 * 60 * 1000,
-        unlockCount: 0,
-        lastUpdated: Date.now()
-      });
+      try {
+        const rtdbRef = ref(rtdb, String(selectedLocker.id));
+        await update(rtdbRef, {
+          status: "ACTIVE",
+          pin: pinHash,
+          sessionEnd: 0,
+          startTime: 0,
+          duration: duration * 60 * 60 * 1000,
+          unlockCount: 0,
+          lastUpdated: Date.now()
+        });
+        console.log("[Booking] Hardware Sync Success.");
+      } catch (rtdbErr) {
+        console.error("[Booking] Critical Hardware Sync Error:", rtdbErr);
+        // We don't block the UI here since Firestore is already booked
+      }
 
-      console.log("[Booking] Hardware Sync Success. Finalizing UI...");
+      console.log("[Booking] Finalizing UI...");
       setGeneratedPin(pin);
       setIsSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
