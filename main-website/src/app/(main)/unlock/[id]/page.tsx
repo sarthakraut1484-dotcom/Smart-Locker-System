@@ -83,45 +83,60 @@ export default function UnlockPage() {
       }
     });
 
-    // 2. ENHANCED RTDB Listener (Hardware Brain - Virtual Clock)
-    const unsubRtdbMain = onValue(ref(rtdb, lockerId), async (snap) => {
-      const data = snap.val();
-      if (!data) return;
+    // 2. ENHANCED RTDB Listener & One-time Fetch (Hardware Brain - Virtual Clock)
+    const lockerRef = ref(rtdb, lockerId);
 
-      const count = data.unlockCount || 0;
-      setUnlockCount(count);
-      
-      // VIRTUAL CLOCK SYNC: 
-      // Calculate how many ms the hardware THINKS are left, then apply to local Date.now()
+    // One-time fetch for immediate state catch-up on load
+    const doInitialSync = async () => {
+      const { get: rtdbGet } = await import('firebase/database');
+      try {
+        const snap = await rtdbGet(lockerRef);
+        const data = snap.val();
+        if (data && data.unlockCount > 0) {
+          console.log('[SYNC] Initial RTDB fetch caught active session.');
+          setUnlockCount(data.unlockCount);
+          syncVirtualClock(data);
+        }
+      } catch (e) {
+        console.error('[SYNC] Initial fetch failed:', e);
+      }
+    };
+    doInitialSync();
+
+    const syncVirtualClock = (data: any) => {
       const hwNow = data.lastUpdate || data.startTime || Date.now();
       const hwEnd = data.sessionEnd || (hwNow + (data.duration || 3600000));
       const msLeft = Math.max(0, hwEnd - hwNow);
-      
-      // Website's absolute session end for the timer effect
       const virtualSessionEnd = Date.now() + msLeft;
 
-      // Immediate UI Sync
       if (msLeft > 0 && data.status === 'ACTIVE') {
+        const syncStartTime = Date.now() - ( (data.duration || 3600000) - msLeft );
         setLockerData((prev: any) => ({
           ...prev,
           status: 'ACTIVE',
-          startTime: Date.now() - ( (data.duration || 3600000) - msLeft ),
+          startTime: syncStartTime,
           sessionEnd: virtualSessionEnd,
           duration: data.duration || 3600000,
           isHardwareActive: true 
         }));
-      }
 
-      // BRIDGE TO CLOUD: Sync the "corrected" timestamps to Firestore
-      const currentLocker = lockerDataRef.current;
-      if (count > 0 && msLeft > 0 && (!currentLocker?.startTime)) {
-         updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
-           startTime: Date.now() - ( (data.duration || 3600000) - msLeft ),
-           sessionEnd: virtualSessionEnd,
-           status: 'ACTIVE',
-           unlockCount: count
-         }).catch(err => console.error('[BRIDGE] Sync failed:', err));
+        // Bridge to Firestore if missing
+        if (!lockerDataRef.current?.startTime) {
+           updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+             startTime: syncStartTime,
+             sessionEnd: virtualSessionEnd,
+             status: 'ACTIVE',
+             unlockCount: data.unlockCount
+           }).catch(err => console.error('[BRIDGE] Sync failed:', err));
+        }
       }
+    };
+
+    const unsubRtdbMain = onValue(lockerRef, async (snap) => {
+      const data = snap.val();
+      if (!data) return;
+      setUnlockCount(data.unlockCount || 0);
+      syncVirtualClock(data);
     });
 
     // 3. RTDB Status Listener — Bridge hardware early-termination to Firestore
