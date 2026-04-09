@@ -24,3 +24,10 @@ export const decryptData = (ciphertext: string): string => {
     return "DECRYPTION_ERROR";
   }
 };
+
+/**
+ * 🔒 SHA-256 Hashing for Hardware Comparison
+ */
+export const hashPIN = (pin: string): string => {
+  return CryptoJS.SHA256(pin).toString();
+};
