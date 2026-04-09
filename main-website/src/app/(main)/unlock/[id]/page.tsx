@@ -51,20 +51,6 @@ export default function UnlockPage() {
   useEffect(() => {
     if (!lockerId) return;
 
-    // 0. ENSURE AUTH (Admin Gateway fallback for hardware sync)
-    const ensureSystemAuth = async () => {
-       const { signInWithEmailAndPassword } = await import('firebase/auth');
-       const { auth: firebaseAuth } = await import('@/lib/firebase/config');
-       try {
-         if (!firebaseAuth.currentUser) {
-           await signInWithEmailAndPassword(firebaseAuth, 'admin@0861.locker', 'admin@0861');
-         }
-       } catch (e) {
-         console.warn('[AUTH] System auth failed...');
-       }
-    };
-    ensureSystemAuth();
-
     // 1. Firestore Listener
     const unsubFirestore = onSnapshot(doc(db, "lockers", `locker_${lockerId}`), (snap) => {
       if (!snap.exists()) {
@@ -74,10 +60,11 @@ export default function UnlockPage() {
       const data = snap.data();
       const prevData = lockerDataRef.current;
       
-      // If we are currently being driven by LIVE hardware telemetry, 
-      // do not let a stale Firestore doc with no startTime overwrite us.
-      if (prevData?.isHardwareActive && !data.startTime && prevData.startTime) {
-        console.log('[SYNC] Ignoring stale Firestore update while hardware is active.');
+      // PROTECTION LOGIC:
+      // Only ignore the cloud if the status remains ACTIVE but the cloud is missing the timer data.
+      // If the cloud says AVAILABLE, we MUST listen and end the session correctly.
+      if (prevData?.isHardwareActive && data.status === 'ACTIVE' && !data.startTime && prevData.startTime) {
+        console.log('[SYNC] Ignoring stale Firestore reset while hardware is active.');
         return;
       }
 
@@ -114,10 +101,10 @@ export default function UnlockPage() {
       const virtualSessionEnd = Date.now() + msLeft;
 
       // Immediate UI Sync
-      if (msLeft > 0) {
+      if (msLeft > 0 && data.status === 'ACTIVE') {
         setLockerData((prev: any) => ({
           ...prev,
-          status: data.status || prev?.status || 'ACTIVE',
+          status: 'ACTIVE',
           startTime: Date.now() - ( (data.duration || 3600000) - msLeft ),
           sessionEnd: virtualSessionEnd,
           duration: data.duration || 3600000,
