@@ -105,17 +105,27 @@ export default function UnlockPage() {
       setUnlockCount(count);
       
       const hwStartTime = data.startTime;
-      const hwSessionEnd = data.sessionEnd;
+      let hwSessionEnd = data.sessionEnd;
+      const hwDuration = data.duration || 3600000;
+      const lastUpdated = data.lastUpdated || Date.now();
       
-      // Immediate UI Sync: Prioritize hardware telemetry ALWAYS
+      // CLOCK-DESYNC FIX: If hardware clock is way off (e.g., 30 hours behind),
+      // detected because startTime + duration is still < now, we use a relative timer.
+      const now = Date.now();
+      if (hwStartTime && (hwStartTime + hwDuration < now)) {
+         console.warn('[SYNC] Hardware clock desync detected. Using relative timing.');
+         // Recalculate a virtual session end based on when it was last updated
+         hwSessionEnd = lastUpdated + hwDuration;
+      }
+
+      // Immediate UI Sync
       if (hwSessionEnd && hwSessionEnd > 0) {
         setLockerData((prev: any) => ({
           ...prev,
           status: data.status || prev?.status || 'ACTIVE',
           startTime: hwStartTime,
           sessionEnd: hwSessionEnd,
-          duration: data.duration || prev?.duration || 3600000,
-          // Flag this as a hardware-driven state to prevent Firestore overwrites
+          duration: hwDuration,
           isHardwareActive: true 
         }));
       }
@@ -123,10 +133,9 @@ export default function UnlockPage() {
       // BRIDGE TO CLOUD: Sync to Firestore
       const currentLocker = lockerDataRef.current;
       if (count > 0 && hwStartTime && (!currentLocker?.startTime)) {
-         console.info('[BRIDGE] Pushing Hardware Start to Firestore...');
          updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
            startTime: hwStartTime,
-           sessionEnd: hwSessionEnd,
+           sessionEnd: hwSessionEnd, // Use the corrected/relative end
            status: 'ACTIVE',
            unlockCount: count
          }).catch(err => console.error('[BRIDGE] Sync failed:', err));
