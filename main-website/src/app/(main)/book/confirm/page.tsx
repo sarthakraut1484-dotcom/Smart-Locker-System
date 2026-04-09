@@ -85,6 +85,7 @@ function BookingConfirmInner() {
   const handleBooking = async () => {
     if (!user || !selectedLocker) return;
     setLoading(true);
+    console.log("[Booking] Initializing for Locker:", selectedLocker.id);
 
     const pin = Math.floor(1000 + Math.random() * 9000).toString();
     const pinHash = hashPIN(pin); // For Hardware Comparison (SHA-256)
@@ -93,7 +94,7 @@ function BookingConfirmInner() {
     const bookingId = `book_${Date.now()}`;
 
     try {
-      console.log("[Booking] Starting transaction...");
+      console.log("[Booking] Starting Firestore transaction...");
       await runTransaction(db, async (transaction) => {
         const lockerDocRef = doc(db, "lockers", selectedLocker.firestoreId);
         const lockerSnap = await transaction.get(lockerDocRef);
@@ -137,9 +138,10 @@ function BookingConfirmInner() {
         }
       });
 
-      console.log("[Booking] Firestore success. Updating RTDB for hardware...");
+      console.log("[Booking] Firestore success. Updating Hardware Sync (RTDB)...");
       
-      await update(ref(rtdb, selectedLocker.id), {
+      const rtdbRef = ref(rtdb, String(selectedLocker.id));
+      await update(rtdbRef, {
         status: "ACTIVE",
         pin: pinHash,
         sessionEnd: 0,
@@ -149,9 +151,10 @@ function BookingConfirmInner() {
         lastUpdated: Date.now()
       });
 
+      console.log("[Booking] Hardware Sync Success. Finalizing UI...");
       setGeneratedPin(pin);
       setIsSuccess(true);
-      window.scrollTo(0,0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       console.error("[Booking Error]", err);
       alert(err.message || "Booking failed. Please try again.");

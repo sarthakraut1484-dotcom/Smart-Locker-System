@@ -47,7 +47,7 @@ export const useLockerStore = create<LockerStore>((set, get) => ({
             sessionEnd = data.startTime + data.duration;
           }
 
-          const isExpired = sessionEnd && sessionEnd <= now;
+          const isExpired = sessionEnd && sessionEnd > 0 && sessionEnd <= now;
           const isAbandoned = data.status === 'ACTIVE' && data.startTime === null && data.lastUpdated && (now - data.lastUpdated > 120 * 60 * 1000); // 2 hr grace period — user may be walking to locker
 
           if (isExpired || isAbandoned) {
@@ -102,7 +102,7 @@ export const useLockerStore = create<LockerStore>((set, get) => ({
       const snapshot = await getDocs(collection(db, "lockers"));
       snapshot.forEach(async (docSnap) => {
         const data = docSnap.data();
-        const isExpired = data.sessionEnd && data.sessionEnd <= now;
+        const isExpired = data.sessionEnd && data.sessionEnd > 0 && data.sessionEnd <= now;
         const isAbandoned = data.status === "ACTIVE" && data.startTime === null && data.lastUpdated && (now - data.lastUpdated > 120 * 60 * 1000); // 2 hr grace period
         if (data.status === "ACTIVE" && (isExpired || isAbandoned)) {
           await get().cleanupExpiredLocker(docSnap.id);
