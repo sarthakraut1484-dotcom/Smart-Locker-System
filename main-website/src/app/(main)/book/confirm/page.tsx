@@ -140,22 +140,30 @@ function BookingConfirmInner() {
 
       console.log("[Booking] Firestore success. Updating Hardware Sync (RTDB)...");
       
-      try {
-        const rtdbRef = ref(rtdb, String(selectedLocker.id));
-        await update(rtdbRef, {
-          status: "ACTIVE",
-          pin: pinHash,
-          sessionEnd: 0,
-          startTime: 0,
-          duration: duration * 60 * 60 * 1000,
-          unlockCount: 0,
-          lastUpdated: Date.now()
-        });
-        console.log("[Booking] Hardware Sync Success.");
-      } catch (rtdbErr) {
-        console.error("[Booking] Critical Hardware Sync Error:", rtdbErr);
-        // We don't block the UI here since Firestore is already booked
-      }
+      // Hardware Sync with a 3-second fallback timeout
+      const syncHardware = async () => {
+        try {
+          const rtdbRef = ref(rtdb, String(selectedLocker.id));
+          await update(rtdbRef, {
+            status: "ACTIVE",
+            pin: pinHash,
+            sessionEnd: 0,
+            startTime: 0,
+            duration: duration * 60 * 60 * 1000,
+            unlockCount: 0,
+            lastUpdated: Date.now()
+          });
+          console.log("[Booking] Hardware Sync Success.");
+        } catch (err) {
+          console.error("[Booking] Hardware Sync Error:", err);
+        }
+      };
+
+      // Race the sync against a 3s timeout so the user is never stuck
+      await Promise.race([
+        syncHardware(),
+        new Promise((resolve) => setTimeout(resolve, 3000))
+      ]);
 
       console.log("[Booking] Finalizing UI...");
       setGeneratedPin(pin);
