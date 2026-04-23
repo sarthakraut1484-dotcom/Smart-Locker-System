@@ -7,15 +7,16 @@ import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
 
 export default function HistoryPage() {
-  const { bookings, isInitializing, showModal } = useAdminStore();
+  const { bookings, users, isInitializing, showModal } = useAdminStore();
   const [search, setSearch]   = useState("");
   const [lockerId, setLockerId] = useState("");
 
   const filtered = useMemo(() => bookings.filter(b => {
-    const matchUser   = !search   || (b.userName || "").toLowerCase().includes(search.toLowerCase());
+    const userName = b.userName || users[b.userId]?.name || "N/A";
+    const matchUser   = !search   || userName.toLowerCase().includes(search.toLowerCase());
     const matchLocker = !lockerId || String(b.lockerId) === lockerId;
     return matchUser && matchLocker;
-  }), [bookings, search, lockerId]);
+  }), [bookings, search, lockerId, users]);
 
   const handleExport = () => {
     if (!filtered.length) {
@@ -23,12 +24,16 @@ export default function HistoryPage() {
       return;
     }
     const rows = [["ID","Locker","User","Email","Amount","Hours","Status","Date"]];
-    filtered.forEach(b => rows.push([
-      b.id, b.lockerId, b.userName || "N/A", b.userContact || "N/A",
-      `₹${b.amount}`, `${b.hours || b.duration || 0}h`,
-      b.status,
-      new Date(b.createdAt || 0).toLocaleDateString("en-IN")
-    ]));
+    filtered.forEach(b => {
+      const name = b.userName || users[b.userId]?.name || "N/A";
+      const contact = b.userContact || users[b.userId]?.email || "N/A";
+      rows.push([
+        b.id, b.lockerId, name, contact,
+        `₹${b.amount}`, `${b.hours || b.duration || 0}h`,
+        b.status,
+        new Date(b.createdAt || 0).toLocaleDateString("en-IN")
+      ]);
+    });
     const csv = rows.map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -106,7 +111,7 @@ export default function HistoryPage() {
                     >
                       <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{b.id.slice(0, 8)}…</td>
                       <td className="px-5 py-3 font-bold text-white">#{b.lockerId}</td>
-                      <td className="px-5 py-3 text-primary">{b.userName || "N/A"}</td>
+                      <td className="px-5 py-3 text-primary">{b.userName || users[b.userId]?.name || "N/A"}</td>
                       <td className="px-5 py-3 font-semibold text-emerald-400">₹{b.amount}</td>
                       <td className="px-5 py-3">{b.hours || b.duration || 0} hrs</td>
                       <td className="px-5 py-3"><Badge variant={statusVariant(b.status)}>{b.status}</Badge></td>

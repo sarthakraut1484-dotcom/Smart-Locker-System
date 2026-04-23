@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 
 export default function SessionsPage() {
-  const { lockers, isInitializing, endSession, overrideStart, showModal } = useAdminStore();
+  const { lockers, users, isInitializing, endSession, overrideStart, showModal } = useAdminStore();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   
   const activeLockers = Object.values(lockers).filter(l => l.status === 'ACTIVE' || l.status === 'OCCUPIED');
@@ -120,7 +120,9 @@ export default function SessionsPage() {
                       </td>
                       
                       <td className="px-8 py-6">
-                        <div className="text-white font-bold text-sm tracking-tight">{locker.userName || 'Guest User'}</div>
+                        <div className="text-white font-bold text-sm tracking-tight">
+                          {locker.userName || (locker.userId ? users[locker.userId]?.name : null) || 'Guest User'}
+                        </div>
                         <div className="flex items-center gap-1.5 mt-1">
                            <ShieldAlert className="w-3 h-3 text-primary/40" />
                            <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">Verified Session</span>

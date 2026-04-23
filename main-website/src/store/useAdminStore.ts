@@ -43,7 +43,7 @@ interface AdminState {
   adminLogs: any[];
   pulse: boolean;
   isInitializing: boolean;
-  error: string | null;
+  users: Record<string, { name: string; email: string }>;
   initialized: boolean;
 
   initSync: (force?: boolean) => void;
@@ -76,6 +76,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   pulse: false,
   isInitializing: true,
   error: null,
+  users: {},
   initialized: false,
   modal: {
     isOpen: false,
@@ -356,6 +357,19 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     onSnapshot(query(collection(db, 'admin_logs'), orderBy('timestamp', 'desc')), (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       set({ adminLogs: docs });
+    });
+
+    // 7. Users Lookup (for resolving names in history)
+    onSnapshot(collection(db, 'users'), (snapshot) => {
+      const userMap: Record<string, { name: string; email: string }> = {};
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        userMap[doc.id] = { 
+          name: data.name || 'User', 
+          email: data.email || 'N/A' 
+        };
+      });
+      set({ users: userMap });
     });
   },
 }));
