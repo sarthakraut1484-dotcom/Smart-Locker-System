@@ -11,8 +11,9 @@ export interface LockerData {
   doorStatus: 'OPEN' | 'CLOSED';
   occupancy: 'EMPTY' | 'OCCUPIED';
   currentPin: string;
-  userName: string;
-  startTime: number | null;
+   userName: string;
+   userId: string | null;
+   startTime: number | null;
   duration: number;
   unlockCount: number;
   sessionEnd?: number;
@@ -267,7 +268,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           if (!nodeData || typeof nodeData !== 'object') return;
           
           const id = String(rawId);
-          if (!updated[id]) updated[id] = { id, status: 'AVAILABLE', doorStatus: 'CLOSED', occupancy: 'EMPTY', currentPin: '---', userName: 'N/A', startTime: null, duration: 0, unlockCount: 0 };
+          if (!updated[id]) updated[id] = { id, status: 'AVAILABLE', doorStatus: 'CLOSED', occupancy: 'EMPTY', currentPin: '---', userName: 'N/A', userId: null, startTime: null, duration: 0, unlockCount: 0 };
           
           const prevStatus = updated[id].status;
           const prevUnlockCount = updated[id].unlockCount;
@@ -322,11 +323,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           if (!docSnap.id.startsWith('locker_')) return;
           const id = docSnap.id.replace('locker_', '');
           if (parseInt(id) < 1 || parseInt(id) > 20) return;
-          if (!updated[id]) updated[id] = { id, status: 'AVAILABLE', doorStatus: 'CLOSED', occupancy: 'EMPTY', currentPin: '---', userName: 'N/A', startTime: null, duration: 0, unlockCount: 0 };
+          if (!updated[id]) updated[id] = { id, status: 'AVAILABLE', doorStatus: 'CLOSED', occupancy: 'EMPTY', currentPin: '---', userName: 'N/A', userId: null, startTime: null, duration: 0, unlockCount: 0 };
           if (data.status) updated[id].status = data.status as LockerStatus;
           if (data.currentPin) updated[id].currentPin = data.currentPin;
           if (data.userName) updated[id].userName = data.userName;
-          if (data.userId) updated[id].occupancy = 'OCCUPIED';
+          if (data.userId) {
+            updated[id].occupancy = 'OCCUPIED';
+            updated[id].userId = data.userId;
+          }
           if (data.startTime) updated[id].startTime = data.startTime;
           if (data.duration) updated[id].duration = data.duration;
           updated[id].firestoreStatus = true;
