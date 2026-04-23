@@ -101,6 +101,12 @@ WiFiClientSecure wifiClient;
 #define LOCK_PIN 26 
 #define UNLOCK_TIME 3000
 
+/* ================= NEW SENSORS (From Table) ================= */
+#define TRIG_PIN 14
+#define ECHO_PIN 27
+#define DOOR_SENSOR_PIN 34
+#define TOUCH_IRQ 21
+
 /* ================= PINS ================= */
 #define TFT_CS    5
 #define TFT_DC    4
@@ -234,16 +240,31 @@ void terminateSession();
 void setup() {
   Serial.begin(115200);
   delay(1000);
+  Serial.println("\n--- SMART LOCKER DIAGNOSTIC START ---");
   
-  digitalWrite(LOCK_PIN, LOW); // Ensure pin is LOW before making it an output to prevent glitch
+  // --- HARDWARE DIAGNOSTIC TEST ---
+  // This will trigger the solenoid for 0.5s on boot to verify wiring.
+  Serial.println("[DIAGNOSTIC] Initializing LOCK_PIN 26...");
   pinMode(LOCK_PIN, OUTPUT);
-  digitalWrite(LOCK_PIN, LOW); // Double check
+  digitalWrite(LOCK_PIN, HIGH); 
+  Serial.println("[DIAGNOSTIC] Pin 26 set to HIGH. Checking for click...");
+  delay(500); 
+  digitalWrite(LOCK_PIN, LOW);
+  Serial.println("[DIAGNOSTIC] Pin 26 set to LOW. Test Complete.");
   
   pinMode(TOUCH_CLK, OUTPUT);
   pinMode(TOUCH_DIN, OUTPUT);
   pinMode(TOUCH_DO, INPUT);
   pinMode(TOUCH_CS, OUTPUT);
   digitalWrite(TOUCH_CS, HIGH);
+
+  // New Sensors Init
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(TOUCH_IRQ, INPUT_PULLUP);
+  
+  digitalWrite(TRIG_PIN, LOW); // Ensure ultrasonic is idle
 
   SPI.begin(18, 19, 23);  // SCK=18, MISO=19, MOSI=23
   
@@ -830,6 +851,7 @@ void terminateSession() {
 }
 
 void unlockLocker(bool clearCommand) {
+  Serial.println("[HARDWARE] Triggering Solenoid: Writing HIGH to Pin 26");
   digitalWrite(LOCK_PIN, HIGH);
   unlockStart = millis();
   state = UNLOCKED;
@@ -927,6 +949,7 @@ void unlockLocker(bool clearCommand) {
 
 void handleAutoLock() {
   if (millis() - unlockStart >= UNLOCK_TIME) {
+    Serial.println("[HARDWARE] Auto-Lock: Writing LOW to Pin 26");
     digitalWrite(LOCK_PIN, LOW); // Locking
     state = LOCKED;
     enteredPIN = "";

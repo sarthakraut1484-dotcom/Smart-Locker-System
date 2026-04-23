@@ -121,6 +121,8 @@ function BookingConfirmInner() {
         transaction.set(bookingRef, {
           id: bookingId,
           userId: user.uid,
+          userName: user.name,
+          userContact: user.email || "N/A",
           lockerId: selectedLocker.id,
           amount: total,
           duration: duration,
