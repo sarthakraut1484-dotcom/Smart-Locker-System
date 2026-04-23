@@ -245,6 +245,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             occupancy: 'EMPTY',
             currentPin: '---',
             userName: 'N/A',
+            userId: null,
             startTime: null,
             duration: 0,
             unlockCount: 0,
