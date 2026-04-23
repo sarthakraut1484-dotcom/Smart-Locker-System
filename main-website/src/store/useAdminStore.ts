@@ -44,6 +44,7 @@ interface AdminState {
   pulse: boolean;
   isInitializing: boolean;
   users: Record<string, { name: string; email: string }>;
+  error: string | null;
   initialized: boolean;
 
   initSync: (force?: boolean) => void;
