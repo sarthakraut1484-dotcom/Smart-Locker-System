@@ -103,7 +103,7 @@ export default function UnlockPage() {
     };
     doInitialSync();
 
-    const syncVirtualClock = (data: any) => {
+    const syncVirtualClock = async (data: any) => {
       if (data.status === 'ACTIVE') {
         const newUnlockCount = data.unlockCount || 0;
         setUnlockCount(newUnlockCount);
@@ -141,12 +141,17 @@ export default function UnlockPage() {
         // Hardware terminated the session — immediately update local state
         const prevLocker = lockerDataRef.current;
         const wasActive = prevLocker?.status === 'ACTIVE' || prevLocker?.isHardwareActive;
+        const isForcedOpen = data.lastAction === 'FORCED_OPEN';
 
         if (wasActive) {
-          console.info('[HW-SYNC] Hardware termination detected via RTDB. Updating UI immediately.');
+          if (isForcedOpen) {
+            console.warn('[SECURITY] FORCED OPEN detected! Session terminated by hardware breach.');
+          } else {
+            console.info('[HW-SYNC] Hardware termination detected via RTDB. Updating UI immediately.');
+          }
 
-          // Award credits for early termination if time was remaining
-          if (!awardTriggered.current && prevLocker?.sessionEnd) {
+          // Award credits for early termination — but NOT for forced open (security breach)
+          if (!isForcedOpen && !awardTriggered.current && prevLocker?.sessionEnd) {
             const remaining = prevLocker.sessionEnd - Date.now();
             if (remaining > 60000) {
               awardTriggered.current = true;
@@ -166,6 +171,19 @@ export default function UnlockPage() {
             unlockCount: 0,
             lastUpdated: Date.now()
           }).catch(err => console.error('[HW-SYNC] Firestore bridge failed:', err));
+
+          // Write security alert for forced-open events
+          if (isForcedOpen) {
+            const { addDoc, collection: firestoreCollection } = await import('firebase/firestore');
+            addDoc(firestoreCollection(db, 'system_logs'), {
+              type: 'FORCED_OPEN',
+              lockerId: lockerId,
+              timestamp: Date.now(),
+              message: `Locker #${lockerId} was forced open during an active session`,
+              severity: 'CRITICAL',
+              acknowledged: false
+            }).catch(err => console.error('[SECURITY] Failed to write alert:', err));
+          }
         }
 
         // Always reset local state when RTDB says AVAILABLE

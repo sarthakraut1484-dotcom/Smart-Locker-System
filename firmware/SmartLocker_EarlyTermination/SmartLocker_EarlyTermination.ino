@@ -179,6 +179,12 @@ unsigned long lastTouch = 0;
 int failedAttempts = 0;
 unsigned long lockoutUntil = 0;
 
+// Door sensor / forced-open detection
+bool doorIsOpen = false;
+unsigned long doorOpenStart = 0;
+const unsigned long FORCED_OPEN_THRESHOLD = 2000; // 2s sustained open = forced entry
+bool forcedOpenTriggered = false;
+
 enum DisplayMode { DISP_QR, DISP_INFO };
 DisplayMode currentDisplayMode = DISP_QR;
 bool forceRedraw = true;
@@ -235,6 +241,7 @@ bool getTouch(int &x, int &y) {
 
 void unlockLocker(bool clearCommand = false);
 void terminateSession();
+void checkForcedOpen();
 
 /* ================= SETUP ================= */
 void setup() {
@@ -330,6 +337,7 @@ void loop() {
   }
 
   checkSessionExpiration();
+  checkForcedOpen();
   
   // Allow smooth touch typing: pause polling for 3 seconds after a touch interaction (reduced for responsiveness)
   bool userIsTyping = (millis() - lastKeypadInteraction < 3000);
@@ -982,6 +990,85 @@ void checkSessionExpiration() {
     debugStartTime = 0;
     debugDuration = 0;
     
+    currentDisplayMode = DISP_QR;
+    forceRedraw = true;
+  }
+}
+
+/* ================= FORCED-OPEN DETECTION ================= */
+void checkForcedOpen() {
+  // Only monitor during an ACTIVE session when the solenoid is LOCKED
+  if (currentBackendStatus != "ACTIVE" || state == UNLOCKED) {
+    doorIsOpen = false;
+    doorOpenStart = 0;
+    forcedOpenTriggered = false;
+    return;
+  }
+
+  // Read door sensor (Pin 34): HIGH = door open, LOW = door closed
+  // Adjust logic below if your sensor is inverted (NO vs NC)
+  bool currentDoorState = digitalRead(DOOR_SENSOR_PIN) == HIGH;
+
+  if (currentDoorState && !doorIsOpen) {
+    // Door just opened — start timer
+    doorIsOpen = true;
+    doorOpenStart = millis();
+    Serial.println("[SECURITY] Door sensor triggered — monitoring...");
+  } else if (!currentDoorState) {
+    // Door closed again — reset
+    doorIsOpen = false;
+    doorOpenStart = 0;
+  }
+
+  // If door has been open for longer than threshold while solenoid is locked = FORCED OPEN
+  if (doorIsOpen && !forcedOpenTriggered && (millis() - doorOpenStart >= FORCED_OPEN_THRESHOLD)) {
+    forcedOpenTriggered = true;
+    Serial.println("*** FORCED OPEN DETECTED — TERMINATING SESSION ***");
+
+    // 1. Terminate the session in RTDB
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.setReuse(false);
+      String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+      String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0,\"lastAction\":\"FORCED_OPEN\"}";
+
+      http.begin(wifiClient, url);
+      http.sendRequest("PATCH", json);
+      http.end();
+
+      // 2. Write a security alert to RTDB
+      String alertUrl = "https://" + String(FIREBASE_HOST) + "/alerts/forced_open_" + String(LOCKER_ID) + "_" + String(time(NULL)) + ".json?auth=" + String(FIREBASE_SECRET);
+      String alertJson = "{\"type\":\"FORCED_OPEN\",\"lockerId\":\"" + String(LOCKER_ID) + "\",\"timestamp\":" + String((unsigned long long)time(NULL) * 1000ULL) + ",\"acknowledged\":false}";
+
+      http.begin(wifiClient, alertUrl);
+      http.addHeader("Content-Type", "application/json");
+      http.sendRequest("PUT", alertJson);
+      http.end();
+      Serial.println("[SECURITY] Alert written to RTDB.");
+    }
+
+    // 3. Reset local state
+    digitalWrite(LOCK_PIN, LOW);
+    state = LOCKED;
+    currentBackendStatus = "AVAILABLE";
+    currentSessionEnd = 0;
+    currentUnlockCount = 0;
+    enteredPIN = "";
+    terminationPIN = "";
+    terminationMode = false;
+    debugStartTime = 0;
+    debugDuration = 0;
+
+    // 4. Show BREACH warning on display
+    tft.fillScreen(THEME_BG);
+    tft.fillRect(0, 0, 240, 50, THEME_CANCEL);
+    centerText("!! BREACH !!", 18, 2, THEME_TEXT);
+    centerText("FORCED OPEN", 110, 3, THEME_CANCEL);
+    centerText("DETECTED", 150, 3, THEME_CANCEL);
+    centerText("Session Ended", 210, 2, THEME_NEUTRAL);
+    delay(5000);
+
+    // 5. Return to QR mode
     currentDisplayMode = DISP_QR;
     forceRedraw = true;
   }
