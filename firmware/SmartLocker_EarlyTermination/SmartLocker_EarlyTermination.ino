@@ -240,8 +240,8 @@ void terminateSession();
 void setup() {
   // --- MINIMAL SAFE START ---
   // Setting Pin 26 to LOW immediately. This is the standard OFF state.
-  pinMode(LOCK_PIN, OUTPUT);
   digitalWrite(LOCK_PIN, LOW); 
+  pinMode(LOCK_PIN, OUTPUT);
   
   Serial.begin(115200);
   Serial.println("--- STARTING NORMAL OPERATION ---");
@@ -872,6 +872,7 @@ void unlockLocker(bool clearCommand) {
        unsigned long long nowUTC = (unsigned long long)time(NULL) * 1000ULL;
        unsigned long long durMs = (unsigned long long)debugDuration;
        if (durMs > 0 && durMs < 10000) durMs *= 60000ULL; 
+       if (durMs == 0) durMs = 3600000ULL; // Safety fallback: default 1 hour if duration wasn't fetched yet
        
        unsigned long long newEndUTC = nowUTC + durMs;
        

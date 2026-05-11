@@ -105,23 +105,37 @@ export default function UnlockPage() {
 
     const syncVirtualClock = (data: any) => {
       if (data.status === 'ACTIVE') {
+        const newUnlockCount = data.unlockCount || 0;
+        setUnlockCount(newUnlockCount);
+
         setLockerData((prev: any) => ({
           ...prev,
           status: 'ACTIVE',
           startTime: data.startTime,
           sessionEnd: data.sessionEnd,
           duration: data.duration || 3600000,
+          unlockCount: newUnlockCount,
           isHardwareActive: true 
         }));
 
-        // Bridge to Firestore if missing
-        if (!lockerDataRef.current?.startTime && data.startTime) {
+        // Bridge to Firestore when hardware provides startTime (first unlock)
+        const prevStartTime = lockerDataRef.current?.startTime;
+        if ((!prevStartTime || prevStartTime === 0) && data.startTime && data.startTime > 0) {
+          console.log('[BRIDGE] First unlock detected — syncing startTime/sessionEnd to Firestore.');
            updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
              startTime: data.startTime,
              sessionEnd: data.sessionEnd,
              status: 'ACTIVE',
-             unlockCount: data.unlockCount
+             unlockCount: newUnlockCount
            }).catch(err => console.error('[BRIDGE] Sync failed:', err));
+        } else if (data.unlockCount > 0 && (!lockerDataRef.current?.unlockCount || lockerDataRef.current.unlockCount === 0)) {
+          // Bridge unlockCount even if startTime was already set
+          console.log('[BRIDGE] UnlockCount changed — syncing to Firestore.');
+          updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+            unlockCount: newUnlockCount,
+            startTime: data.startTime || lockerDataRef.current?.startTime,
+            sessionEnd: data.sessionEnd || lockerDataRef.current?.sessionEnd,
+          }).catch(err => console.error('[BRIDGE] UnlockCount sync failed:', err));
         }
       }
     };
@@ -170,6 +184,7 @@ export default function UnlockPage() {
   }, [lockerId]);
 
   // Timer Effect: Prioritizes RTDB/Hardware timings for the live UI
+  // Depends on unlockCount so it re-evaluates immediately when the first unlock happens
   useEffect(() => {
     const active = lockerData?.status === 'ACTIVE';
     const hasEnd = lockerData?.sessionEnd && lockerData.sessionEnd > 0;
@@ -202,7 +217,7 @@ export default function UnlockPage() {
     } else {
       setTimeLeft("--:--:--");
     }
-  }, [lockerData?.sessionEnd, lockerData?.status, lockerData?.startTime]);
+  }, [lockerData?.sessionEnd, lockerData?.status, lockerData?.startTime, unlockCount]);
 
   const handleExtend = async (hours: number) => {
     setExtending(true);
