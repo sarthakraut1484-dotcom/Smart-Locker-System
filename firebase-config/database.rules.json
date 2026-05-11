@@ -1,18 +1,6 @@
 {
   "rules": {
-    "lockers": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "users": {
-        "$uid": {
-          ".read": "$uid === auth.uid || root.child('admins/'+auth.uid).exists()",
-          ".write": "$uid === auth.uid || root.child('admins/'+auth.uid).exists()"
-        }
-    },
-    "system_logs": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    }
+    ".read": "true",
+    ".write": "true"
   }
 }

@@ -104,27 +104,21 @@ export default function UnlockPage() {
     doInitialSync();
 
     const syncVirtualClock = (data: any) => {
-      const hwNow = data.lastUpdate || data.startTime || Date.now();
-      const hwEnd = data.sessionEnd || (hwNow + (data.duration || 3600000));
-      const msLeft = Math.max(0, hwEnd - hwNow);
-      const virtualSessionEnd = Date.now() + msLeft;
-
-      if (msLeft > 0 && data.status === 'ACTIVE') {
-        const syncStartTime = Date.now() - ( (data.duration || 3600000) - msLeft );
+      if (data.status === 'ACTIVE') {
         setLockerData((prev: any) => ({
           ...prev,
           status: 'ACTIVE',
-          startTime: syncStartTime,
-          sessionEnd: virtualSessionEnd,
+          startTime: data.startTime,
+          sessionEnd: data.sessionEnd,
           duration: data.duration || 3600000,
           isHardwareActive: true 
         }));
 
         // Bridge to Firestore if missing
-        if (!lockerDataRef.current?.startTime) {
+        if (!lockerDataRef.current?.startTime && data.startTime) {
            updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
-             startTime: syncStartTime,
-             sessionEnd: virtualSessionEnd,
+             startTime: data.startTime,
+             sessionEnd: data.sessionEnd,
              status: 'ACTIVE',
              unlockCount: data.unlockCount
            }).catch(err => console.error('[BRIDGE] Sync failed:', err));

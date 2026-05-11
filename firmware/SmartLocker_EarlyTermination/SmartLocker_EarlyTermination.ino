@@ -238,19 +238,16 @@ void terminateSession();
 
 /* ================= SETUP ================= */
 void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  Serial.println("\n--- SMART LOCKER DIAGNOSTIC START ---");
-  
-  // --- HARDWARE DIAGNOSTIC TEST ---
-  // This will trigger the solenoid for 0.5s on boot to verify wiring.
-  Serial.println("[DIAGNOSTIC] Initializing LOCK_PIN 26...");
+  // --- MINIMAL SAFE START ---
+  // Setting Pin 26 to LOW immediately. This is the standard OFF state.
   pinMode(LOCK_PIN, OUTPUT);
-  digitalWrite(LOCK_PIN, HIGH); 
-  Serial.println("[DIAGNOSTIC] Pin 26 set to HIGH. Checking for click...");
-  delay(500); 
-  digitalWrite(LOCK_PIN, LOW);
-  Serial.println("[DIAGNOSTIC] Pin 26 set to LOW. Test Complete.");
+  digitalWrite(LOCK_PIN, LOW); 
+  
+  Serial.begin(115200);
+  Serial.println("--- STARTING NORMAL OPERATION ---");
+  
+  state = LOCKED;
+
   
   pinMode(TOUCH_CLK, OUTPUT);
   pinMode(TOUCH_DIN, OUTPUT);
@@ -261,7 +258,7 @@ void setup() {
   // New Sensors Init
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-  pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(DOOR_SENSOR_PIN, INPUT); // Pin 34 has no internal pull-up. You MUST use a physical 10k resistor.
   pinMode(TOUCH_IRQ, INPUT_PULLUP);
   
   digitalWrite(TRIG_PIN, LOW); // Ensure ultrasonic is idle
@@ -852,7 +849,7 @@ void terminateSession() {
 
 void unlockLocker(bool clearCommand) {
   Serial.println("[HARDWARE] Triggering Solenoid: Writing HIGH to Pin 26");
-  digitalWrite(LOCK_PIN, HIGH);
+  digitalWrite(LOCK_PIN, HIGH); // ON
   unlockStart = millis();
   state = UNLOCKED;
   currentUnlockCount++; 
@@ -950,7 +947,7 @@ void unlockLocker(bool clearCommand) {
 void handleAutoLock() {
   if (millis() - unlockStart >= UNLOCK_TIME) {
     Serial.println("[HARDWARE] Auto-Lock: Writing LOW to Pin 26");
-    digitalWrite(LOCK_PIN, LOW); // Locking
+    digitalWrite(LOCK_PIN, LOW); // OFF
     state = LOCKED;
     enteredPIN = "";
     forceRedraw = true;

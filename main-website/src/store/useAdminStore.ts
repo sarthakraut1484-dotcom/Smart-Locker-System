@@ -288,24 +288,29 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           const firestoreDocId = `locker_${id}`;
           
           // Trigger 1: Hardware just started a session (Unlock Count 1)
-          if (updated[id].unlockCount > 0 && !prevStartTime && updated[id].startTime) {
+          if (updated[id].status === 'ACTIVE' && prevStatus === 'AVAILABLE') {
              console.log(`[Bridge] Syncing Hardware Start for Locker #${id} to Firestore...`);
              updateDoc(doc(db, 'lockers', firestoreDocId), {
-               startTime: updated[id].startTime,
-               sessionEnd: updated[id].sessionEnd,
-               unlockCount: updated[id].unlockCount,
+               startTime: updated[id].startTime || Date.now(),
+               sessionEnd: updated[id].sessionEnd || 0,
+               unlockCount: updated[id].unlockCount || 1,
                status: 'ACTIVE'
              }).catch(e => console.error('[Bridge] Firestore sync failed:', e));
           }
 
           // Trigger 2: Hardware session end (Status became AVAILABLE on hardware)
-          if (updated[id].status === 'AVAILABLE' && prevStatus === 'ACTIVE' && prevStartTime) {
+          if (updated[id].status === 'AVAILABLE' && prevStatus === 'ACTIVE') {
              console.log(`[Bridge] Syncing Hardware Termination for Locker #${id} to Firestore...`);
              updateDoc(doc(db, 'lockers', firestoreDocId), {
                status: 'AVAILABLE',
                startTime: null,
                sessionEnd: 0,
-               unlockCount: 0
+               unlockCount: 0,
+               duration: 0,
+               currentPin: null,
+               userId: null,
+               userName: null,
+               userContact: null
              }).catch(e => console.error('[Bridge] Firestore termination failed:', e));
           }
         });
@@ -325,15 +330,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           const id = docSnap.id.replace('locker_', '');
           if (parseInt(id) < 1 || parseInt(id) > 20) return;
           if (!updated[id]) updated[id] = { id, status: 'AVAILABLE', doorStatus: 'CLOSED', occupancy: 'EMPTY', currentPin: '---', userName: 'N/A', userId: null, startTime: null, duration: 0, unlockCount: 0 };
-          if (data.status) updated[id].status = data.status as LockerStatus;
-          if (data.currentPin) updated[id].currentPin = data.currentPin;
-          if (data.userName) updated[id].userName = data.userName;
-          if (data.userId) {
-            updated[id].occupancy = 'OCCUPIED';
-            updated[id].userId = data.userId;
-          }
-          if (data.startTime) updated[id].startTime = data.startTime;
-          if (data.duration) updated[id].duration = data.duration;
+          updated[id].status = (data.status || 'AVAILABLE') as LockerStatus;
+          updated[id].currentPin = data.currentPin || '---';
+          updated[id].userName = data.userName || 'N/A';
+          updated[id].userId = data.userId || null;
+          updated[id].occupancy = data.userId ? 'OCCUPIED' : 'EMPTY';
+          updated[id].startTime = data.startTime || null;
+          updated[id].duration = data.duration || 0;
           updated[id].firestoreStatus = true;
         });
         return { lockers: updated };
