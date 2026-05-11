@@ -14,7 +14,9 @@ import {
   Loader2,
   Coins,
   ChevronRight,
-  HandMetal
+  HandMetal,
+  DoorOpen,
+  DoorClosed
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { db, rtdb } from '@/lib/firebase/config';
@@ -30,6 +32,8 @@ export default function UnlockPage() {
 
   const [lockerData, setLockerData] = useState<any>(null);
   const [unlockCount, setUnlockCount] = useState(0);
+  const [doorStatus, setDoorStatus] = useState<'OPEN' | 'CLOSED'>('CLOSED');
+  const [doorOpenDuration, setDoorOpenDuration] = useState(0);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [showExtension, setShowExtension] = useState(false);
@@ -204,6 +208,8 @@ export default function UnlockPage() {
       const data = snap.val();
       if (!data) return;
       setUnlockCount(data.unlockCount || 0);
+      setDoorStatus(data.doorStatus === 'OPEN' ? 'OPEN' : 'CLOSED');
+      setDoorOpenDuration(data.doorOpenDuration || 0);
       syncVirtualClock(data);
     });
 
@@ -274,6 +280,16 @@ export default function UnlockPage() {
       setTimeLeft("--:--:--");
     }
   }, [lockerData?.sessionEnd, lockerData?.status, lockerData?.startTime, unlockCount]);
+
+  // Format door open duration from ms to readable string
+  const formatDoorTime = (ms: number) => {
+    if (ms < 1000) return '0s';
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`;
+    return `${s}s`;
+  };
 
   const handleExtend = async (hours: number) => {
     setExtending(true);
@@ -410,11 +426,43 @@ export default function UnlockPage() {
               <div className="text-5xl font-black text-white font-outfit leading-none mb-3">
                 {String(unlockCount).padStart(2, '0')}
               </div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Initial Unlocks</p>
-              <div className="mt-5 flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/5 opacity-80">
-                 <ShieldCheck className="w-3 h-3 text-primary" />
-                 <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Hardware Sync Active</span>
-              </div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Unlocks</p>
+
+              {/* Door Status */}
+              {isLocked && (
+                <div className="mt-5 space-y-3 w-full">
+                  <div className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                    doorStatus === 'OPEN' 
+                      ? 'bg-amber-500/10 border-amber-500/30' 
+                      : 'bg-emerald-500/10 border-emerald-500/30'
+                  }`}>
+                    {doorStatus === 'OPEN' 
+                      ? <DoorOpen className="w-3.5 h-3.5 text-amber-400" />
+                      : <DoorClosed className="w-3.5 h-3.5 text-emerald-400" />
+                    }
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${
+                      doorStatus === 'OPEN' ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
+                      Door {doorStatus}
+                    </span>
+                  </div>
+                  {doorOpenDuration > 0 && (
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-lg border border-white/5">
+                      <Clock className="w-3 h-3 text-gray-500" />
+                      <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                        Open: {formatDoorTime(doorOpenDuration)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!isLocked && (
+                <div className="mt-5 flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/5 opacity-80">
+                   <ShieldCheck className="w-3 h-3 text-primary" />
+                   <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Hardware Sync Active</span>
+                </div>
+              )}
           </div>
         </div>
 
