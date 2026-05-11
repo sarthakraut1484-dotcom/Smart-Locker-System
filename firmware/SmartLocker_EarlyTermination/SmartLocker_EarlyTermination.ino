@@ -1033,6 +1033,12 @@ void updateDoorSensor() {
     doorCurrentlyOpen = false;
     doorOpenSince = 0;
     doorOpenDuration = 0; // Reset to 0 — each round starts fresh
+    
+    // Stop continuous buzzer and restore screen if warning was active
+    if (buzzerLevel == 3) {
+      digitalWrite(BUZZER_PIN, LOW);
+      forceRedraw = true; // Restore normal display
+    }
     buzzerLevel = 0; // Reset for next round
     Serial.print("[DOOR] Door CLOSED. Last round was: ");
     Serial.print(roundDuration / 1000);
@@ -1054,13 +1060,21 @@ void updateDoorSensor() {
   if (doorCurrentlyOpen && doorOpenSince > 0) {
     unsigned long roundMs = millis() - doorOpenSince;
 
-    if (roundMs >= 20000 && buzzerLevel < 3) {
+    if (roundMs >= 30000 && buzzerLevel < 3) {
+      // 30s+ — continuous beep + warning on screen
       buzzerLevel = 3;
-      buzzerBeep(3);
-    } else if (roundMs >= 15000 && buzzerLevel < 2) {
+      digitalWrite(BUZZER_PIN, HIGH); // Continuous ON
+      tft.fillScreen(THEME_BG);
+      tft.fillRect(0, 0, 240, 50, THEME_CANCEL);
+      centerText("!! WARNING !!", 18, 2, THEME_TEXT);
+      centerText("CLOSE DOOR", 120, 3, THEME_CANCEL);
+      centerText("IMMEDIATELY", 160, 3, THEME_CANCEL);
+      centerText("Door open too long", 220, 2, THEME_NEUTRAL);
+      Serial.println("[BUZZER] CONTINUOUS — door open > 30s");
+    } else if (roundMs >= 20000 && buzzerLevel < 2) {
       buzzerLevel = 2;
-      buzzerBeep(2);
-    } else if (roundMs >= 10000 && buzzerLevel < 1) {
+      buzzerBeep(1);
+    } else if (roundMs >= 15000 && buzzerLevel < 1) {
       buzzerLevel = 1;
       buzzerBeep(1);
     }
