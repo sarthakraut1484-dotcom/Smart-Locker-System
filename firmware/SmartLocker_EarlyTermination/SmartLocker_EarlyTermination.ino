@@ -185,7 +185,7 @@ bool doorCurrentlyOpen = false;
 unsigned long doorOpenSince = 0;
 unsigned long doorOpenDuration = 0; // Cumulative ms the door has been open this session
 unsigned long lastDoorSync = 0;
-const unsigned long DOOR_SYNC_INTERVAL = 3000; // Push door data every 3s
+const unsigned long DOOR_SYNC_INTERVAL = 1000; // Push door data every 1s for snappy sync
 
 // Buzzer alert thresholds (per continuous open round)
 int buzzerLevel = 0; // 0 = no alert, 1 = 10s, 2 = 15s, 3 = 20s
@@ -1027,6 +1027,17 @@ void updateDoorSensor() {
     doorOpenSince = millis();
     buzzerLevel = 0; // Reset buzzer thresholds for this round
     Serial.println("[DOOR] Door OPENED — new round started");
+
+    // Immediately push OPEN status to RTDB
+    if (currentBackendStatus == "ACTIVE" && WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.setReuse(false);
+      String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+      http.begin(wifiClient, url);
+      http.addHeader("Content-Type", "application/json");
+      http.sendRequest("PATCH", "{\"doorStatus\":\"OPEN\",\"doorOpenDuration\":0}");
+      http.end();
+    }
   } else if (!isOpen && doorCurrentlyOpen) {
     // Door just closed — reset open time for next round
     unsigned long roundDuration = millis() - doorOpenSince;
