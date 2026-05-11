@@ -106,6 +106,7 @@ WiFiClientSecure wifiClient;
 #define ECHO_PIN 27
 #define DOOR_SENSOR_PIN 34
 #define TOUCH_IRQ 21
+#define BUZZER_PIN 13
 
 /* ================= PINS ================= */
 #define TFT_CS    5
@@ -185,6 +186,9 @@ unsigned long doorOpenSince = 0;
 unsigned long doorOpenDuration = 0; // Cumulative ms the door has been open this session
 unsigned long lastDoorSync = 0;
 const unsigned long DOOR_SYNC_INTERVAL = 3000; // Push door data every 3s
+
+// Buzzer alert thresholds (per continuous open round)
+int buzzerLevel = 0; // 0 = no alert, 1 = 10s, 2 = 15s, 3 = 20s
 
 enum DisplayMode { DISP_QR, DISP_INFO };
 DisplayMode currentDisplayMode = DISP_QR;
@@ -268,6 +272,10 @@ void setup() {
   pinMode(ECHO_PIN, INPUT);
   pinMode(DOOR_SENSOR_PIN, INPUT); // Pin 34 has no internal pull-up. You MUST use a physical 10k resistor.
   pinMode(TOUCH_IRQ, INPUT_PULLUP);
+  
+  // Buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
   
   digitalWrite(TRIG_PIN, LOW); // Ensure ultrasonic is idle
 
@@ -997,23 +1005,56 @@ void checkSessionExpiration() {
 }
 
 /* ================= DOOR SENSOR MONITORING ================= */
+
+// Helper: beep the buzzer N times
+void buzzerBeep(int times) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(150);
+    digitalWrite(BUZZER_PIN, LOW);
+    if (i < times - 1) delay(150); // gap between beeps
+  }
+  Serial.print("[BUZZER] Beeped "); Serial.print(times); Serial.println(" time(s)");
+}
+
 void updateDoorSensor() {
   // Read door sensor: HIGH = disconnected (door OPEN), LOW = connected (door CLOSED)
   bool isOpen = digitalRead(DOOR_SENSOR_PIN) == HIGH;
 
   if (isOpen && !doorCurrentlyOpen) {
-    // Door just opened
+    // Door just opened — start a new round
     doorCurrentlyOpen = true;
     doorOpenSince = millis();
-    Serial.println("[DOOR] Door OPENED");
+    buzzerLevel = 0; // Reset buzzer thresholds for this round
+    Serial.println("[DOOR] Door OPENED — new round started");
   } else if (!isOpen && doorCurrentlyOpen) {
-    // Door just closed — accumulate open time
-    doorOpenDuration += (millis() - doorOpenSince);
+    // Door just closed — accumulate open time, reset round
+    unsigned long roundDuration = millis() - doorOpenSince;
+    doorOpenDuration += roundDuration;
     doorCurrentlyOpen = false;
     doorOpenSince = 0;
-    Serial.print("[DOOR] Door CLOSED. Total open time: ");
+    buzzerLevel = 0; // Reset for next round
+    Serial.print("[DOOR] Door CLOSED. Round: ");
+    Serial.print(roundDuration / 1000);
+    Serial.print("s | Total: ");
     Serial.print(doorOpenDuration / 1000);
     Serial.println("s");
+  }
+
+  // Buzzer escalation while door is open (per-round timing)
+  if (doorCurrentlyOpen && doorOpenSince > 0) {
+    unsigned long roundMs = millis() - doorOpenSince;
+
+    if (roundMs >= 20000 && buzzerLevel < 3) {
+      buzzerLevel = 3;
+      buzzerBeep(3);
+    } else if (roundMs >= 15000 && buzzerLevel < 2) {
+      buzzerLevel = 2;
+      buzzerBeep(2);
+    } else if (roundMs >= 10000 && buzzerLevel < 1) {
+      buzzerLevel = 1;
+      buzzerBeep(1);
+    }
   }
 
   // Push door status to RTDB periodically during an ACTIVE session
@@ -1045,5 +1086,6 @@ void updateDoorSensor() {
     doorOpenDuration = 0;
     doorCurrentlyOpen = false;
     doorOpenSince = 0;
+    buzzerLevel = 0;
   }
 }
