@@ -1028,17 +1028,26 @@ void updateDoorSensor() {
     buzzerLevel = 0; // Reset buzzer thresholds for this round
     Serial.println("[DOOR] Door OPENED — new round started");
   } else if (!isOpen && doorCurrentlyOpen) {
-    // Door just closed — accumulate open time, reset round
+    // Door just closed — reset open time for next round
     unsigned long roundDuration = millis() - doorOpenSince;
-    doorOpenDuration += roundDuration;
     doorCurrentlyOpen = false;
     doorOpenSince = 0;
+    doorOpenDuration = 0; // Reset to 0 — each round starts fresh
     buzzerLevel = 0; // Reset for next round
-    Serial.print("[DOOR] Door CLOSED. Round: ");
+    Serial.print("[DOOR] Door CLOSED. Last round was: ");
     Serial.print(roundDuration / 1000);
-    Serial.print("s | Total: ");
-    Serial.print(doorOpenDuration / 1000);
-    Serial.println("s");
+    Serial.println("s — timer reset to 0");
+
+    // Immediately push reset to RTDB so website updates instantly
+    if (currentBackendStatus == "ACTIVE" && WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.setReuse(false);
+      String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+      http.begin(wifiClient, url);
+      http.addHeader("Content-Type", "application/json");
+      http.sendRequest("PATCH", "{\"doorStatus\":\"CLOSED\",\"doorOpenDuration\":0}");
+      http.end();
+    }
   }
 
   // Buzzer escalation while door is open (per-round timing)
