@@ -137,6 +137,48 @@ export default function UnlockPage() {
             sessionEnd: data.sessionEnd || lockerDataRef.current?.sessionEnd,
           }).catch(err => console.error('[BRIDGE] UnlockCount sync failed:', err));
         }
+      } else if (data.status === 'AVAILABLE') {
+        // Hardware terminated the session — immediately update local state
+        const prevLocker = lockerDataRef.current;
+        const wasActive = prevLocker?.status === 'ACTIVE' || prevLocker?.isHardwareActive;
+
+        if (wasActive) {
+          console.info('[HW-SYNC] Hardware termination detected via RTDB. Updating UI immediately.');
+
+          // Award credits for early termination if time was remaining
+          if (!awardTriggered.current && prevLocker?.sessionEnd) {
+            const remaining = prevLocker.sessionEnd - Date.now();
+            if (remaining > 60000) {
+              awardTriggered.current = true;
+              const credits = Math.floor(remaining / 60000);
+              setCreditsAwarded(credits);
+            }
+          }
+
+          // Bridge termination to Firestore
+          updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
+            status: 'AVAILABLE',
+            startTime: null,
+            sessionEnd: 0,
+            duration: 0,
+            currentPin: null,
+            encryptedPin: null,
+            unlockCount: 0,
+            lastUpdated: Date.now()
+          }).catch(err => console.error('[HW-SYNC] Firestore bridge failed:', err));
+        }
+
+        // Always reset local state when RTDB says AVAILABLE
+        setUnlockCount(0);
+        setLockerData((prev: any) => ({
+          ...prev,
+          status: 'AVAILABLE',
+          startTime: null,
+          sessionEnd: 0,
+          duration: 0,
+          unlockCount: 0,
+          isHardwareActive: false
+        }));
       }
     };
 
@@ -147,31 +189,27 @@ export default function UnlockPage() {
       syncVirtualClock(data);
     });
 
-    // 3. RTDB Status Listener — Bridge hardware early-termination to Firestore
-    //    The ESP32's terminateSession() only writes to RTDB. This listener
-    //    detects that write and propagates it to Firestore so the website UI
-    //    updates correctly (credits award, session end, etc.)
+    // 3. RTDB Status Listener — Backup bridge for hardware early-termination
+    //    This is a secondary safety net. The primary termination handling
+    //    is now done inside syncVirtualClock above.
     const unsubRtdbStatus = onValue(ref(rtdb, `${lockerId}/status`), async (snap) => {
       const rtdbStatus = snap.val() as string | null;
       const currentLocker = lockerDataRef.current;
       
-      // Hardware terminated early: RTDB is AVAILABLE but Firestore still shows ACTIVE
-      // Only trigger if startTime exists (meaning session had already actually started)
-      if (rtdbStatus === 'AVAILABLE' && currentLocker?.status === 'ACTIVE' && currentLocker?.startTime) {
-        console.info('[HW-SYNC] Hardware early termination detected. Syncing Firestore...');
-        try {
-          await updateDoc(doc(db, "lockers", `locker_${lockerId}`), {
-            status: 'AVAILABLE',
-            startTime: null,
-            sessionEnd: 0,
-            duration: 0,
-            currentPin: null,
-            encryptedPin: null,
-            lastUpdated: Date.now()
-          });
-        } catch (err) {
-          console.error('[HW-SYNC] Failed to sync termination to Firestore:', err);
-        }
+      // Hardware terminated early: RTDB is AVAILABLE but local state still shows ACTIVE
+      if (rtdbStatus === 'AVAILABLE' && currentLocker?.status === 'ACTIVE') {
+        console.info('[HW-SYNC-BACKUP] Status listener detected termination.');
+        // Update local state immediately as a backup
+        setUnlockCount(0);
+        setLockerData((prev: any) => ({
+          ...prev,
+          status: 'AVAILABLE',
+          startTime: null,
+          sessionEnd: 0,
+          duration: 0,
+          unlockCount: 0,
+          isHardwareActive: false
+        }));
       }
     });
 
