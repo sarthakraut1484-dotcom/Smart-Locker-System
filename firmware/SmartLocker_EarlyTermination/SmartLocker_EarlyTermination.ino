@@ -211,36 +211,52 @@ uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
 uint16_t readTouch(uint8_t cmd) {
   uint16_t r = 0;
   digitalWrite(TOUCH_CS, LOW);
+  delayMicroseconds(10); // CS settling time
+  
+  // Send 8-bit command
   for (int i = 7; i >= 0; i--) {
     digitalWrite(TOUCH_DIN, (cmd >> i) & 1);
     digitalWrite(TOUCH_CLK, HIGH);
-    delayMicroseconds(2);
+    delayMicroseconds(5);
     digitalWrite(TOUCH_CLK, LOW);
+    delayMicroseconds(5);
   }
+  
+  delayMicroseconds(10); // ADC conversion settling
+  
+  // Read 12-bit result
   for (int i = 11; i >= 0; i--) {
     digitalWrite(TOUCH_CLK, HIGH);
+    delayMicroseconds(5);
     if (digitalRead(TOUCH_DO)) r |= (1 << i);
     digitalWrite(TOUCH_CLK, LOW);
+    delayMicroseconds(5);
   }
+  
   digitalWrite(TOUCH_CS, HIGH);
   return r;
 }
 
 bool getTouch(int &x, int &y) {
-  uint16_t z = readTouch(0xB0);
-  if (z < 120) return false;
+  // Z-pressure first — diagnostics confirmed: idle Z=0 ALWAYS, real touch Z>0
+  uint16_t z1 = readTouch(0xB0);
+  if (z1 < 3) return false;  // Not touching
 
-  uint16_t rx = (readTouch(0xD0) + readTouch(0xD0)) / 2;
-  uint16_t ry = (readTouch(0x90) + readTouch(0x90)) / 2;
+  // Single X/Y read for maximum sensitivity
+  uint16_t rx = readTouch(0xD0);
+  uint16_t ry = readTouch(0x90);
 
-  if (rx < 200 || rx > 1800 || ry < 300 || ry > 1900) return false;
+  // Safety net: reject ADC max noise
+  if (ry > 2000 || rx < 50) return false;
 
-  x = map(rx, 250, 1650, 0, 240);
-  y = map(ry, 390, 1850, 0, 320);
+  // Calibrated mapping
+  x = map(rx, 400, 1860, 0, 240);
+  y = map(ry, 1440, 300, 0, 320);
 
   x = constrain(x, 0, 239);
   y = constrain(y, 0, 319);
 
+  Serial.printf("[TOUCH] Z=%d RAW(%d,%d) -> MAP(%d,%d)\n", z1, rx, ry, x, y);
   return true;
 }
 
@@ -450,7 +466,7 @@ void handleTouch() {
     return;
   }
 
-  if (millis() - lastTouch < 120) return;
+  if (millis() - lastTouch < 50) return;
   lastTouch = millis();
   lastKeypadInteraction = millis();
 
@@ -470,7 +486,7 @@ void handleTouch() {
         buttons[i].isPressed = true;
         drawButton(i);
         processKeypadEntry(buttons[i].label);
-        delay(100);
+        delay(50);
         buttons[i].isPressed = false;
         drawButton(i);
         return;
