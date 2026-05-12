@@ -268,6 +268,9 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           const nodeData = raw[rawId];
           if (!nodeData || typeof nodeData !== 'object') return;
           
+          // Skip non-locker nodes (e.g. "alerts", "blockchain_ledger", "lockers")
+          if (!/^\d+$/.test(rawId)) return;
+          
           const id = String(rawId);
           if (!updated[id]) updated[id] = { id, status: 'AVAILABLE', doorStatus: 'CLOSED', occupancy: 'EMPTY', currentPin: '---', userName: 'N/A', userId: null, startTime: null, duration: 0, unlockCount: 0 };
           

@@ -57,7 +57,7 @@ export default function LockersPage() {
         </div>
         <div className="flex gap-2">
           <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-400/10 px-3 py-1.5 rounded-lg border border-emerald-400/20">
-            <div className="w-2 h-2 rounded-full bg-emerald-400"></div> Total: {Object.keys(lockers).length}
+            <div className="w-2 h-2 rounded-full bg-emerald-400"></div> Total: {Object.keys(lockers).filter(k => /^\d+$/.test(k) && Number(k) >= 1 && Number(k) <= 20).length}
           </div>
         </div>
       </div>
@@ -68,7 +68,9 @@ export default function LockersPage() {
             <div key={i} className="glass-panel p-6 rounded-2xl animate-pulse h-48 border border-white/5"></div>
           ))
         ) : (
-          Object.values(lockers).map((locker, i) => (
+          Object.values(lockers)
+            .filter((l) => /^\d+$/.test(l.id) && Number(l.id) >= 1 && Number(l.id) <= 20)
+            .map((locker, i) => (
             <motion.div 
               key={locker.id}
               initial={{ opacity: 0, scale: 0.95 }}
