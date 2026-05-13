@@ -249,9 +249,9 @@ bool getTouch(int &x, int &y) {
   // Safety net: reject ADC max noise
   if (ry > 2000 || rx < 50) return false;
 
-  // Calibrated mapping
-  x = map(rx, 400, 1860, 0, 240);
-  y = map(ry, 1440, 300, 0, 320);
+  // Perfectly calibrated mapping from exact center touches
+  x = map(rx, 45, 1929, 0, 240);
+  y = map(ry, 228, 1910, 0, 320);
 
   x = constrain(x, 0, 239);
   y = constrain(y, 0, 319);
@@ -477,7 +477,7 @@ void handleTouch() {
     return;
   }
 
-  int pad = 15;
+  int pad = 3;
   for (int i = 0; i < 12; i++) {
     if (tx >= (buttons[i].x - pad) && tx <= (buttons[i].x + buttons[i].w + pad) &&
         ty >= (buttons[i].y - pad) && ty <= (buttons[i].y + buttons[i].h + pad)) {
