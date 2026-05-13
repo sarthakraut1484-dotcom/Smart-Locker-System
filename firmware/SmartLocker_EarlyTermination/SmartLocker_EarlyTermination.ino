@@ -194,7 +194,8 @@ int buzzerLevel = 0; // 0 = no alert, 1 = 10s, 2 = 15s, 3 = 20s
 float emptyDistance = 0.0;
 bool itemPresent = false;
 unsigned long lastUltrasonicUpdate = 0;
-const unsigned long ULTRASONIC_INTERVAL = 2000;
+const unsigned long ULTRASONIC_INTERVAL = 1000; // Increased frequency to 1s for better responsiveness
+int detectionCount = 0; // Debounce counter
 
 enum DisplayMode { DISP_QR, DISP_INFO };
 DisplayMode currentDisplayMode = DISP_QR;
@@ -1187,26 +1188,55 @@ void updateUltrasonic() {
     delayMicroseconds(10);
     digitalWrite(TRIG_PIN, LOW);
     long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+    
     if (duration > 0) {
       float distance = duration * 0.034 / 2.0;
-      bool isPresent = (distance < emptyDistance - 5.0 && distance > 1.0);
       
-      if (isPresent != itemPresent) {
-        itemPresent = isPresent;
-        Serial.print("[ULTRASONIC] Item presence changed: ");
-        Serial.println(itemPresent ? "PRESENT" : "EMPTY");
-        
-        if (WiFi.status() == WL_CONNECTED) {
-          HTTPClient http;
-          http.setReuse(false);
-          String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-          String json = "{\"itemPresent\":" + String(itemPresent ? "true" : "false") + "}";
-          http.begin(wifiClient, url);
-          http.addHeader("Content-Type", "application/json");
-          http.sendRequest("PATCH", json);
-          http.end();
+      // Self-healing calibration: If we consistently read a distance LARGER than emptyDistance,
+      // it means we booted up with an item inside. Let's fix the baseline.
+      static int healingCount = 0;
+      if (distance > emptyDistance + 5.0) {
+        healingCount++;
+        if (healingCount > 5) { // 5 seconds of larger distance
+          emptyDistance = distance;
+          healingCount = 0;
+          Serial.printf("[ULTRASONIC] Self-healed empty distance to: %.1f cm\n", emptyDistance);
         }
+      } else {
+         healingCount = 0;
       }
+      
+      // Threshold lowered to 3.0 cm for thinner items (books, laptops, etc.)
+      bool isPresent = (distance < emptyDistance - 3.0 && distance > 1.0);
+      
+      Serial.printf("[ULTRASONIC] Dist: %.1f cm | Base: %.1f cm | Present: %s\n", distance, emptyDistance, isPresent ? "YES" : "NO");
+      
+      // Debounce logic: require 2 consecutive matching reads to change state
+      if (isPresent != itemPresent) {
+        detectionCount++;
+        if (detectionCount >= 2) {
+          itemPresent = isPresent;
+          detectionCount = 0;
+          Serial.print("[ULTRASONIC] State officially changed to: ");
+          Serial.println(itemPresent ? "PRESENT" : "EMPTY");
+          
+          if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+            http.setReuse(false);
+            String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+            String json = "{\"itemPresent\":" + String(itemPresent ? "true" : "false") + "}";
+            http.begin(wifiClient, url);
+            http.addHeader("Content-Type", "application/json");
+            int httpCode = http.sendRequest("PATCH", json);
+            Serial.printf("[ULTRASONIC] Firebase Sync Code: %d\n", httpCode);
+            http.end();
+          }
+        }
+      } else {
+        detectionCount = 0; // Reset if it fluctuates back
+      }
+    } else {
+      Serial.println("[ULTRASONIC] Timeout / Out of range");
     }
   }
 }
