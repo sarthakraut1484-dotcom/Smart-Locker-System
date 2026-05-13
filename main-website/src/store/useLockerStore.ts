@@ -74,23 +74,44 @@ export const useLockerStore = create<LockerStore>((set, get) => ({
   cleanupExpiredLocker: async (firestoreId: string) => {
     const numericId = firestoreId.replace('locker_', '');
     try {
-      await updateDoc(doc(db, "lockers", firestoreId), {
+      // Check if item is left behind via RTDB
+      const { get } = await import('firebase/database');
+      const rtdbSnap = await get(ref(rtdb, numericId));
+      const rtdbData = rtdbSnap.val();
+      const itemPresent = rtdbData?.itemPresent || false;
+
+      // Keep user info if item is left behind
+      let firestoreUpdate: any = {
         status: "AVAILABLE",
         lastUpdated: Date.now(),
         startTime: null,
         duration: 0,
         currentPin: null,
-        userId: null,
-        sessionEnd: 0
-      });
-      await update(ref(rtdb, numericId), {
+      };
+
+      if (itemPresent) {
+        // Keep userId and sessionEnd to calculate time left behind
+        firestoreUpdate.itemLeftBehind = true;
+      } else {
+        firestoreUpdate.userId = null;
+        firestoreUpdate.sessionEnd = 0;
+        firestoreUpdate.itemLeftBehind = false;
+      }
+
+      await updateDoc(doc(db, "lockers", firestoreId), firestoreUpdate);
+
+      let rtdbUpdate: any = {
         status: "AVAILABLE",
         pin: null,
         startTime: 0,
         duration: 0,
         unlockCount: 0,
-        sessionEnd: 0
-      });
+      };
+      
+      if (!itemPresent) {
+         rtdbUpdate.sessionEnd = 0;
+      }
+      await update(ref(rtdb, numericId), rtdbUpdate);
     } catch (err) {
       console.error("Cleanup error:", err);
     }

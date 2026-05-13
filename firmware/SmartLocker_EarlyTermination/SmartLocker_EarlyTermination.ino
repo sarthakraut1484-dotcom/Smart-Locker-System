@@ -190,6 +190,12 @@ const unsigned long DOOR_SYNC_INTERVAL = 1000; // Push door data every 1s for sn
 // Buzzer alert thresholds (per continuous open round)
 int buzzerLevel = 0; // 0 = no alert, 1 = 10s, 2 = 15s, 3 = 20s
 
+// Ultrasonic
+float emptyDistance = 0.0;
+bool itemPresent = false;
+unsigned long lastUltrasonicUpdate = 0;
+const unsigned long ULTRASONIC_INTERVAL = 2000;
+
 enum DisplayMode { DISP_QR, DISP_INFO };
 DisplayMode currentDisplayMode = DISP_QR;
 bool forceRedraw = true;
@@ -263,6 +269,8 @@ bool getTouch(int &x, int &y) {
 void unlockLocker(bool clearCommand = false);
 void terminateSession();
 void updateDoorSensor();
+void calibrateUltrasonic();
+void updateUltrasonic();
 
 /* ================= SETUP ================= */
 void setup() {
@@ -294,6 +302,8 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
   
   digitalWrite(TRIG_PIN, LOW); // Ensure ultrasonic is idle
+  delay(500);
+  calibrateUltrasonic();
 
   SPI.begin(18, 19, 23);  // SCK=18, MISO=19, MOSI=23
   
@@ -363,6 +373,7 @@ void loop() {
 
   checkSessionExpiration();
   updateDoorSensor();
+  updateUltrasonic();
   
   // Allow smooth touch typing: pause polling for 3 seconds after a touch interaction (reduced for responsiveness)
   bool userIsTyping = (millis() - lastKeypadInteraction < 3000);
@@ -1139,3 +1150,64 @@ void updateDoorSensor() {
     buzzerLevel = 0;
   }
 }
+
+void calibrateUltrasonic() {
+  Serial.println("[ULTRASONIC] Calibrating empty distance...");
+  long sum = 0;
+  int validReadings = 0;
+  for(int i = 0; i < 10; i++) {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+    if(duration > 0) {
+      sum += duration;
+      validReadings++;
+    }
+    delay(50);
+  }
+  if (validReadings > 0) {
+    emptyDistance = (sum / validReadings) * 0.034 / 2.0;
+  } else {
+    emptyDistance = 40.0; // fallback default cm
+  }
+  Serial.print("[ULTRASONIC] Empty distance set to: ");
+  Serial.print(emptyDistance);
+  Serial.println(" cm");
+}
+
+void updateUltrasonic() {
+  if (millis() - lastUltrasonicUpdate >= ULTRASONIC_INTERVAL) {
+    lastUltrasonicUpdate = millis();
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+    if (duration > 0) {
+      float distance = duration * 0.034 / 2.0;
+      bool isPresent = (distance < emptyDistance - 5.0 && distance > 1.0);
+      
+      if (isPresent != itemPresent) {
+        itemPresent = isPresent;
+        Serial.print("[ULTRASONIC] Item presence changed: ");
+        Serial.println(itemPresent ? "PRESENT" : "EMPTY");
+        
+        if (WiFi.status() == WL_CONNECTED) {
+          HTTPClient http;
+          http.setReuse(false);
+          String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
+          String json = "{\"itemPresent\":" + String(itemPresent ? "true" : "false") + "}";
+          http.begin(wifiClient, url);
+          http.addHeader("Content-Type", "application/json");
+          http.sendRequest("PATCH", json);
+          http.end();
+        }
+      }
+    }
+  }
+}
+

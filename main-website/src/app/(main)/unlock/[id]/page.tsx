@@ -16,7 +16,9 @@ import {
   ChevronRight,
   HandMetal,
   DoorOpen,
-  DoorClosed
+  DoorClosed,
+  Box,
+  PackageCheck
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { db, rtdb } from '@/lib/firebase/config';
@@ -34,6 +36,7 @@ export default function UnlockPage() {
   const [unlockCount, setUnlockCount] = useState(0);
   const [doorStatus, setDoorStatus] = useState<'OPEN' | 'CLOSED'>('CLOSED');
   const [doorOpenDuration, setDoorOpenDuration] = useState(0);
+  const [itemPresent, setItemPresent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [showExtension, setShowExtension] = useState(false);
@@ -210,6 +213,7 @@ export default function UnlockPage() {
       setUnlockCount(data.unlockCount || 0);
       setDoorStatus(data.doorStatus === 'OPEN' ? 'OPEN' : 'CLOSED');
       setDoorOpenDuration(data.doorOpenDuration || 0);
+      setItemPresent(data.itemPresent || false);
       syncVirtualClock(data);
     });
 
@@ -454,6 +458,23 @@ export default function UnlockPage() {
                       </span>
                     </div>
                   )}
+
+                  {/* Item Status */}
+                  <div className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                    itemPresent 
+                      ? 'bg-blue-500/10 border-blue-500/30' 
+                      : 'bg-white/5 border-white/10'
+                  }`}>
+                    {itemPresent 
+                      ? <PackageCheck className="w-3.5 h-3.5 text-blue-400" />
+                      : <Box className="w-3.5 h-3.5 text-gray-500" />
+                    }
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${
+                      itemPresent ? 'text-blue-400' : 'text-gray-500'
+                    }`}>
+                      {itemPresent ? 'Item Detected' : 'Box Empty'}
+                    </span>
+                  </div>
                 </div>
               )}
 

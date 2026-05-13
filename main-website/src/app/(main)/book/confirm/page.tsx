@@ -37,6 +37,8 @@ function BookingConfirmInner() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedPin, setGeneratedPin] = useState('');
   const [pricing, setPricing] = useState<any>(null);
+  const [leftBehindTime, setLeftBehindTime] = useState<number>(0);
+  const [leftBehindPenalty, setLeftBehindPenalty] = useState<number>(0);
 
   useEffect(() => {
     initAuth();
@@ -66,17 +68,39 @@ function BookingConfirmInner() {
     getDoc(doc(db, "settings", "pricing")).then(snap => {
       if (snap.exists()) setPricing(snap.data());
     });
-  }, []);
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (user && selectedLocker) {
+      getDoc(doc(db, "lockers", selectedLocker.firestoreId)).then(snap => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.itemLeftBehind && data.userId === user.uid && data.sessionEnd) {
+            const now = Date.now();
+            const msDiff = now - data.sessionEnd;
+            if (msDiff > 0) {
+              setLeftBehindTime(msDiff);
+              const hoursLeftBehind = msDiff / (1000 * 60 * 60);
+              const rate = selectedLocker.price || 70;
+              setLeftBehindPenalty(Math.ceil(hoursLeftBehind * rate));
+            }
+          }
+        }
+      });
+    }
+  }, [user, selectedLocker]);
 
   const calculateSubtotal = () => {
     if (!selectedLocker) return 0;
     const rate = selectedLocker.price || 70;
     const planStr = duration === 0.5 ? "30min" : `${duration}hr`;
     
+    let baseRate = rate * duration;
     if (pricing && pricing[planStr] && pricing._surgeActive) {
-      return pricing[planStr];
+      baseRate = pricing[planStr];
     }
-    return rate * duration;
+    
+    return baseRate + leftBehindPenalty;
   };
 
   const subtotal = calculateSubtotal();
@@ -104,18 +128,19 @@ function BookingConfirmInner() {
           throw new Error("Locker is already taken.");
         }
 
-        transaction.set(lockerDocRef, {
-          status: 'ACTIVE',
-          userId: user.uid,
-          userName: user.name,
-          startTime: null,
-          lastUpdated: Date.now(),
-          duration: duration * 60 * 60 * 1000,
-          sessionEnd: null,
-          currentPin: pinHash, 
-          encryptedPin: pinEncrypted,
-          bookingId: bookingId
-        }, { merge: true });
+          transaction.set(lockerDocRef, {
+            status: 'ACTIVE',
+            userId: user.uid,
+            userName: user.name,
+            startTime: null,
+            lastUpdated: Date.now(),
+            duration: duration * 60 * 60 * 1000,
+            sessionEnd: null,
+            currentPin: pinHash, 
+            encryptedPin: pinEncrypted,
+            bookingId: bookingId,
+            itemLeftBehind: false // Clear left-behind state
+          }, { merge: true });
 
         const bookingRef = doc(collection(db, "bookings"), bookingId);
         transaction.set(bookingRef, {
@@ -289,8 +314,15 @@ function BookingConfirmInner() {
           <div className="space-y-4 mb-8">
             <div className="flex justify-between text-xs font-bold uppercase tracking-wide">
               <span className="text-gray-600">Locker Rental ({duration}h)</span>
-              <span className="text-white">₹{subtotal.toFixed(2)}</span>
+              <span className="text-white">₹{(subtotal - leftBehindPenalty).toFixed(2)}</span>
             </div>
+
+            {leftBehindPenalty > 0 && (
+              <div className="flex justify-between text-xs font-bold uppercase tracking-wide text-amber-500">
+                <span className="">Unpaid Duration (Item Left)</span>
+                <span className="">+₹{leftBehindPenalty.toFixed(2)}</span>
+              </div>
+            )}
             
             <div className={`p-4 rounded-xl border transition-all ${
               useCredits ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/2 border-white/5'
