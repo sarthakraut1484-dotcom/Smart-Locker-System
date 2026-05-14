@@ -1182,6 +1182,13 @@ void calibrateUltrasonic() {
 void updateUltrasonic() {
   if (millis() - lastUltrasonicUpdate >= ULTRASONIC_INTERVAL) {
     lastUltrasonicUpdate = millis();
+    
+    // The sensor readings are meaningless if the door is open (it will read the room/user)
+    if (doorCurrentlyOpen) {
+      detectionCount = 0; // Reset debounce so it starts fresh when closed
+      return; 
+    }
+    
     digitalWrite(TRIG_PIN, LOW);
     delayMicroseconds(2);
     digitalWrite(TRIG_PIN, HIGH);
