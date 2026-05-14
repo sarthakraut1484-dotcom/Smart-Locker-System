@@ -1192,6 +1192,13 @@ void updateUltrasonic() {
     if (duration > 0) {
       float distance = duration * 0.034 / 2.0;
       
+      // Ignore impossible readings (multipath noise inside a box)
+      // Assuming the locker is definitely less than 150cm deep
+      if (distance > 150.0) {
+        Serial.printf("[ULTRASONIC] Ignored noisy reading: %.1f cm\n", distance);
+        return; // Skip this reading
+      }
+      
       // Self-healing calibration: If we consistently read a distance LARGER than emptyDistance,
       // it means we booted up with an item inside. Let's fix the baseline.
       static int healingCount = 0;
@@ -1211,10 +1218,14 @@ void updateUltrasonic() {
       
       Serial.printf("[ULTRASONIC] Dist: %.1f cm | Base: %.1f cm | Present: %s\n", distance, emptyDistance, isPresent ? "YES" : "NO");
       
-      // Debounce logic: require 2 consecutive matching reads to change state
+      // Asymmetric Debounce logic: 
+      // It's easy to accidentally miss the object due to bad angles. 
+      // We require 2 reads to detect, but 5 reads (5 seconds) to declare it empty.
       if (isPresent != itemPresent) {
         detectionCount++;
-        if (detectionCount >= 2) {
+        int threshold = itemPresent ? 5 : 2; 
+        
+        if (detectionCount >= threshold) {
           itemPresent = isPresent;
           detectionCount = 0;
           Serial.print("[ULTRASONIC] State officially changed to: ");
