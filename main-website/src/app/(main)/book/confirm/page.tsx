@@ -23,6 +23,20 @@ import { ref, update } from 'firebase/database';
 import { encryptData, hashPIN } from '@/lib/crypto';
 import { syncHardwareAction } from '@/app/actions/syncHardware';
 
+const loadScript = (src: string) => {
+  return new Promise((resolve) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 // Inner component that uses useSearchParams (must be inside Suspense)
 function BookingConfirmInner() {
   const router = useRouter();
@@ -107,7 +121,7 @@ function BookingConfirmInner() {
   const creditDiscount = useCredits ? Math.min((user?.credits || 0) / 10, subtotal) : 0;
   const total = subtotal - creditDiscount;
 
-  const handleBooking = async () => {
+  const processBookingSuccess = async (paymentId?: string) => {
     if (!user || !selectedLocker) return;
     setLoading(true);
     console.log("[Booking] Initializing for Locker:", selectedLocker.id);
@@ -154,7 +168,8 @@ function BookingConfirmInner() {
           status: 'PAID',
           createdAt: Date.now(),
           pin: pinHash,
-          encryptedPin: pinEncrypted
+          encryptedPin: pinEncrypted,
+          paymentId: paymentId || null
         });
 
         if (useCredits && (user?.credits || 0) > 0) {
@@ -185,7 +200,100 @@ function BookingConfirmInner() {
     } catch (err: any) {
       console.error("[Booking Error]", err);
       alert(err.message || "Booking failed. Please try again.");
-    } finally {
+      setLoading(false); // Only stop loading if failed, on success it will transition
+    } 
+  };
+
+  const handlePayment = async () => {
+    if (!user || !selectedLocker) return;
+    
+    if (total <= 0) {
+      // Free or covered entirely by credits
+      await processBookingSuccess();
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const res = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+      
+      if (!res) {
+        alert('Razorpay SDK failed to load. Are you online?');
+        setLoading(false);
+        return;
+      }
+
+      // Create order
+      const orderRes = await fetch('/api/razorpay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: total })
+      });
+      
+      if (!orderRes.ok) {
+        throw new Error('Failed to create payment order');
+      }
+      
+      const orderData = await orderRes.json();
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '', // Needs to be set in env
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Smart Locker System',
+        description: `Locker Booking: ${selectedLocker.id}`,
+        order_id: orderData.id,
+        handler: async function (response: any) {
+          try {
+            // Verify payment on backend
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            if (!verifyRes.ok) {
+              const errData = await verifyRes.json();
+              throw new Error(errData.error || 'Payment verification failed');
+            }
+
+            // Payment succeeded and verified, finalize booking
+            await processBookingSuccess(response.razorpay_payment_id);
+          } catch (error: any) {
+            alert(`Payment verification failed: ${error.message}`);
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: user.name,
+          email: user.email || '',
+        },
+        theme: {
+          color: '#6366f1' // Primary color matching UI
+        },
+        modal: {
+          ondismiss: function() {
+            setLoading(false);
+          }
+        }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.on('payment.failed', function (response: any) {
+        alert(`Payment failed: ${response.error.description}`);
+        setLoading(false);
+      });
+      
+      paymentObject.open();
+      
+    } catch (error: any) {
+      console.error("[Payment Init Error]", error);
+      alert(error.message || 'Payment initialization failed');
       setLoading(false);
     }
   };
@@ -354,7 +462,7 @@ function BookingConfirmInner() {
                 <span className="text-4xl font-black text-white font-outfit tracking-tighter leading-none">₹{total.toFixed(2)}</span>
               </div>
               <button 
-                onClick={handleBooking}
+                onClick={handlePayment}
                 disabled={loading}
                 className="bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(99,102,241,0.3)] flex items-center justify-center gap-3 disabled:opacity-50 group"
               >
