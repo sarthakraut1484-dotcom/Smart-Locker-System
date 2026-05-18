@@ -38,11 +38,11 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), payment=()',
+            value: 'camera=(), microphone=(), geolocation=()', // Removed payment=() to allow Razorpay Payment Request API if needed
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebaseapp.com https://*.firebasedatabase.app https://*.asia-southeast1.firebasedatabase.app https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.asia-southeast1.firebasedatabase.app https://firestore.googleapis.com https://*.googleapis.com wss://*.firebaseio.com wss://*.firebasedatabase.app wss://*.asia-southeast1.firebasedatabase.app https://*.firebaseapp.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; frame-src 'self' https://asep-smart-locker.firebaseapp.com https://*.firebaseapp.com; frame-ancestors 'self';",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://*.firebaseapp.com https://*.firebasedatabase.app https://*.asia-southeast1.firebasedatabase.app https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com https://checkout.razorpay.com; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://*.asia-southeast1.firebasedatabase.app https://firestore.googleapis.com https://*.googleapis.com wss://*.firebaseio.com wss://*.firebasedatabase.app wss://*.asia-southeast1.firebasedatabase.app https://*.firebaseapp.com https://api.razorpay.com https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; frame-src 'self' https://asep-smart-locker.firebaseapp.com https://*.firebaseapp.com https://api.razorpay.com https://checkout.razorpay.com; frame-ancestors 'self';",
           },
           {
             key: 'X-XSS-Protection',
