@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -23,19 +24,6 @@ import { ref, update } from 'firebase/database';
 import { encryptData, hashPIN } from '@/lib/crypto';
 import { syncHardwareAction } from '@/app/actions/syncHardware';
 
-const loadScript = (src: string) => {
-  return new Promise((resolve) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve(true);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
 
 // Inner component that uses useSearchParams (must be inside Suspense)
 function BookingConfirmInner() {
@@ -216,10 +204,9 @@ function BookingConfirmInner() {
     setLoading(true);
     
     try {
-      const res = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
-      
-      if (!res) {
-        alert('Razorpay SDK failed to load. Are you online?');
+      // Check if Razorpay SDK is loaded (loaded via Script component at page level)
+      if (!(window as any).Razorpay) {
+        alert('Razorpay is not available. Please disable any ad blockers and refresh the page.');
         setLoading(false);
         return;
       }
@@ -500,12 +487,20 @@ function BookingConfirmInner() {
 // Wrap in Suspense — required because useSearchParams() needs it during SSR
 export default function BookingConfirmPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
-      </div>
-    }>
-      <BookingConfirmInner />
-    </Suspense>
+    <>
+      {/* Load Razorpay checkout script at page level for reliability */}
+      <Script
+        id="razorpay-checkout-js"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+      />
+      <Suspense fallback={
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        </div>
+      }>
+        <BookingConfirmInner />
+      </Suspense>
+    </>
   );
 }
