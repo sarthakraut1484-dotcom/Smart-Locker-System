@@ -284,11 +284,6 @@ function BookingConfirmInner() {
       };
 
       const paymentObject = new (window as any).Razorpay(options);
-      paymentObject.on('payment.failed', function (response: any) {
-        alert(`Payment failed: ${response.error.description}`);
-        setLoading(false);
-      });
-      
       paymentObject.open();
       
     } catch (error: any) {
