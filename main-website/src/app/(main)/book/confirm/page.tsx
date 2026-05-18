@@ -232,7 +232,15 @@ function BookingConfirmInner() {
       });
       
       if (!orderRes.ok) {
-        throw new Error('Failed to create payment order');
+        const errText = await orderRes.text();
+        let errMsg = 'Failed to create payment order';
+        try {
+          const errData = JSON.parse(errText);
+          if (errData.error) errMsg = `Server Error: ${errData.error}`;
+        } catch(e) {
+          errMsg = `Server Error ${orderRes.status}: ${errText.substring(0, 50)}`;
+        }
+        throw new Error(errMsg);
       }
       
       const orderData = await orderRes.json();
