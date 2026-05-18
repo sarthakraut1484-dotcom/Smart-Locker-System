@@ -28,8 +28,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(order, { status: 200 });
   } catch (error: any) {
     console.error('Razorpay Order Creation Error:', error);
+    
+    // Razorpay SDK often returns errors in error.error.description
+    const errorDetail = error?.error?.description || error?.message || JSON.stringify(error);
+    
     return NextResponse.json(
-      { error: error.message || 'Something went wrong while creating order' },
+      { error: errorDetail || 'Something went wrong while creating order' },
       { status: 500 }
     );
   }
