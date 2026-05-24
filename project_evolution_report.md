@@ -100,5 +100,27 @@ The system features a **SHA-256 Chained Hashing Layer** directly within the lock
 
 ---
 
+## 8. System Performance & Load Testing (JMeter)
+
+To ensure the backend infrastructure can sustain intensive concurrent operations—such as multiple ESP32 hardware units performing status queries and concurrent user checkouts—we conducted a high-concurrency performance benchmark.
+
+### **A. JMeter Test Plan Specifications**
+- **Target Backend Service**: Firebase Realtime Database (RTDB)
+- **Target Location**: `asep-smart-locker-default-rtdb.asia-southeast1.firebasedatabase.app`
+- **Tested API Endpoint**: `/lockers/1.json` (GET request to monitor real-time state and telemetry metadata of Locker Unit #1)
+- **Security Protocol**: HTTPS (Secure Port 443)
+
+### **B. Concurrency Load Profile**
+- **Simultaneous Threads (Virtual Users)**: **500 concurrent threads**
+- **Ramp-Up Time**: **1 second** (Simulating an instantaneous high-density surge of users/hardware units joining the network simultaneously)
+- **Loop Count**: **10 iterations per thread**
+- **Total Test Request Volume**: **5,000 requests**
+- **Telemetry Listeners**: Integrated *View Results Tree* and *Summary Report* collectors for full throughput, latency distribution, and error rate analysis.
+
+### **C. Strategic Goal**
+Verify that Firebase RTDB's event loop and the application's synchronization handlers do not experience socket connection drops, query queuing delays, or request failures when subject to sudden spikes in usage, maintaining robust, sub-second solenoid state synchronization under load.
+
+---
+
 > [!NOTE]
 > This ecosystem represents a complete integration of hardware engineering, cloud scalability, and business-focused analytics.
