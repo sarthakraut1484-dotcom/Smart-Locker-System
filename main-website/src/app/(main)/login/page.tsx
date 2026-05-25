@@ -54,7 +54,7 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-6 py-8 overflow-y-auto">
+    <div className="min-h-[80vh] flex items-center justify-center px-6 py-8 relative z-10">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -70,7 +70,18 @@ export default function LoginPage() {
             <p className="text-slate-400 text-[15px] font-medium">Please enter your details to sign in.</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4 relative z-10">
+          <button onClick={handleGoogleLogin} className="w-full bg-white/5 border border-white/10 text-white py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition-all mb-6 font-semibold text-sm relative z-10">
+            <GoogleIcon /> Sign in with Google
+          </button>
+
+          <div className="relative mb-6 relative z-10">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+            <div className="relative flex justify-center text-[13px] font-medium leading-none">
+              <span className="bg-[#0f0f0f] px-4 text-slate-500">or continue with</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4 relative z-10 mb-8">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-white ml-1">Email Address</label>
               <div className="relative group">
@@ -102,18 +113,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="relative my-8 relative z-10">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-            <div className="relative flex justify-center text-[13px] font-medium leading-none">
-              <span className="bg-[#0f0f0f] px-4 text-slate-500">or continue with</span>
-            </div>
-          </div>
-
-          <button onClick={handleGoogleLogin} className="w-full bg-white/5 border border-white/10 text-white py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-white/10 transition-all mb-8 font-semibold text-sm">
-            <GoogleIcon /> Sign in with Google
-          </button>
-
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-4 relative z-10">
              <p className="text-sm text-slate-400 font-medium">
                Don't have an account? <Link href="/signup" className="text-indigo-400 hover:text-indigo-300 font-bold ml-1">Sign up</Link>
              </p>

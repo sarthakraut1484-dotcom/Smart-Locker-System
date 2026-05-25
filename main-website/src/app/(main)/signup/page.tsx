@@ -76,7 +76,7 @@ export default function SignupPage() {
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-6 py-10 overflow-y-auto">
+    <div className="min-h-[85vh] flex items-center justify-center px-6 py-10 relative z-10">
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="w-full max-w-[440px] my-auto">
         <div className="bg-[#0f0f0f]/95 backdrop-blur-3xl rounded-[24px] p-10 border border-white/10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] relative overflow-hidden ring-1 ring-white/5">
           
