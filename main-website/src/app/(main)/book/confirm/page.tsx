@@ -195,12 +195,6 @@ function BookingConfirmInner() {
   const handlePayment = async () => {
     if (!user || !selectedLocker) return;
     
-    // TESTING MODE: Payment Gateway is temporarily disabled for testing.
-    // Directly process booking success with a mock payment ID.
-    console.log("[Testing Mode] Payment gateway bypassed. Processing booking...");
-    await processBookingSuccess("test_payment_" + Date.now());
-    return;
-
     if (total <= 0) {
       // Free or covered entirely by credits
       await processBookingSuccess();
@@ -411,15 +405,6 @@ function BookingConfirmInner() {
 
         {/* Section 3: Summary & Pay */}
         <div className="p-8 bg-linear-to-b from-transparent to-white/[0.02]">
-          {/* Temporary Test Mode Warning */}
-          <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-            <div>
-              <div className="text-xs font-bold text-amber-400 uppercase tracking-wider">Testing Mode Active</div>
-              <div className="text-[10px] text-amber-500/80 font-medium mt-0.5 leading-normal">Payment gateway is temporarily disabled. Checkout will bypass payment and succeed instantly.</div>
-            </div>
-          </div>
-
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-primary" /> Order Summary
           </h3>
