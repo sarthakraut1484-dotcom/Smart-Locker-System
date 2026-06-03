@@ -195,11 +195,6 @@ function BookingConfirmInner() {
   const handlePayment = async () => {
     if (!user || !selectedLocker) return;
     
-    // TEMPORARY: Bypass payment for testing
-    console.log("[Payment] Bypassing Razorpay payment gateway for testing");
-    await processBookingSuccess("test_payment_bypass");
-    return;
-
     if (total <= 0) {
       // Free or covered entirely by credits
       await processBookingSuccess();
