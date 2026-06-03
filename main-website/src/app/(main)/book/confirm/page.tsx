@@ -195,95 +195,15 @@ function BookingConfirmInner() {
   const handlePayment = async () => {
     if (!user || !selectedLocker) return;
     
-    if (total <= 0) {
-      // Free or covered entirely by credits
-      await processBookingSuccess();
-      return;
-    }
-
     setLoading(true);
     
     try {
-      // Check if Razorpay SDK is loaded (loaded via Script component at page level)
-      if (!(window as any).Razorpay) {
-        alert('Razorpay is not available. Please disable any ad blockers and refresh the page.');
-        setLoading(false);
-        return;
-      }
-
-      // Create order
-      const orderRes = await fetch('/api/razorpay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: total })
-      });
-      
-      if (!orderRes.ok) {
-        const errText = await orderRes.text();
-        let errMsg = 'Failed to create payment order';
-        try {
-          const errData = JSON.parse(errText);
-          if (errData.error) errMsg = `Server Error: ${errData.error}`;
-        } catch(e) {
-          errMsg = `Server Error ${orderRes.status}: ${errText.substring(0, 50)}`;
-        }
-        throw new Error(errMsg);
-      }
-      
-      const orderData = await orderRes.json();
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '', // Needs to be set in env
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'Smart Locker System',
-        description: `Locker Booking: ${selectedLocker.id}`,
-        order_id: orderData.id,
-        handler: async function (response: any) {
-          try {
-            // Verify payment on backend
-            const verifyRes = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature
-              })
-            });
-
-            if (!verifyRes.ok) {
-              const errData = await verifyRes.json();
-              throw new Error(errData.error || 'Payment verification failed');
-            }
-
-            // Payment succeeded and verified, finalize booking
-            await processBookingSuccess(response.razorpay_payment_id);
-          } catch (error: any) {
-            alert(`Payment verification failed: ${error.message}`);
-            setLoading(false);
-          }
-        },
-        prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-        },
-        theme: {
-          color: '#6366f1' // Primary color matching UI
-        },
-        modal: {
-          ondismiss: function() {
-            setLoading(false);
-          }
-        }
-      };
-
-      const paymentObject = new (window as any).Razorpay(options);
-      paymentObject.open();
-      
+      // Payment gateway is temporarily disabled (bypassed). Automatically approve booking.
+      console.log("[Payment Gateway] Temporarily disabled/bypassed. Auto-approving booking.");
+      await processBookingSuccess(`pay_bypass_${Date.now()}`);
     } catch (error: any) {
-      console.error("[Payment Init Error]", error);
-      alert(error.message || 'Payment initialization failed');
+      console.error("[Payment Init/Bypass Error]", error);
+      alert(error.message || 'Payment processing failed');
       setLoading(false);
     }
   };
@@ -405,6 +325,21 @@ function BookingConfirmInner() {
 
         {/* Section 3: Summary & Pay */}
         <div className="p-8 bg-linear-to-b from-transparent to-white/[0.02]">
+          {/* Demo/Bypass Notice */}
+          <div className="p-4 mb-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-amber-400 uppercase tracking-widest leading-none mb-1">
+                Payment Gateway Disabled
+              </div>
+              <div className="text-[10px] text-gray-400 font-medium leading-tight">
+                Razorpay is temporarily bypassed. Click Checkout below to reserve for free.
+              </div>
+            </div>
+          </div>
+
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-primary" /> Order Summary
           </h3>
