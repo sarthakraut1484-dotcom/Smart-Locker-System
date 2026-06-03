@@ -1172,8 +1172,16 @@ void calibrateUltrasonic() {
   if (validReadings > 0) {
     emptyDistance = (sum / validReadings) * 0.034 / 2.0;
   } else {
-    emptyDistance = 40.0; // fallback default cm
+    emptyDistance = 15.0; // safe fallback default cm
   }
+
+  // If emptyDistance is too large (e.g. door was open during boot),
+  // cap it to a realistic closed-empty distance so self-healing can adjust it upwards when closed.
+  if (emptyDistance > 22.0) {
+    Serial.println("[ULTRASONIC] Calibrated distance too large (door open?). Capping to default 15.0 cm for closed auto-healing.");
+    emptyDistance = 15.0;
+  }
+
   Serial.print("[ULTRASONIC] Empty distance set to: ");
   Serial.print(emptyDistance);
   Serial.println(" cm");
@@ -1215,7 +1223,7 @@ void updateUltrasonic() {
       // Self-healing calibration: If we consistently read a distance LARGER than emptyDistance,
       // it means we booted up with an item inside. Let's fix the baseline.
       static int healingCount = 0;
-      if (distance > emptyDistance + 5.0) {
+      if (distance > emptyDistance + 2.0) {
         healingCount++;
         if (healingCount > 5) { // 5 seconds of larger distance
           emptyDistance = distance;
