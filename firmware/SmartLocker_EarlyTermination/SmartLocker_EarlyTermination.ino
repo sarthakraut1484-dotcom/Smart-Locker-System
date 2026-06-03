@@ -1206,6 +1206,12 @@ void updateUltrasonic() {
         return; // Skip this reading
       }
       
+      // Auto-calibration: If locker is empty/available and the door is closed,
+      // we update emptyDistance to the current distance reading.
+      if (currentBackendStatus == "AVAILABLE") {
+        emptyDistance = (emptyDistance * 0.9) + (distance * 0.1);
+      }
+
       // Self-healing calibration: If we consistently read a distance LARGER than emptyDistance,
       // it means we booted up with an item inside. Let's fix the baseline.
       static int healingCount = 0;
@@ -1222,6 +1228,11 @@ void updateUltrasonic() {
       
       // Threshold lowered to 3.0 cm for thinner items (books, laptops, etc.)
       bool isPresent = (distance < emptyDistance - 3.0 && distance > 1.0);
+      
+      // If the locker is AVAILABLE (not booked), it cannot contain a valid user item.
+      if (currentBackendStatus == "AVAILABLE") {
+        isPresent = false;
+      }
       
       Serial.printf("[ULTRASONIC] Dist: %.1f cm | Base: %.1f cm | Present: %s\n", distance, emptyDistance, isPresent ? "YES" : "NO");
       

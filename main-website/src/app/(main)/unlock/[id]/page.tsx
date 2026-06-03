@@ -460,11 +460,23 @@ export default function UnlockPage() {
                   )}
 
                   {/* Item Status */}
-                  <div className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all ${
-                    itemPresent 
-                      ? 'bg-blue-500/10 border-blue-500/30' 
-                      : 'bg-white/5 border-white/10'
-                  }`}>
+                  <div 
+                    onClick={async () => {
+                      try {
+                        const lockerRef = ref(rtdb, lockerId);
+                        await update(lockerRef, { itemPresent: !itemPresent });
+                        console.log("[DEBUG] Manually toggled itemPresent to:", !itemPresent);
+                      } catch (err) {
+                        console.error("[DEBUG] Failed to toggle itemPresent:", err);
+                      }
+                    }}
+                    title="Click to manually toggle (Debug Override)"
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer hover:bg-white/10 ${
+                      itemPresent 
+                        ? 'bg-blue-500/10 border-blue-500/30' 
+                        : 'bg-white/5 border-white/10'
+                    }`}
+                  >
                     {itemPresent 
                       ? <PackageCheck className="w-3.5 h-3.5 text-blue-400" />
                       : <Box className="w-3.5 h-3.5 text-gray-500" />
