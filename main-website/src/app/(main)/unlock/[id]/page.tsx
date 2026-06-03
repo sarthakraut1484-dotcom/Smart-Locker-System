@@ -176,6 +176,9 @@ export default function UnlockPage() {
             currentPin: null,
             encryptedPin: null,
             unlockCount: 0,
+            itemPresent: false,
+            doorStatus: 'CLOSED',
+            doorOpenDuration: 0,
             lastUpdated: Date.now()
           }).catch(err => console.error('[HW-SYNC] Firestore bridge failed:', err));
 

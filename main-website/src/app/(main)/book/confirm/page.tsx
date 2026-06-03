@@ -141,7 +141,10 @@ function BookingConfirmInner() {
             currentPin: pinHash, 
             encryptedPin: pinEncrypted,
             bookingId: bookingId,
-            itemLeftBehind: false // Clear left-behind state
+            itemLeftBehind: false, // Clear left-behind state
+            itemPresent: false, // Reset item detection
+            doorStatus: 'CLOSED', // Reset door status
+            doorOpenDuration: 0 // Reset door open duration
           }, { merge: true });
 
         const bookingRef = doc(collection(db, "bookings"), bookingId);
@@ -178,7 +181,10 @@ function BookingConfirmInner() {
         sessionEnd: 0,
         startTime: 0,
         duration: duration * 60 * 60 * 1000,
-        unlockCount: 0
+        unlockCount: 0,
+        itemPresent: false,
+        doorStatus: "CLOSED",
+        doorOpenDuration: 0
       });
 
       // Instant transition

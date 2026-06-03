@@ -864,7 +864,7 @@ void terminateSession() {
      HTTPClient http;
      http.setReuse(true);
      String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-     String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0}";
+     String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0,\"itemPresent\":false,\"doorStatus\":\"CLOSED\",\"doorOpenDuration\":0}";
      
      http.begin(wifiClient, url);
      http.sendRequest("PATCH", json);
@@ -1012,7 +1012,7 @@ void checkSessionExpiration() {
        HTTPClient http;
        http.setReuse(true);
        String url = "https://" + String(FIREBASE_HOST) + "/" + String(LOCKER_ID) + ".json?auth=" + String(FIREBASE_SECRET);
-       String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0}";
+       String json = "{\"status\":\"AVAILABLE\",\"pin\":\"\",\"startTime\":0,\"sessionEnd\":0,\"duration\":0,\"unlockCount\":0,\"itemPresent\":false,\"doorStatus\":\"CLOSED\",\"doorOpenDuration\":0}";
        http.begin(wifiClient, url);
        http.sendRequest("PATCH", json);
        http.end();
