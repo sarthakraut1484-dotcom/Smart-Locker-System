@@ -207,6 +207,13 @@ function BookingConfirmInner() {
       return;
     }
 
+    // Check if bypass payment is enabled for testing
+    if (process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true') {
+      console.log("[Payment Bypass] Bypassing Razorpay payment gateway for testing");
+      await processBookingSuccess(`test_bypass_${Date.now()}`);
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -415,6 +422,14 @@ function BookingConfirmInner() {
             <CreditCard className="w-4 h-4 text-primary" /> Order Summary
           </h3>
           
+          {process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true' && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center mb-4">
+              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 animate-pulse">
+                <Zap className="w-3.5 h-3.5 fill-amber-400" /> Payment Gateway Paused (Bypass Active)
+              </span>
+            </div>
+          )}
+          
           <div className="space-y-4 mb-8">
             <div className="flex justify-between text-xs font-bold uppercase tracking-wide">
               <span className="text-gray-600">Locker Rental ({duration}h)</span>
@@ -460,13 +475,17 @@ function BookingConfirmInner() {
               <button 
                 onClick={handlePayment}
                 disabled={loading}
-                className="bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(99,102,241,0.3)] flex items-center justify-center gap-3 disabled:opacity-50 group"
+                className={process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true'
+                  ? "bg-amber-500 hover:bg-amber-600 text-black px-10 py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(245,158,11,0.3)] flex items-center justify-center gap-3 disabled:opacity-50 group"
+                  : "bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(99,102,241,0.3)] flex items-center justify-center gap-3 disabled:opacity-50 group"
+                }
               >
                 {loading ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    Checkout <Zap className="w-4 h-4 fill-white group-hover:scale-125 transition-transform" />
+                    {process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true' ? 'Bypass & Book' : 'Checkout'} 
+                    <Zap className={`w-4 h-4 group-hover:scale-125 transition-transform ${process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true' ? 'fill-black' : 'fill-white'}`} />
                   </>
                 )}
               </button>
