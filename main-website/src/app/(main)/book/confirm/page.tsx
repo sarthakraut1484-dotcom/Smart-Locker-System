@@ -32,6 +32,8 @@ function BookingConfirmInner() {
   const { user, initAuth } = useAuthStore();
   const { cleanupExpiredLocker } = useLockerStore();
 
+  const isBypassActive = process.env.NEXT_PUBLIC_BYPASS_PAYMENT !== 'false' || searchParams.get('bypass') === 'true';
+
   const [selectedLocker, setSelectedLocker] = useState<any>(null);
   const [duration, setDuration] = useState(1); // Hours
   const [useCredits, setUseCredits] = useState(false);
@@ -208,7 +210,7 @@ function BookingConfirmInner() {
     }
 
     // Check if bypass payment is enabled for testing
-    if (process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true') {
+    if (isBypassActive) {
       console.log("[Payment Bypass] Bypassing Razorpay payment gateway for testing");
       await processBookingSuccess(`test_bypass_${Date.now()}`);
       return;
@@ -422,7 +424,7 @@ function BookingConfirmInner() {
             <CreditCard className="w-4 h-4 text-primary" /> Order Summary
           </h3>
           
-          {process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true' && (
+          {isBypassActive && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center mb-4">
               <span className="text-[10px] text-amber-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 animate-pulse">
                 <Zap className="w-3.5 h-3.5 fill-amber-400" /> Payment Gateway Paused (Bypass Active)
@@ -475,7 +477,7 @@ function BookingConfirmInner() {
               <button 
                 onClick={handlePayment}
                 disabled={loading}
-                className={process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true'
+                className={isBypassActive
                   ? "bg-amber-500 hover:bg-amber-600 text-black px-10 py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(245,158,11,0.3)] flex items-center justify-center gap-3 disabled:opacity-50 group"
                   : "bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(99,102,241,0.3)] flex items-center justify-center gap-3 disabled:opacity-50 group"
                 }
@@ -484,8 +486,8 @@ function BookingConfirmInner() {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    {process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true' ? 'Bypass & Book' : 'Checkout'} 
-                    <Zap className={`w-4 h-4 group-hover:scale-125 transition-transform ${process.env.NEXT_PUBLIC_BYPASS_PAYMENT === 'true' ? 'fill-black' : 'fill-white'}`} />
+                    {isBypassActive ? 'Bypass & Book' : 'Checkout'} 
+                    <Zap className={`w-4 h-4 group-hover:scale-125 transition-transform ${isBypassActive ? 'fill-black' : 'fill-white'}`} />
                   </>
                 )}
               </button>
