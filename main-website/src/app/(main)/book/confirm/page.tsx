@@ -32,7 +32,7 @@ function BookingConfirmInner() {
   const { user, initAuth } = useAuthStore();
   const { cleanupExpiredLocker } = useLockerStore();
 
-  const isBypassActive = process.env.NEXT_PUBLIC_BYPASS_PAYMENT !== 'false' || searchParams.get('bypass') === 'true';
+  const isBypassActive = true; // Temporarily disabled payment gateway for testing (original: process.env.NEXT_PUBLIC_BYPASS_PAYMENT !== 'false' || searchParams.get('bypass') === 'true')
 
   const [selectedLocker, setSelectedLocker] = useState<any>(null);
   const [duration, setDuration] = useState(1); // Hours
